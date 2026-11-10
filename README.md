@@ -1,14 +1,34 @@
+<p align="center"><img src="docs/logo.png" width="128" alt="Pulse Monitor"></p>
+
 # Pulse Monitor
 
-Version actuelle : **v0.6.3** (numéro dans `APP_VERSION` en haut de `pulse_monitor.py`).
+Version actuelle : **v0.6.15** (numéro dans `APP_VERSION` en haut de `pulse_monitor.py`).
 
 Tableau de bord simple et léger des performances du PC (façon Gestionnaire des tâches), fiche des composants et conseils en direct pour réduire les charges.
+
+## Aperçu
+
+![Performances](docs/performances.png)
+
+| Composants | Stockage |
+|---|---|
+| ![Composants](docs/composants.png) | ![Stockage](docs/stockage.png) |
+| **Analyse** | **Gaming** |
+| ![Analyse](docs/analyse.png) | ![Gaming](docs/gaming.png) |
 
 ## Lancer
 
 Double-clic sur **`Lancer Pulse Monitor.bat`**. Au premier lancement, il installe `psutil`, `pywebview`, `pystray` et `Pillow` (une fois pour toutes).
 
 Sans le .bat : `python pulse_monitor.py`
+
+### Créer l'installeur et la version portable
+
+Double-clic sur **`Creer l'exe.bat`**. Il installe les outils nécessaires (PyInstaller, et Inno Setup si besoin), puis crée dans le dossier `release` :
+- `Pulse-Monitor-vX-Setup.exe` : installeur (menu Démarrer, raccourci Bureau, désinstallation). Les données vont dans `%LOCALAPPDATA%\Pulse Monitor`.
+- `Pulse-Monitor-vX-portable.zip` : sans installation, les données restent dans le dossier.
+
+Ajoute les deux fichiers à une *release* GitHub. Les versions .exe ne se mettent pas à jour toutes seules : « Installer » ouvre la page de téléchargement de la dernière version.
 
 ## Ce qu'il affiche
 
@@ -33,7 +53,7 @@ Sans le .bat : `python pulse_monitor.py`
 - **Cloche 🔔** (en haut) : conseils en direct (CPU/RAM/VRAM/température/disque saturés, programme en cause, programmes au démarrage…). Point rouge qui pulse = quelque chose ne va pas. ✕ pour masquer un conseil (celui du démarrage revient si le nombre de programmes change). 
 - Boutons **Cartes : Repliées / Petites / Grandes** en haut de Performances.
 - Onglet **Stockage** (façon TreeSize) : analyse un disque, dossiers triés par taille (clic pour descendre), répartition par type de fichier, plus gros fichiers, bouton « Ouvrir dans l'Explorateur ». Résultats gardés dans `scans/`.
-- Onglet **Analyse** : **historique 24 h / 7 jours** (CPU, GPU + température, RAM, VRAM ; survol = valeurs + programme en cause ; 1 point/min dans `history/`, gardé 8 jours) et quel composant te limite.
+- Onglet **Analyse** : **historique 1 h / 6 h / 12 h / 24 h / 7 jours** (CPU, GPU + température, RAM, VRAM ; survol = valeurs + programme en cause ; 1 point/min dans `history/`, gardé 8 jours) et quel composant te limite.
 - **Santé des disques** : dans l'onglet Stockage (bandeau du disque choisi) et dans ≡ Détails d'un disque → état, température, durée de vie restante (SSD), heures, erreurs. Lecture via les droits administrateur (bouton, à la demande ; résultat gardé).
 - **Sessions de jeu** (onglet Gaming) : un jeu est reconnu en 10 à 30 s (dossier Steam/Epic/Battle.net… ou plein écran avec le GPU chargé). À la fin : résumé dans la cloche + ligne dans le tableau (durée, GPU/CPU moyenne/max, température, RAM/VRAM max, ce qui limitait). Gardé dans `games.json` (40 dernières). Désactivable.
 - **Fichiers temporaires** (onglet Stockage, sous les disques) : taille des fichiers temporaires Windows, mises à jour, caches des navigateurs/applis/shaders, miniatures, rapports de plantage, corbeille. Rien n'est supprimé : bouton pour ouvrir chaque dossier et le nettoyage de Windows.

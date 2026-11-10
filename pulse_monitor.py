@@ -24,20 +24,32 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import psutil
 
 APP_NAME = "Pulse Monitor"
-APP_VERSION = "0.6.3"
+APP_VERSION = "0.6.15"
 IS_WIN = os.name == "nt"
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-WEB_DIR = os.path.join(BASE_DIR, "web")
-SETTINGS_FILE = os.path.join(BASE_DIR, "settings.json")
-STATS_FILE = os.path.join(BASE_DIR, "stats.json")
-SCANS_DIR = os.path.join(BASE_DIR, "scans")
-HIST_DIR = os.path.join(BASE_DIR, "history")
-HEALTH_FILE = os.path.join(BASE_DIR, "scans", "health.json")
-GAMES_FILE = os.path.join(BASE_DIR, "games.json")
-GAMELIB_FILE = os.path.join(BASE_DIR, "games_lib.json")
+FROZEN = bool(getattr(sys, "frozen", False))      # version .exe (PyInstaller)
+# données (réglages, historique…) : à côté du .exe ou du script ; fichiers de l'appli (page, icônes) : dans le paquet
+BASE_DIR = os.path.dirname(os.path.abspath(sys.executable if FROZEN else __file__))
+RES_DIR = getattr(sys, "_MEIPASS", BASE_DIR)
+# données (réglages, historique, sessions…) : à côté du programme (script ou .exe portable),
+# ou dans %LOCALAPPDATA%\Pulse Monitor pour la version installée (on ne peut pas écrire dans Program Files)
+if FROZEN and not os.path.exists(os.path.join(BASE_DIR, "portable.txt")):
+    DATA_DIR = os.path.join(os.environ.get("LOCALAPPDATA") or os.path.expanduser("~"), "Pulse Monitor")
+else:
+    DATA_DIR = BASE_DIR
+os.makedirs(DATA_DIR, exist_ok=True)
+WEB_DIR = os.path.join(RES_DIR, "web")
+ICON_ICO = os.path.join(RES_DIR, "assets", "icon.ico")
+ICON_PNG = os.path.join(RES_DIR, "assets", "icon.png")
+SETTINGS_FILE = os.path.join(DATA_DIR, "settings.json")
+STATS_FILE = os.path.join(DATA_DIR, "stats.json")
+SCANS_DIR = os.path.join(DATA_DIR, "scans")
+HIST_DIR = os.path.join(DATA_DIR, "history")
+HEALTH_FILE = os.path.join(DATA_DIR, "scans", "health.json")
+GAMES_FILE = os.path.join(DATA_DIR, "games.json")
+GAMELIB_FILE = os.path.join(DATA_DIR, "games_lib.json")
 
 logging.basicConfig(
-    filename=os.path.join(BASE_DIR, "pulse_monitor.log"),
+    filename=os.path.join(DATA_DIR, "pulse_monitor.log"),
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
 )
@@ -431,8 +443,16 @@ class CounterReader(threading.Thread):
         while True:
             time.sleep(1)
             n += 1
-            if ui_idle() and (not (BG[0] or WIDGET_ON[0] or HIST_ON[0]) or n % 2):   # fenêtre fermée : toutes les 2 s si analyse, widget ou historique
-                continue
+            if ui_idle():
+                # fenêtre fermée : toutes les 2 s pour l'analyse ou le widget, toutes les 5 s pour l'historique / les jeux, sinon rien
+                if BG[0] or WIDGET_ON[0]:
+                    if n % 2:
+                        continue
+                elif HIST_ON[0] or GAMES_ON[0]:
+                    if n % 5:
+                        continue
+                else:
+                    continue
             try:
                 eng, mem, perf = pdh.read()
                 self._store(aggregate_gpu(eng), aggregate_mem(mem), perf, eng)
@@ -1183,9 +1203,15 @@ class Sampler(threading.Thread):
         psutil.cpu_percent(None, percpu=True)
         self.insights = Insights(self)
         n = 0
+        seen = None
         while True:
             time.sleep(1)
             n += 1
+            if not ui_idle():
+                # on ne mesure qu'au rythme où la page demande (1 s sur Performances, 2 s ailleurs)
+                if LAST_PING[0] == seen:
+                    continue
+                seen = LAST_PING[0]
             if ui_idle():
                 self._t_prev = None  # on repart proprement au retour
                 if BG[0] and n % 2 == 0:
@@ -1524,7 +1550,7 @@ def open_folder(path):
     if not IS_WIN:
         return False
     if path == "__data":                       # dossier de Pulse Monitor (réglages, historique, sessions…)
-        path = BASE_DIR
+        path = DATA_DIR
     if path in ("shell:RecycleBinFolder", "ms-settings:storagesense"):
         os.startfile(path)
         return True
@@ -1585,7 +1611,7 @@ def update_check():
         notes = (c[0]["commit"]["message"] if c else "")[:4000]
     except Exception:
         pass
-    return {"current": APP_VERSION, "latest": latest, "newer": _vtuple(latest) > _vtuple(APP_VERSION), "notes": notes,
+    return {"current": APP_VERSION, "latest": latest, "newer": _vtuple(latest) > _vtuple(APP_VERSION), "notes": notes, "exe": FROZEN,
             "zip": "https://api.github.com/repos/%s/zipball" % UPDATE_REPO}
 
 
@@ -1612,6 +1638,10 @@ def update_install():
     """Télécharge la dernière version, garde une copie de l'ancienne dans backup/, remplace les fichiers, relance l'appli."""
     if UPDATE_STATE["busy"]:
         return
+    if FROZEN:                     # version .exe : on ouvre la page de téléchargement de la dernière version
+        webbrowser.open("https://github.com/%s/releases/latest" % UPDATE_REPO)
+        UPDATE_STATE.update(busy=False, error=None, done=False, opened=True)
+        return
     UPDATE_STATE.update(busy=True, error=None, done=False)
 
     def job():
@@ -1631,7 +1661,7 @@ def update_install():
                 if len(parts) < 2 or not parts[1] or n.endswith("/"):
                     continue
                 rel = parts[1]
-                if ".." in rel.split("/") or rel.startswith((".git", "history/", "scans/", "backup/")) or rel in UPDATE_KEEP:
+                if ".." in rel.split("/") or rel.startswith((".git", "history/", "scans/", "backup/", "docs/")) or rel in UPDATE_KEEP:
                     continue
                 if not rel.lower().endswith(UPDATE_EXT):
                     continue
@@ -1654,10 +1684,7 @@ def update_install():
             log.info("Mise à jour installée : %s -> %s", APP_VERSION, info.get("latest"))
             UPDATE_STATE.update(done=True)
             time.sleep(1.5)                               # laisse la page afficher « redémarrage… »
-            exe = sys.executable
-            if IS_WIN and exe.lower().endswith("python.exe") and os.path.exists(exe[:-10] + "pythonw.exe"):
-                exe = exe[:-10] + "pythonw.exe"
-            subprocess.Popen([exe, os.path.join(BASE_DIR, "pulse_monitor.py"), "--wait-pid", str(os.getpid()), "--open"],
+            subprocess.Popen(self_cmd("--wait-pid", str(os.getpid()), "--open"),
                              cwd=BASE_DIR, creationflags=(0x00000008 | 0x00000200) if IS_WIN else 0)   # DETACHED + NEW_GROUP
             if QUIT_HOOK[0]:
                 QUIT_HOOK[0]()
@@ -2246,15 +2273,20 @@ class GameTracker:
             self.names[pid] = (name, exe)
         return self.names[pid]
 
-    @staticmethod
-    def _running_names():
-        """Noms (en minuscules) des programmes ouverts -> nom d'origine."""
-        out = {}
-        for p in psutil.process_iter(["name"]):
-            n = p.info.get("name") or ""
-            if n:
-                out.setdefault(n.lower(), n)
-        return out
+    SCAN_S = 15        # liste complète des programmes ouverts : au plus toutes les 15 s (coûteuse)
+
+    def _running_names(self, force=False):
+        """Noms (en minuscules) des programmes ouverts -> (nom d'origine, pids). Mis en cache 15 s."""
+        now = time.time()
+        if force or now - getattr(self, "_run_t", 0) >= self.SCAN_S:
+            out = {}
+            for p in psutil.process_iter(["name"]):
+                n = p.info.get("name") or ""
+                if n:
+                    e = out.setdefault(n.lower(), [n, set()])
+                    e[1].add(p.pid)
+            self._run, self._run_t = out, now
+        return self._run
 
     def _is_game(self, pid, full, gpu_pid):
         if not pid or pid == os.getpid() or pid == getattr(self.s.selfuse, "window_pid", None):
@@ -2280,13 +2312,18 @@ class GameTracker:
 
     def _tick(self, m, dt):
         luid = m.get("luid")
-        by = self.s.counters.gpu_by_pid(luid) if luid else {}
+        by = None
         now = time.time()
         need = self.curs or self.ignore or self.cand or GAMELIB.manual
         running = self._running_names() if need else {}
         # 1) sessions en cours : on ajoute la mesure, on termine celles dont le programme est fermé (tous ses processus)
         for key, c in list(self.curs.items()):
-            if key not in running:
+            pids = c.setdefault("pids", set(running.get(key, ("", set()))[1]))
+            pids &= {p for p in pids if psutil.pid_exists(p)}          # vérification légère des processus connus
+            if not pids:                                                # plus aucun : on revérifie la liste complète
+                running = self._running_names(force=True)
+                pids |= running.get(key, ("", set()))[1]
+            if not pids:
                 self._end(key, now)
                 continue
             c["n"] += 1
@@ -2315,21 +2352,27 @@ class GameTracker:
         if pid:
             name, exe = self._info(pid)
             key = name.lower()
-            if key and key not in self.curs and key not in self.ignore:
+            if key in self.curs:
+                self.curs[key].setdefault("pids", set()).add(pid)
+            elif key and key not in self.ignore:
+                if by is None:                          # utilisation GPU par programme : calculée seulement si besoin
+                    by = self.s.counters.gpu_by_pid(luid) if luid else {}
                 lvl = self._is_game(pid, full, by.get(pid, 0.0))
                 if lvl:
-                    cands[key] = (lvl, name, exe)
+                    cands[key] = (lvl, name, exe, pid)
         for key in GAMELIB.manual:
             if key in running and key not in self.curs and key not in self.ignore:
-                cands.setdefault(key, (2, running[key], ""))
+                cands.setdefault(key, (2, running[key][0], "", None))
         for key in list(self.cand):
             if key not in cands and key not in running:
                 del self.cand[key]
-        for key, (lvl, name, exe) in cands.items():
+        for key, (lvl, name, exe, cpid) in cands.items():
             n = self.cand.get(key, 0) + dt
             self.cand[key] = n
             if n >= (self.START_SURE if lvl == 2 else self.START_GUESS):
                 self._open(key, name, exe, now - n, now)
+                if cpid:
+                    self.curs[key]["pids"].add(cpid)
                 self.cand.pop(key, None)
 
     def _open(self, key, name, exe, start, now):
@@ -2340,6 +2383,7 @@ class GameTracker:
         self.curs[key] = {"key": key, "name": name[:-4] if name.lower().endswith(".exe") else name, "exe": exe,
                           "start": start, "end": now, "n": 0, "nT": 0, "sT": 0.0, "mT": 0.0,
                           "bg": 0, "bc": 0, "br": 0, "bv": 0, "acc": [], "tl": [],
+                          "pids": set(getattr(self, "_run", {}).get(key, ("", set()))[1]),
                           **{p + k: 0.0 for p in ("s", "m") for k in ("c", "g", "r", "v")}}
 
     @staticmethod
@@ -2724,7 +2768,7 @@ def autostart_set(on):
     try:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY, 0, winreg.KEY_SET_VALUE) as k:
             if on:
-                cmd = '"%s" "%s" --startup' % (_gui_python(), os.path.abspath(__file__))
+                cmd = " ".join('"%s"' % a for a in self_cmd()) + " --startup"
                 winreg.SetValueEx(k, RUN_NAME, 0, winreg.REG_SZ, cmd)
             else:
                 try:
@@ -3019,6 +3063,11 @@ def run_window(url):
     if "--full-gpu" not in sys.argv:   # en cas de souci d'affichage : lancer avec --full-gpu
         os.environ.setdefault("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", " ".join(LEAN_BROWSER_ARGS))
     import webview
+    if IS_WIN:
+        try:            # regroupe la fenêtre sous le logo de Pulse Monitor dans la barre des tâches
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("PulseMonitor.App")
+        except Exception:
+            pass
     st = load_settings()
     geo = st.get("window") if isinstance(st.get("window"), dict) else {}
     w, h = geo.get("w", 1320), geo.get("h", 860)
@@ -3059,8 +3108,11 @@ def run_window(url):
         except Exception:
             log.exception("Position de la fenêtre")
 
+    def shown(*_):
+        set_window_icon(APP_NAME)
+
     ev = getattr(win, "events", None)
-    for name, fn in (("moved", moved), ("resized", resized), ("closing", closing),
+    for name, fn in (("shown", shown), ("moved", moved), ("resized", resized), ("closing", closing),
                      ("maximized", lambda *_: set_max(True)), ("restored", lambda *_: set_max(False))):
         try:
             getattr(ev, name).__iadd__(fn) if ev else None
@@ -3100,6 +3152,43 @@ def _gui_python():
         if os.path.isfile(w):
             return w
     return exe
+
+
+def self_cmd(*args):
+    """Commande pour relancer Pulse Monitor (le .exe, ou pythonw + le script)."""
+    if FROZEN:
+        return [sys.executable, *args]
+    return [_gui_python(), os.path.abspath(__file__), *args]
+
+
+def set_window_icon(title_start):
+    """Met le logo sur la fenêtre et dans la barre des tâches (pywebview ne le fait pas sous Windows)."""
+    if not IS_WIN or not os.path.isfile(ICON_ICO):
+        return
+    try:
+        u32 = ctypes.WinDLL("user32")
+        u32.LoadImageW.restype = ctypes.c_void_p
+        u32.LoadImageW.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p, ctypes.c_uint, ctypes.c_int, ctypes.c_int, ctypes.c_uint]
+        u32.SendMessageW.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_void_p, ctypes.c_void_p]
+        big = u32.LoadImageW(None, ICON_ICO, 1, 32, 32, 0x10)      # IMAGE_ICON, LR_LOADFROMFILE
+        small = u32.LoadImageW(None, ICON_ICO, 1, 16, 16, 0x10)
+        found = []
+        WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
+
+        def cb(hwnd, _):
+            buf = ctypes.create_unicode_buffer(256)
+            u32.GetWindowTextW(ctypes.c_void_p(hwnd), buf, 256)
+            pid = ctypes.c_ulong()
+            u32.GetWindowThreadProcessId(ctypes.c_void_p(hwnd), ctypes.byref(pid))
+            if buf.value.startswith(title_start) and pid.value == os.getpid():
+                found.append(hwnd)
+            return True
+        u32.EnumWindows(WNDENUMPROC(cb), 0)
+        for hwnd in found:
+            u32.SendMessageW(hwnd, 0x0080, ctypes.c_void_p(1), big)      # WM_SETICON, ICON_BIG
+            u32.SendMessageW(hwnd, 0x0080, ctypes.c_void_p(0), small)    # ICON_SMALL
+    except Exception:
+        log.exception("Icône de la fenêtre")
 
 
 def _focus_window(title_start):
@@ -3143,7 +3232,7 @@ class WindowManager:
                 _focus_window(APP_NAME)
                 return
             if self.native:
-                args = [_gui_python(), os.path.abspath(__file__), "--window", self.url]
+                args = self_cmd("--window", self.url)
                 if "--full-gpu" in sys.argv:
                     args.append("--full-gpu")
                 self.proc = subprocess.Popen(args, creationflags=CREATE_NO_WINDOW if IS_WIN else 0)
@@ -3550,6 +3639,10 @@ def stable_tray_id():
 
 def tray_image():
     from PIL import Image, ImageDraw
+    try:
+        return Image.open(ICON_PNG).convert("RGBA")
+    except Exception:
+        pass
     img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     d.rounded_rectangle([2, 2, 62, 62], radius=14, fill=(27, 32, 48, 255))
@@ -3679,7 +3772,7 @@ def main():
             # calcul indépendant (ne perturbe pas les mesures de la fenêtre)
             prev = psutil.cpu_times()
             while True:
-                time.sleep(5)
+                time.sleep(10)
                 try:
                     cur = psutil.cpu_times()
                     tot = sum(cur) - sum(prev)

@@ -226,6 +226,7 @@
     padding: 6px 12px; border-radius: 8px; cursor: pointer; }
   .btn:hover { background: var(--panel2); }
   .btn.sm { padding: 3px 9px; font-size: 12px; }
+  .btn .bi { vertical-align: -2px; margin-right: 6px; }
   .muted { color: var(--muted); }
   .loading { padding: 50px; text-align: center; color: var(--muted); }
   .spinner { width: 24px; height: 24px; border: 3px solid var(--line); border-top-color: var(--cpu); border-radius: 50%; margin: 0 auto 12px; animation: spin 1s linear infinite; }
@@ -328,8 +329,9 @@
   .gm-live { font-size: 13px; display: flex; align-items: center; gap: 10px; }
   .gm tr.gm-r { cursor: pointer; } .gm tr.gm-r:hover td, .gm tr.gm-r.on td { background: var(--panel2); }
   .gm tr.gm-det td { border-top: 0; padding: 4px 0 14px; white-space: normal; }
-  .gm-charts { display: grid; gap: 6px; }
-  .gm-charts canvas { width: 100%; height: 64px; display: block; border-radius: 6px; background: var(--chart); }
+  .gm-charts { display: grid; gap: 0; }
+  .gm-charts .hist-row, .gm-charts .hist-axis { grid-template-columns: 160px minmax(0, 1fr); }
+  .gm-charts canvas { width: 100%; height: 64px; display: block; border-radius: 6px; background: var(--chart); border: 1px solid var(--line); box-sizing: border-box; }
   .gm-wrap { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 12px; align-items: start; }
   /* colonne des jeux : tient toujours dans la fenêtre (la liste rétrécit, l'ajout manuel reste visible) */
   #gm-lib { position: sticky; top: calc(var(--hdr-h, 57px) + 14px); max-height: calc(100vh - var(--hdr-h, 57px) - 14px - 30px); display: flex; flex-direction: column; }
@@ -347,9 +349,12 @@
   .gl-chip button { border: 0; background: none; color: var(--muted); cursor: pointer; font: inherit; padding: 0 5px; border-radius: 50%; }
   .gl-chip button:hover { color: var(--bad); }
   .hist-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .hist-row { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 10px; align-items: center; }
+  .hist-row { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 10px; align-items: center; padding: 8px 0; }
+  /* séparation nette entre CPU / GPU / RAM / VRAM : trait + liseré coloré à gauche de chaque composant */
+  .hist-row + .hist-row { border-top: 1px solid var(--line); }
+  .hist-row .lab { border-left: 3px solid currentColor; padding-left: 8px; align-self: stretch; display: flex; flex-direction: column; justify-content: center; }
   .hist-row .lab { font-size: 12.5px; font-weight: 600; } .hist-row .lab small { display: block; color: var(--dim); font-weight: 400; font-size: 11px; }
-  .hist canvas { width: 100%; height: 64px; display: block; border-radius: 6px; background: var(--chart); cursor: crosshair; }
+  .hist canvas { width: 100%; height: 64px; display: block; border-radius: 6px; background: var(--chart); cursor: crosshair; border: 1px solid var(--line); box-sizing: border-box; }
   .hist-axis { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 10px; }
   .hist-axis > div { position: relative; height: 16px; font-size: 11px; color: var(--dim); }
   .hist-axis span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
@@ -391,8 +396,11 @@
 <body>
 <header>
   <div class="logo">
-    <svg width="24" height="24" viewBox="0 0 26 26"><rect width="26" height="26" rx="7" fill="var(--panel2)"/>
-      <path d="M4 14h4l2.5-6 4 11 2.5-5H22" fill="none" stroke="var(--cpu)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <svg width="26" height="26" viewBox="0 0 256 256"><defs>
+      <linearGradient id="lg-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1b2744"/><stop offset="1" stop-color="#0b0f19"/></linearGradient>
+      <linearGradient id="lg-ln" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3ee8ff"/><stop offset=".55" stop-color="#9a6cff"/><stop offset="1" stop-color="#ff4fd8"/></linearGradient></defs>
+      <rect width="256" height="256" rx="56" fill="url(#lg-bg)"/>
+      <path d="M22 136H76L98 84L128 186L156 62L178 136H234" fill="none" stroke="url(#lg-ln)" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/></svg>
     Pulse Monitor <span class="ver-wrap"><button class="ver" id="ver-btn" data-ti="up_tip">v{{VERSION}}</button><div class="pop up-pop" id="up-pop"></div></span>
     <button class="pv-btn" id="pv-btn" data-ti="pv_btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/><path d="m9 12 2 2 4-4"/></svg></button>
   </div>
@@ -463,7 +471,7 @@ const I18N = {
     pv_read: ["<b>Performances</b> (processeur, carte graphique, mémoire, disques, réseau) : pour les graphiques. Pour le réseau, seulement le débit, jamais ce que tu échanges.", "<b>Composants</b> (modèles, quantités, versions) : lus auprès de Windows pour l'onglet Composants.", "<b>Noms des programmes ouverts</b> et ce qu'ils consomment : pour les détails, les conseils de la cloche et les sessions de jeu.", "<b>Noms et tailles des fichiers</b> : seulement quand tu lances une analyse dans Stockage. Le contenu des fichiers n'est jamais ouvert.", "<b>Jeux installés</b> (dossiers Steam, Epic, GOG, programmes installés) : seulement quand tu cliques sur « Rechercher les jeux installés ».", "<b>Santé des disques</b> : seulement quand tu cliques sur le bouton, avec ton accord (droits administrateur)."],
     pv_store_t: "Ce qui est gardé, uniquement sur ton PC",
     pv_store: ["<code>settings.json</code> : tes réglages (langue, thème, ordre des cartes…)", "<code>history/</code> : l'historique 24 h / 7 jours (1 point par minute, effacé après 8 jours)", "<code>games.json</code> et <code>games_lib.json</code> : tes sessions de jeu et la liste des jeux reconnus", "<code>scans/</code> : les résultats des analyses de stockage et de santé des disques", "<code>stats.json</code> : l'analyse d'usage (onglet Analyse)", "<code>pulse_monitor.log</code> : un journal technique en cas d'erreur, jamais envoyé"],
-    pv_store_note: "Tout est dans le dossier de Pulse Monitor. Tu peux supprimer ces fichiers quand tu veux : l'appli repart de zéro.",
+    pv_store_note: "Tout est dans le dossier des données de Pulse Monitor (bouton ci-dessous). Tu peux supprimer ces fichiers quand tu veux : l'appli repart de zéro.",
     pv_open: "Ouvrir le dossier des données",
     pv_net_t: "Connexions",
     pv_net: ["L'appli ne se connecte à Internet que pour vérifier les mises à jour, auprès de <a href=\"#\" class=\"gh-link\" data-gh>GitHub</a> uniquement : quand tu cliques sur « Vérifier les mises à jour » (numéro de version), ou une fois par jour si tu as activé la vérification automatique dans les Paramètres (désactivée par défaut). Elle télécharge une nouvelle version seulement si tu cliques sur « Installer ». Aucune information sur toi ou ton PC n'est envoyée.", "La fenêtre parle à l'appli par un petit serveur interne, accessible <b>uniquement depuis ton PC</b> (adresse 127.0.0.1). Les sites web ne peuvent pas l'utiliser.", "Seul le fichier <code>.bat</code> se connecte une fois, au premier lancement, au dépôt officiel de Python (PyPI) pour installer les bibliothèques nécessaires."],
@@ -673,7 +681,7 @@ const I18N = {
     pv_read: ["<b>Performance</b> (CPU, graphics card, memory, disks, network): for the charts. For the network, only the speed, never what you exchange.", "<b>Components</b> (models, amounts, versions): read from Windows for the Components tab.", "<b>Names of open programs</b> and what they use: for details, bell tips and gaming sessions.", "<b>File names and sizes</b>: only when you start an analysis in Storage. File contents are never opened.", "<b>Installed games</b> (Steam, Epic, GOG folders, installed programs): only when you click \"Find installed games\".", "<b>Disk health</b>: only when you click the button, with your consent (administrator rights)."],
     pv_store_t: "What is kept, only on your PC",
     pv_store: ["<code>settings.json</code>: your settings (language, theme, card order…)", "<code>history/</code>: the 24 h / 7-day history (1 point per minute, deleted after 8 days)", "<code>games.json</code> and <code>games_lib.json</code>: your gaming sessions and the list of recognized games", "<code>scans/</code>: storage analysis and disk health results", "<code>stats.json</code>: the usage analysis (Analysis tab)", "<code>pulse_monitor.log</code>: a technical log in case of errors, never sent"],
-    pv_store_note: "Everything is in the Pulse Monitor folder. You can delete these files anytime: the app starts from scratch.",
+    pv_store_note: "Everything is in the Pulse Monitor data folder (button below). You can delete these files anytime: the app starts from scratch.",
     pv_open: "Open the data folder",
     pv_net_t: "Connections",
     pv_net: ["The app only connects to the Internet to check for updates, with <a href=\"#\" class=\"gh-link\" data-gh>GitHub</a> only: when you click \"Check for updates\" (version number), or once a day if you turned on automatic checking in Settings (off by default). It downloads a new version only if you click \"Install\". No information about you or your PC is sent.", "The window talks to the app through a small internal server, reachable <b>only from your PC</b> (address 127.0.0.1). Websites can't use it.", "Only the <code>.bat</code> file connects once, on first launch, to the official Python repository (PyPI) to install the required libraries."],
@@ -1306,8 +1314,18 @@ async function tick() {
 }
 
 // =================== Composants ===================
+// état de santé d'un disque (même pastille colorée que dans Stockage) ; sinon l'état simple donné par Windows
+function diskHealthCell(d) {
+  const x = stHealth && (stHealth.disks || {})[String(d.id)];
+  const h = x ? x.health : d.health;
+  if (h == null) return "";
+  const col = x ? ({"verdict-ok": "var(--ok)", "verdict-warn": "var(--warn)", "verdict-bad": "var(--bad)"})[healthVerdict(x)[0]]
+                : ({0: "var(--ok)", 1: "var(--warn)", 2: "var(--bad)"})[h] || "var(--muted)";
+  return `<span style="color:${col};white-space:nowrap"${x ? ` data-tip="${esc(healthVerdict(x)[1])}"` : ""}>● ${esc(T("health" + h))}</span>`;
+}
 async function loadSpecs() {
   specs = await (await fetch("/api/specs", {cache: "no-store"})).json();
+  if (!stHealth) { try { stHealth = await stJ("/api/health"); } catch (e) {} }
   renderSpecs(); redrawAll();
   if (stDrives.length) stRender();
 }
@@ -1340,7 +1358,7 @@ function renderSpecs() {
          ${row("display", g.res ? g.res + (g.hz ? " @ " + g.hz + " Hz" : "") : null)}</dl>`, gspan)).join("");
   const disks = (s.disks || []).map(d => `<tr><td>${esc(d.id)}</td><td>${esc((d.letters || []).map(letterTxt).join(" "))}</td>
       <td>${esc(d.name)}</td><td><span class="pill">${esc(d.media)}</span> ${esc(d.bus !== "?" ? d.bus : "")}</td>
-      <td>${sizeTxt(d.size_gb)}</td><td>${d.health == null ? "" : esc(T("health" + d.health))}</td></tr>`).join("");
+      <td>${sizeTxt(d.size_gb)}</td><td>${diskHealthCell(d)}</td></tr>`).join("");
 
   const ids = ["spec-cpu", ...(s.gpus || []).map((_, i) => "spec-gpu-" + i), "spec-board",
                "spec-ram", "spec-disks", "spec-os", "spec-manual", "spec-net"];
@@ -1766,7 +1784,7 @@ function renderHistory() {
     drawHistory(); return;
   }
   const head = `<div class="hist-head"><h2 style="margin:0;font-size:16px">${esc(T("hist_t"))}</h2>
-      <div class="seg small" id="hist-range"><button data-h="24" class="${histRange === 24 ? "on" : ""}">24 h</button><button data-h="168" class="${histRange === 168 ? "on" : ""}">${esc(T("hist_7d"))}</button></div>
+      <div class="seg small" id="hist-range">${[1, 6, 12, 24, 168].map(h => `<button data-h="${h}" class="${histRange === h ? "on" : ""}">${h === 168 ? esc(T("hist_7d")) : h + " h"}</button>`).join("")}</div>
       <span style="flex:1"></span>
       <label class="check" style="font-weight:400;font-size:12.5px"><input type="checkbox" id="hist-cb" ${D.on ? "checked" : ""}><span>${esc(T("hist_opt"))}</span></label></div>`;
   if (!D.points.length) {
@@ -1848,14 +1866,14 @@ function drawHistory() {
       for (let i = 1; i < pts.length; i++) {
         const a = pts[i - 1], b = pts[i], yy = v => h - 2 - Math.min(1, Math.max(0, (v - 20) / 80)) * (h - 6);
         ctx.beginPath(); ctx.moveTo(X(a.t), yy(a.T)); ctx.lineTo(X(b.t), yy(b.T));
-        ctx.strokeStyle = tempCol(Math.max(a.T, b.T)); ctx.stroke();
+        { const tc = tempCol(Math.max(a.T, b.T)); ctx.strokeStyle = tc; ctx.stroke(); }
       }
     }
     if (histCursor != null) { const x = Math.round(histCursor * w) + .5; ctx.strokeStyle = "#ffffff55"; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
   });
   const ax = document.getElementById("hist-axis");
   if (ax) {
-    const n = 6, fmt = histRange <= 24 ? {hour: "2-digit", minute: "2-digit"} : {weekday: "short", day: "numeric"};
+    const n = 6, fmt = t1 - t0 <= 86400 * 1.01 ? {hour: "2-digit", minute: "2-digit"} : {weekday: "short", day: "numeric", hour: "2-digit"};
     setHTML(ax, Array.from({length: n + 1}, (_, i) => `<span style="left:${i / n * 100}%">${esc(new Date((t0 + i / n * (t1 - t0)) * 1000).toLocaleString(lang === "fr" ? "fr-FR" : "en-GB", fmt))}</span>`).join(""));
   }
 }
@@ -1893,7 +1911,7 @@ let gmData = null, gmT = 0, gmOpen = null;
 const gmTl = {};
 const GSER = [
   {k: "cpu", lab: "CPU", a: 1, m: 2, col: () => COL.cpu, sub: g => `${T("gm_avg")} ${g.cpu} % · max ${g.cpu_max} %`},
-  {k: "gpu", lab: "GPU", a: 3, m: 4, t: 5, col: () => COL.gpu, sub: g => `${T("gm_avg")} ${g.gpu} % · max ${g.gpu_max} %${g.temp_max ? " · " + g.temp_max + " °C" : ""}`},
+  {k: "gpu", lab: "GPU", a: 3, m: 4, t: 5, col: () => COL.gpu, sub: g => `${T("gm_avg")} ${g.gpu} % · max ${g.gpu_max} %`, sub2: g => g.temp_max ? `max ${g.temp_max} °C` : ""},
   {k: "ram", lab: "RAM", a: 6, col: () => COL.ram, sub: g => `max ${g.ram_max} %`},
   {k: "vram", lab: "VRAM", a: 7, col: () => COL.gpu, sub: g => `max ${g.vram_max} %`},
 ];
@@ -1921,7 +1939,8 @@ function drawSession() {
       if (pts.length === 1) pts.unshift([0, pts[0][1]]);
       if (fill) { const gr = ctx.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, color + "55"); gr.addColorStop(1, color + "05");
         ctx.beginPath(); ctx.moveTo(pts[0][0], h); pts.forEach(q => ctx.lineTo(q[0], q[1])); ctx.lineTo(pts[pts.length - 1][0], h); ctx.closePath(); ctx.fillStyle = gr; ctx.fill(); }
-      ctx.beginPath(); pts.forEach((q, i) => i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1])); ctx.strokeStyle = color; ctx.lineWidth = width; ctx.stroke();
+      ctx.beginPath(); pts.forEach((q, i) => i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1])); ctx.strokeStyle = color; ctx.lineWidth = width;
+      ctx.stroke();
     };
     if (s.m) { ctx.globalAlpha = .45; line(s.m, s.col(), 1, false); ctx.globalAlpha = 1; }
     line(s.a, s.col(), 1.5, true);
@@ -1929,7 +1948,7 @@ function drawSession() {
       const pts = tl.filter(p => p[5] != null);
       const XT = t => X(Math.max(0, t - 30));
       for (let i = 1; i < pts.length; i++) { ctx.beginPath(); ctx.moveTo(XT(pts[i - 1][0]), yT(pts[i - 1][5])); ctx.lineTo(XT(pts[i][0]), yT(pts[i][5]));
-        ctx.strokeStyle = tempCol(Math.max(pts[i - 1][5], pts[i][5])); ctx.stroke(); } }
+        { const tc = tempCol(Math.max(pts[i - 1][5], pts[i][5])); ctx.strokeStyle = tc; ctx.stroke(); } } }
   });
   const ax = document.getElementById("gm-axis");
   if (ax) { const n = 4, loc = lang === "fr" ? "fr-FR" : "en-GB";
@@ -1991,7 +2010,7 @@ function renderGames() {
   const loc = lang === "fr" ? "fr-FR" : "en-GB";
   const rows = D.sessions.map(g => { const v = gmVerdict(g), op = gmOpen === g.start;
     const det = op ? `<tr class="gm-det"><td colspan="10">${g.has_tl ? `<div class="gm-charts">${GSER.map(x => `<div class="hist-row"><div class="lab" style="color:${x.col()}">${x.lab}
-        <small>${esc(x.sub(g))}</small></div><canvas data-gc="${x.k}"></canvas></div>`).join("")}
+        <small>${esc(x.sub(g))}</small>${x.sub2 && x.sub2(g) ? `<small>${esc(x.sub2(g))}</small>` : ""}</div><canvas data-gc="${x.k}"></canvas></div>`).join("")}
         <div class="hist-axis"><div></div><div id="gm-axis"></div></div></div>`
       : `<div class="muted" style="font-size:12.5px;padding:6px 0">${esc(T("gm_no_tl"))}</div>`}</td></tr>` : "";
     return `<tr class="gm-r ${op ? "on" : ""}" data-gs="${g.start}" data-tip="${esc(T(op ? "gm_hide" : "gm_show"))}"><td class="n" title="${esc(g.name)}">${op ? "▾" : "▸"} ${esc(g.name)}</td>
@@ -2161,7 +2180,7 @@ function stHealthBtn() {
   const any = stHealth && Object.keys(stHealth.disks || {}).length;
   const date = any && stHealth.date ? new Date(stHealth.date * 1000).toLocaleString(lang === "fr" ? "fr-FR" : "en-GB", {dateStyle: "short", timeStyle: "short"}) : "";
   const tip = stHealthBusy ? T("h_wait_admin") : date ? T("h_title_all") + " : " + T("h_read").toLowerCase() + " " + date : T("h_need_admin");
-  return `<button class="btn sm" id="st-hread" ${stHealthBusy ? "disabled" : ""} data-tip="${esc(tip)}">${stHealthBusy ? `<span class="spinner" style="width:12px;height:12px;margin:0 6px 0 0;border-width:2px;display:inline-block;vertical-align:-2px"></span>` : ""}${esc(T(any ? "h_reread" : "h_admin"))}</button>`;
+  return `<button class="btn sm" id="st-hread" ${stHealthBusy ? "disabled" : ""} data-tip="${esc(tip)}">${stHealthBusy ? `<span class="spinner" style="width:12px;height:12px;margin:0 6px 0 0;border-width:2px;display:inline-block;vertical-align:-2px"></span>` : `<svg class="bi" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg>`}${esc(T(any ? "h_reread" : "h_admin"))}</button>`;
 }
 async function stScan() {
   await stJ("/api/storage/scan?root=" + encodeURIComponent(stRoot));
@@ -2201,8 +2220,8 @@ function stRender() {
   const L = (stRoot || "").replace(/\\$/, "");
   const hx = hOf(stRoot || "");
   let acts = stHealthBtn();
-  if (running) acts += `<button class="btn sm" id="st-stop">${esc(T("st_stop"))}</button>`;
-  else if (drv) acts += `<button class="btn sm" id="st-go">${esc(T(drv.scanned ? "st_rescan" : "st_scan").replace("{d}", L))}</button>`;
+  if (running) acts += `<button class="btn sm" id="st-stop"><svg class="bi" width="12" height="12" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2" fill="currentColor"/></svg>${esc(T("st_stop"))}</button>`;
+  else if (drv) acts += `<button class="btn sm" id="st-go"><svg class="bi" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9v9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/></svg>${esc(T(drv.scanned ? "st_rescan" : "st_scan").replace("{d}", L))}</button>`;
   const scanned = drv && drv.scanned ? esc(T("st_scanned")) + " " + new Date(drv.scanned * 1000).toLocaleString(lang === "fr" ? "fr-FR" : "en-GB", {dateStyle: "short", timeStyle: "short"}) : esc(T("st_never"));
   const msg = running ? "" : stStatus.stopped && stStatus.root === stRoot ? T("st_stopped") : stStatus.error ? T("st_err") : drv && !drv.scanned ? T("st_pick") : "";
   const head = drv ? `<div class="card st-head"><div class="st-bar"><span class="big">${esc(L)}</span>
@@ -2255,7 +2274,7 @@ function stRender() {
   if (hb) hb.onclick = async () => {
     stHealthBusy = true; stRender();
     try { stHealth = await stJ("/api/health?admin=1"); } catch (e) {}
-    stHealthBusy = false; stRender();
+    stHealthBusy = false; stRender(); renderSpecs();
   };
   if (running) stRenderProgress();
   el.querySelectorAll("[data-root]").forEach(b => b.onclick = () => { if (stRoot !== b.dataset.root) { stRoot = b.dataset.root; stCat = null; stLoad(); } });
@@ -2353,6 +2372,7 @@ document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
   moveTabInd();
   document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.id === b.dataset.tab));
   if (b.dataset.tab === "perf") redrawAll();
+  schedule();             // rythme des mesures : 1 s sur Performances, 2 s ailleurs
   if (b.dataset.tab === "storage") stOpen();
   if (b.dataset.tab === "analysis") renderAnalysis(true);
   if (b.dataset.tab === "gaming") { loadGames(); glApps = []; loadLib(); stJ("/api/games/apps").then(a => { glApps = a.apps || []; renderLib(); }).catch(() => {}); }
@@ -2362,11 +2382,11 @@ document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
 });
 let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { redrawAll(); drawHistory(); }, 150); });
 
-// Boucle : 1 s quand la fenêtre est visible, 20 s quand elle est réduite (l'appli se met en veille).
+// Boucle : 1 s sur Performances, 2 s sur les autres onglets (pas de graphique en direct), 20 s fenêtre réduite.
 let timer = null;
 function schedule() {
   clearTimeout(timer);
-  timer = setTimeout(async () => { await tick(); schedule(); }, document.hidden ? 20000 : 1000);
+  timer = setTimeout(async () => { await tick(); schedule(); }, document.hidden ? 20000 : tabOn() ? 1000 : 2000);
 }
 // Fenêtre réduite : après 3 s, on demande à Windows de reprendre la RAM inutilisée.
 let trimTimer = null;

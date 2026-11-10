@@ -10,3 +10,7 @@ backup/
 __pycache__/
 *.tmp
 *.new
+build/
+dist/
+*.spec
+release/

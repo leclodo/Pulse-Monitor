@@ -467,7 +467,7 @@ const I18N = {
     up_checking: "Vérification sur GitHub…", up_ok: "Tu as la dernière version.", up_avail: "Nouvelle version disponible :", up_install: "Installer et redémarrer",
     up_inst_note: "Tes réglages, ton historique et tes sessions sont gardés. L'ancienne version est copiée dans le dossier backup.",
     up_installing: "Téléchargement et installation…", up_restart: "Installé ! Redémarrage de Pulse Monitor…",
-    up_norepo: "Les mises à jour ne sont pas encore configurées.", up_net: "Impossible de joindre GitHub. Vérifie ta connexion Internet.", up_err: "La mise à jour a échoué (voir pulse_monitor.log).",
+    up_norepo: "Les mises à jour ne sont pas encore configurées.", up_norel: "Aucune version publiée sur GitHub pour l'instant (ou le dépôt est privé).", up_rate: "GitHub limite les vérifications : réessaie dans une heure.", up_net: "Impossible de joindre GitHub. Vérifie ta connexion Internet.", up_err: "La mise à jour a échoué (voir pulse_monitor.log).",
     up_privacy: "Seule connexion Internet de l'appli, et seulement quand tu cliques. Rien n'est envoyé.",
     tab_perf: "Performances", tab_comp: "Composants", tab_custom: "Paramètres",
     procs: "Processus", uptime: "Allumé depuis", app_use: "Cette appli", settings: "Paramètres", language: "Langue",
@@ -675,7 +675,7 @@ const I18N = {
     up_checking: "Checking GitHub…", up_ok: "You have the latest version.", up_avail: "New version available:", up_install: "Install and restart",
     up_inst_note: "Your settings, history and sessions are kept. The old version is copied to the backup folder.",
     up_installing: "Downloading and installing…", up_restart: "Installed! Restarting Pulse Monitor…",
-    up_norepo: "Updates aren't set up yet.", up_net: "Can't reach GitHub. Check your Internet connection.", up_err: "The update failed (see pulse_monitor.log).",
+    up_norepo: "Updates aren't set up yet.", up_norel: "No version published on GitHub yet (or the repository is private).", up_rate: "GitHub is limiting checks: try again in an hour.", up_net: "Can't reach GitHub. Check your Internet connection.", up_err: "The update failed (see pulse_monitor.log).",
     up_privacy: "The app's only Internet connection, and only when you click. Nothing is sent.",
     tab_perf: "Performance", tab_comp: "Components", tab_custom: "Settings",
     procs: "Processes", uptime: "Uptime", app_use: "This app", settings: "Settings", language: "Language",
@@ -2269,7 +2269,7 @@ function renderUp() {
   let body = "";
   if (S.phase === "checking") body = `<div class="muted" style="display:flex;gap:8px;align-items:center"><span class="spinner" style="width:14px;height:14px;margin:0;border-width:2px"></span>${esc(T("up_checking"))}</div>`;
   else if (S.phase === "installing") body = `<div style="display:flex;gap:8px;align-items:center"><span class="spinner" style="width:14px;height:14px;margin:0;border-width:2px"></span>${esc(T(S.done ? "up_restart" : "up_installing"))}</div>`;
-  else if (S.error) body = `<div style="color:var(--warn)">${esc(T(S.error === "norepo" ? "up_norepo" : S.error === "net" ? "up_net" : "up_err"))}</div>`;
+  else if (S.error) body = `<div style="color:var(--warn)">${esc(T({norepo: "up_norepo", net: "up_net", norelease: "up_norel", rate: "up_rate"}[S.error] || "up_err"))}</div>`;
   else if (S.newer) body = `<div><b style="color:var(--ok)">${esc(T("up_avail"))} v${esc(S.latest)}</b></div>${S.notes ? `<div class="notes">${esc(S.notes)}</div>` : ""}
       <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" id="up-inst">${esc(T("up_install"))}</button></div>
       <div class="muted" style="font-size:12px">${esc(T("up_inst_note"))}</div>`;

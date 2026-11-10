@@ -24,7 +24,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import psutil
 
 APP_NAME = "Pulse Monitor"
-APP_VERSION = "0.5.4"  # +0.0.1 à chaque mise à jour
+APP_VERSION = "0.5.6"  # +0.0.1 à chaque mise à jour
 IS_WIN = os.name == "nt"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(BASE_DIR, "web")
@@ -57,7 +57,7 @@ GAMES_ON = [True]    # résumé des sessions de jeu (réglage « games »)
 GAMES = [None]       # GameTracker
 QUIT_HOOK = [None]   # ferme proprement l'appli (utilisé après une mise à jour)
 # Dépôt GitHub des mises à jour (« propriétaire/nom »). Seule connexion Internet de l'appli, et seulement à ta demande.
-UPDATE_REPO = ""
+UPDATE_REPO = "leclodo/Pulse-Monitor"
 IDLE_AFTER = 6.0
 
 
@@ -1564,7 +1564,9 @@ def update_check():
             d = json.loads(r.read().decode("utf-8"))
     except Exception as e:
         log.warning("Vérification des mises à jour : %s", e)
-        return {"error": "net", "current": APP_VERSION}
+        code = getattr(e, "code", None)            # erreur HTTP : GitHub a bien répondu
+        err = "norelease" if code == 404 else "rate" if code in (403, 429) else "net"
+        return {"error": err, "current": APP_VERSION}
     tag = d.get("tag_name") or ""
     return {"current": APP_VERSION, "latest": tag.lstrip("vV"), "newer": _vtuple(tag) > _vtuple(APP_VERSION),
             "notes": (d.get("body") or "")[:4000], "url": d.get("html_url"), "zip": d.get("zipball_url"), "date": d.get("published_at")}

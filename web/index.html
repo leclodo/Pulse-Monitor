@@ -95,6 +95,8 @@
   .section.collapsed > .section-title .chev, .card.collapsed > .c-head .chev { transform: rotate(-90deg); }
   .grip { cursor: grab; color: var(--dim); opacity: 0; transition: opacity .15s; font-size: 13px; letter-spacing: -2px; width: 10px; margin-left: -8px; flex: none; user-select: none; }
   .c-head.nofold { cursor: default; }
+  .card:not(.spec) > .c-head { cursor: default; } .card:not(.spec) > .c-head:has(.detbtn) { cursor: pointer; }
+  .card:not(.spec) > .c-head:has(.detbtn):hover .c-title { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, currentColor 40%, transparent); }
   .c-head:hover .grip, .section-title:hover .grip { opacity: 1; }
   .c-head.nofold { cursor: default; }
   .dragging { opacity: .35; }
@@ -536,7 +538,7 @@ const I18N = {
     tip_f_coolmm: "Hauteur max de ventirad que le boîtier accepte.",
     tip_f_m2: "Nombre total de ports M.2 (pour SSD NVMe) sur la carte mère.",
     tip_f_sata: "Nombre total de ports SATA (SSD/disques durs classiques) sur la carte mère.",
-    tip_head: "Clic : replier / déplier · Ctrl + clic : masquer la carte",
+    tip_head: "Clic : voir les détails · Ctrl + clic : masquer la carte",
     tip_head_spec: "Ctrl + clic : masquer la carte",
     tip_sec: "Clic : replier / déplier la catégorie",
     tip_app: "Ce que Pulse Monitor consomme lui-même.",
@@ -744,7 +746,7 @@ const I18N = {
     tip_f_coolmm: "Max CPU cooler height the case fits.",
     tip_f_m2: "Total M.2 slots (for NVMe SSDs) on the motherboard.",
     tip_f_sata: "Total SATA ports (regular SSDs / hard drives) on the motherboard.",
-    tip_head: "Click: collapse / expand · Ctrl + click: hide the card",
+    tip_head: "Click: see details · Ctrl + click: hide the card",
     tip_head_spec: "Ctrl + click: hide the card",
     tip_sec: "Click: collapse / expand the category",
     tip_app: "What Pulse Monitor itself uses.",
@@ -1007,7 +1009,13 @@ document.addEventListener("click", e => {
     }
     return;
   }
-  const head = e.target.closest(".c-head, .section-title");
+  const ch = e.target.closest(".card:not(.spec) > .c-head");
+  if (ch) {                      // titre d'une carte de Performances : ouvre ses détails (s'il y en a)
+    if (e.target.closest(".grip")) return;
+    const db2 = ch.querySelector(".detbtn"); if (db2) openDetails(db2.dataset.det, ch.closest(".card"));
+    return;
+  }
+  const head = e.target.closest(".section-title");
   if (!head || head.classList.contains("nofold")) return;
   const box = head.classList.contains("section-title") ? head.closest(".section") : head.closest(".card");
   const id = box && box.dataset.id; if (!id) return;
@@ -1080,7 +1088,7 @@ function card(id, parent, {title, color, body, tip, det}) {
       <span class="dot" style="background:${color}"></span>
       <span class="c-title" data-r="title">${esc(title)}</span><span class="c-sub" data-r="sub"></span>
       <span class="hval" data-r="hval"${tipAttr(tip)}></span>${det ? `<button class="detbtn" data-det="${det}" data-tip="${esc(T("details"))}">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>` : ""}${CHEV}</div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>` : ""}</div>
     <div class="crow"><span class="mini" data-r="mini"></span><canvas class="spark" data-r="spark"${tipAttr(tip)}></canvas></div>
     <div class="chartwrap"${tipAttr(tip)}><canvas class="chart" data-r="chart"></canvas>
       <div class="over"><span class="big" data-r="big">–</span><span class="state" data-r="state"></span></div></div>${body || ""}`;

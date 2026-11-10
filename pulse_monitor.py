@@ -24,7 +24,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import psutil
 
 APP_NAME = "Pulse Monitor"
-APP_VERSION = "0.5.6"  # +0.0.1 à chaque mise à jour
+APP_VERSION = "0.5.7"  # +0.0.1 à chaque mise à jour
 IS_WIN = os.name == "nt"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(BASE_DIR, "web")

@@ -1,0 +1,2367 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pulse Monitor v{{VERSION}}</title>
+<style>
+  /* =================== Thèmes =================== */
+  :root, [data-theme="dark"], [data-theme="oled"], [data-theme="midnight"], [data-theme="terminal"] { color-scheme: dark; }
+  :root, [data-theme="dark"] {
+    --bg: #0d0f14; --panel: #151922; --panel2: #1b2030; --line: #262c3b; --hdr: #0d0f14f0;
+    --text: #e8ebf2; --muted: #8b93a7; --dim: #5d6478; --chart: #11151d; --grid: #ffffff0d; --track: #232938;
+    --cpu: #4cc2ff; --ram: #b38cff; --gpu: #ffa94d; --disk: #5fd38d; --net: #ff6b9d; --up: #ffd36b;
+    --ok: #5fd38d; --warn: #ffb547; --bad: #ff5d6c; --tip1: #1a2233; --tip2: #161b26; --tipline: #263048;
+  }
+  [data-theme="light"] { color-scheme: light;
+    --bg: #f3f5f9; --panel: #ffffff; --panel2: #eceff5; --line: #dde2ea; --hdr: #f3f5f9f0;
+    --text: #18202e; --muted: #5a6476; --dim: #8c94a5; --chart: #f6f8fb; --grid: #0000000f; --track: #e3e7ee;
+    --cpu: #0a84d6; --ram: #7c4ddb; --gpu: #e07b00; --disk: #1f9d55; --net: #d6336c; --up: #b98900;
+    --ok: #1f9d55; --warn: #c97a00; --bad: #d93043; --tip1: #eef4ff; --tip2: #f6f8fc; --tipline: #dfe6f3;
+  }
+  [data-theme="oled"] {
+    --bg: #000000; --panel: #0a0a0b; --panel2: #161618; --line: #1d1d20; --hdr: #000000f0;
+    --text: #f2f2f2; --muted: #8f8f96; --dim: #5a5a62; --chart: #050506; --grid: #ffffff0b; --track: #1b1b1f;
+    --cpu: #4cc2ff; --ram: #b38cff; --gpu: #ffa94d; --disk: #5fd38d; --net: #ff6b9d; --up: #ffd36b;
+    --ok: #5fd38d; --warn: #ffb547; --bad: #ff5d6c; --tip1: #0d0f14; --tip2: #08090b; --tipline: #1d1f26;
+  }
+  [data-theme="midnight"] {
+    --bg: #0a1022; --panel: #111a33; --panel2: #18234a; --line: #223062; --hdr: #0a1022f0;
+    --text: #e6ecff; --muted: #8e9bc4; --dim: #5d6a96; --chart: #0c1430; --grid: #ffffff0e; --track: #1d2a56;
+    --cpu: #5ad1ff; --ram: #c49bff; --gpu: #ffb86b; --disk: #6ee7a8; --net: #ff7ab2; --up: #ffe08a;
+    --ok: #6ee7a8; --warn: #ffc15e; --bad: #ff6b81; --tip1: #16224a; --tip2: #111a38; --tipline: #24336a;
+  }
+  [data-theme="terminal"] {
+    --bg: #050a06; --panel: #0a130c; --panel2: #102014; --line: #173320; --hdr: #050a06f0;
+    --text: #c8ffd9; --muted: #6fbf88; --dim: #3f7a52; --chart: #061008; --grid: #33ff990f; --track: #12301b;
+    --cpu: #33ff99; --ram: #7dffb8; --gpu: #c6ff5c; --disk: #2ee6c3; --net: #9dff6b; --up: #e6ff8a;
+    --ok: #33ff99; --warn: #e6ff5c; --bad: #ff6b6b; --tip1: #0c1d10; --tip2: #08140b; --tipline: #173320;
+  }
+  [data-theme="terminal"] body { font-family: Consolas, "Cascadia Mono", monospace; }
+
+  * { box-sizing: border-box; }
+  html { scrollbar-gutter: stable; }   /* la barre de défilement ne décale plus le contenu */
+  html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text);
+    font: 14px/1.45 "Segoe UI Variable", "Segoe UI", system-ui, sans-serif; }
+  header { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 10px 22px; background: var(--hdr); border-bottom: 1px solid var(--line); }
+  .logo { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 16px; }
+  .ver { font-size: 11px; font-weight: 600; color: var(--muted); background: var(--panel); border: 1px solid var(--line); padding: 1px 6px; border-radius: 6px; }
+  .seg { display: flex; gap: 3px; background: var(--panel); padding: 3px; border-radius: 9px; }
+  .seg button { border: 0; background: none; color: var(--muted); font: inherit; font-weight: 600; padding: 5px 13px; border-radius: 7px; cursor: pointer; }
+  .seg button.on { background: var(--panel2); color: var(--text); }
+  /* onglets du haut : un cadre sobre glisse jusqu'à l'onglet ouvert */
+  #tabs { position: relative; }
+  #tabs button { position: relative; z-index: 1; padding: 5px 11px; }
+  #tabs button.on { background: none; }
+  #tab-ind { position: absolute; top: 3px; height: calc(100% - 6px); left: 0; width: 0; border-radius: 7px; background: var(--panel2);
+    border: 1px solid color-mix(in srgb, var(--cpu) 45%, var(--line)); box-shadow: 0 0 6px color-mix(in srgb, var(--cpu) 25%, transparent);
+    transition: left .28s cubic-bezier(.4, .1, .2, 1), width .28s cubic-bezier(.4, .1, .2, 1); pointer-events: none; box-sizing: border-box; }
+  /* onglet Gaming : néon (bordure dégradée + halo) qui apparaît en fondu, et reflet qui passe, seulement au survol */
+  #tabs button.neon { overflow: hidden; transition: color .3s, text-shadow .3s, box-shadow .3s; border-radius: 7px; }
+  #tabs button.neon::before { content: ""; position: absolute; inset: 0; border-radius: 7px; padding: 1.5px; pointer-events: none;
+    background: linear-gradient(90deg, #3ee8ff, #8a5cff, #ff4fd8);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
+    opacity: 0; transition: opacity .3s; }
+  #tabs button.neon:hover { color: #fff; text-shadow: 0 0 6px #ffffffaa; box-shadow: 0 0 10px #3ee8ff99, 0 0 20px #ff4fd866; }
+  #tabs button.neon:hover::before { opacity: 1; }
+  #tabs button.neon::after { content: ""; position: absolute; top: -20%; bottom: -20%; width: 40%; left: -60%; pointer-events: none;
+    background: linear-gradient(100deg, transparent, #ffffff55, transparent); transform: skewX(-20deg); opacity: 0; transition: opacity .3s; }
+  #tabs button.neon:hover::after { opacity: 1; animation: sweep 1.3s ease-in-out infinite; }
+  @keyframes sweep { from { left: -60%; } to { left: 130%; } }
+  .seg.small button { padding: 4px 10px; font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px; }
+  .hdr-right { margin-left: auto; color: var(--muted); font-size: 13px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .hdr-right b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .chip { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; position: relative; cursor: default; }
+  .pop { position: absolute; top: calc(100% + 8px); right: 0; z-index: 20; min-width: 250px; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 11px; padding: 12px 14px; box-shadow: 0 10px 30px #0006; color: var(--text);
+    display: none; text-align: left; cursor: default; }
+  .pop.on { display: block; }
+  .pop h4 { margin: 0 0 8px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+  .pop table td, .pop table th { padding: 4px 10px 4px 0; border-top: 1px solid var(--line); white-space: nowrap; }
+  .pop table th { border: 0; }
+  .pop .note { font-size: 12px; color: var(--dim); margin-top: 8px; white-space: normal; }
+  main { padding: 14px 22px 30px; max-width: 1600px; margin: 0 auto; }
+  .tab { display: none; } .tab.on { display: block; }
+
+  /* =================== Sections & cartes =================== */
+  .section { margin-bottom: 12px; }
+  .section-title { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); text-transform: uppercase;
+    letter-spacing: .8px; margin: 0 0 8px; font-weight: 600; cursor: pointer; user-select: none; width: fit-content; }
+  .section-title:hover { color: var(--text); }
+  .section-title .count { text-transform: none; letter-spacing: 0; color: var(--dim); font-weight: 400; }
+  .section.collapsed > .grid { display: none; }
+  .chev { width: 15px; height: 15px; flex: none; transition: transform .2s; opacity: .7; }
+  .section.collapsed > .section-title .chev, .card.collapsed > .c-head .chev { transform: rotate(-90deg); }
+  .grip { cursor: grab; color: var(--dim); opacity: 0; transition: opacity .15s; font-size: 13px; letter-spacing: -2px; width: 10px; margin-left: -8px; flex: none; user-select: none; }
+  .c-head.nofold { cursor: default; }
+  .c-head:hover .grip, .section-title:hover .grip { opacity: 1; }
+  .c-head.nofold { cursor: default; }
+  .dragging { opacity: .35; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 10px; align-items: start; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px 12px 16px;
+    display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+  .c-head { display: flex; align-items: center; gap: 8px; min-width: 0; cursor: pointer; user-select: none; min-height: 26px; }
+  .dot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+  .c-title { font-weight: 700; font-size: 14px; white-space: nowrap; }
+  .c-sub { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
+  .big { font-size: 21px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; white-space: nowrap; }
+  .big small { font-size: 12px; font-weight: 600; color: var(--muted); margin-left: 2px; }
+  .state { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 99px; background: var(--panel2); white-space: nowrap; }
+  .chartwrap { position: relative; }
+  .over { position: absolute; left: 8px; top: 6px; display: flex; align-items: center; gap: 8px; pointer-events: none; }
+  .over .big { text-shadow: 0 0 6px var(--chart), 0 0 2px var(--chart); }
+  canvas.chart { width: 100%; height: 62px; display: block; border-radius: 7px; background: var(--chart); }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 3px 12px; }
+  .stat { min-width: 0; }
+  .stat .k { color: var(--dim); font-size: 10.5px; text-transform: uppercase; letter-spacing: .4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stat .v { font-weight: 600; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar { height: 6px; background: var(--track); border-radius: 99px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; border-radius: 99px; }
+  .vol { display: grid; grid-template-columns: 26px 1fr auto; gap: 8px; align-items: center; font-size: 12px; }
+  .vol .t { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .cores { display: grid; grid-template-columns: repeat(auto-fill, minmax(11px, 1fr)); gap: 2px; }
+  .core { height: 14px; background: var(--track); border-radius: 3px; position: relative; overflow: hidden; }
+  .core > i { position: absolute; left: 0; right: 0; bottom: 0; background: var(--cpu); opacity: .85; }
+  .legend { display: flex; gap: 12px; font-size: 11.5px; color: var(--muted); }
+  .legend span::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; background: var(--c); }
+
+  /* Carte repliée : même largeur, juste moins haute (infos clés + mini-graphique) */
+  .crow, .hval { display: none; }
+  /* carte étirée : c'est le graphique qui prend la place en plus */
+  #perf .card:not(.collapsed) .chartwrap { flex: 1 1 auto; min-height: 62px; }
+  #perf .card:not(.collapsed) .chartwrap canvas.chart { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #perf.bigmode .card:not(.collapsed) .chartwrap { min-height: 150px; }
+  .card.collapsed .crow { height: 34px; }
+  #perf.bigmode .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  @media (max-width: 1000px) { #perf.bigmode .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  #perf.bigmode canvas.chart { height: 150px; }
+  #perf.bigmode .over .big { font-size: 28px; }
+  .hid { display: none !important; }
+  .bell { position: relative; background: var(--panel); border: 1px solid var(--line); color: var(--muted); border-radius: 8px;
+    width: 34px; height: 30px; display: grid; place-items: center; cursor: pointer; padding: 0; font: inherit; }
+  .bell:hover, .bell.on { color: var(--text); background: var(--panel2); }
+  .bdot { position: absolute; top: 4px; right: 5px; width: 8px; height: 8px; border-radius: 50%; background: var(--bad); display: none;
+    box-shadow: 0 0 0 2px var(--panel); }
+  .bdot.on { display: block; }
+  .bdot.pulse { animation: bpulse 2s ease-in-out infinite; }
+  .bdot.info { background: var(--warn); }
+  @keyframes bpulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.75); } }
+  .bellpop { width: 430px; max-width: 92vw; padding: 14px 16px; cursor: default; }
+  .bellpop h4 { margin: 2px 0 8px; }
+  .alx { border: 0; background: none; color: var(--dim); cursor: pointer; width: 22px; height: 22px; border-radius: 5px; padding: 0; font-size: 12px; align-self: start; }
+  .alx:hover { background: var(--panel2); color: var(--text); }
+  .al { display: grid; grid-template-columns: 82px 1fr 22px; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 13px; line-height: 1.45; }
+  .al:first-of-type { border-top: 0; }
+  .allgood { color: var(--ok); font-weight: 600; padding: 4px 0 8px; }
+  .shares { display: grid; grid-template-columns: 74px 1fr 42px; gap: 6px 10px; align-items: center; font-size: 12.5px; margin: 8px 0; }
+  .verdict { font-weight: 600; font-size: 13px; margin: 6px 0 4px; }
+  .linkbtn { background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; font: inherit; font-size: 12px; padding: 0; }
+  .detbtn { border: 0; background: none; color: var(--dim); width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center;
+    cursor: pointer; flex: none; padding: 0; font: inherit; }
+  .detbtn:hover, .detbtn.on { background: var(--panel2); color: var(--text); }
+  .drawer { position: fixed; right: 0; bottom: 0; top: 57px; width: 440px; max-width: 94vw; z-index: 15; background: var(--panel);
+    border-left: 1px solid var(--line); box-shadow: -12px 0 30px #0005; transform: translateX(105%); transition: transform .22s ease;
+    display: flex; flex-direction: column; }
+  .drawer.on { transform: none; }
+  .dimmer { position: fixed; left: 0; right: 0; bottom: 0; top: 57px; z-index: 14; background: #000; opacity: 0; pointer-events: none; transition: opacity .22s ease; }
+  .dimmer.on { opacity: .38; pointer-events: auto; }
+  [data-theme="light"] .dimmer.on { opacity: .22; }
+  .d-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px 6px; }
+  .d-title { font-weight: 700; font-size: 15px; }
+  .d-sub { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .d-note { color: var(--dim); font-size: 12px; padding: 0 16px 10px; border-bottom: 1px solid var(--line); }
+  .d-list { flex: 1; overflow-y: auto; padding: 6px 10px; }
+  .d-row { display: grid; grid-template-columns: minmax(0, 1fr) 90px auto; gap: 10px; align-items: center; padding: 7px 6px; border-radius: 7px; }
+  .d-row:hover { background: var(--panel2); }
+  .d-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+  .d-name small { color: var(--dim); font-weight: 400; margin-left: 4px; }
+  .d-val { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; }
+  .d-val small { display: block; color: var(--muted); font-weight: 400; font-size: 11.5px; }
+  .d-foot { color: var(--dim); font-size: 12px; padding: 8px 16px; border-top: 1px solid var(--line); }
+  .tipbox { position: fixed; z-index: 60; max-width: 290px; background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+    border-radius: 8px; padding: 6px 9px; font-size: 12.5px; line-height: 1.4; box-shadow: 0 6px 20px #0005; pointer-events: none;
+    opacity: 0; transition: opacity .12s; text-transform: none; letter-spacing: 0; font-weight: 400; }
+  .tipbox.on { opacity: 1; }
+  .card.collapsed > :not(.c-head):not(.crow) { display: none; }
+  .card.collapsed { gap: 4px; padding-bottom: 9px; }
+  .card.collapsed .crow { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .card.collapsed .hval { display: inline; font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .card.collapsed .c-sub { visibility: hidden; }
+  .mini { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 0 12px; max-height: 36px; overflow: hidden; font-size: 12px; color: var(--muted); }
+  .mini span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .mini b { color: var(--text); font-variant-numeric: tabular-nums; margin-left: 4px; }
+  canvas.spark { width: 96px; height: 26px; flex: none; border-radius: 5px; background: var(--chart); }
+
+  /* =================== Composants =================== */
+  .tips { background: linear-gradient(135deg, var(--tip1), var(--tip2)); margin-bottom: 12px; }
+  .tips .lead { margin: -2px 0 0; color: var(--muted); font-size: 12.5px; }
+  .tip { display: grid; grid-template-columns: 92px 1fr; gap: 12px; padding: 7px 0; border-top: 1px solid var(--tipline); }
+  .tag { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 6px; text-align: center; align-self: start; }
+  .tag.info { background: color-mix(in srgb, var(--cpu) 14%, transparent); color: var(--cpu); }
+  .tag.warn { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
+  .specs { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 12px; align-items: stretch; }
+  .specs > .w3 { grid-column: span 3; } .specs > .w4 { grid-column: span 4; } .specs > .w6 { grid-column: span 6; }
+  .specs > .tall { grid-row: span 2; }   /* « Infos à compléter » à droite de Système + Réseau */
+  .specs > .card.collapsed { align-self: start; }
+  @media (max-width: 1150px) { .specs > .w3, .specs > .w4 { grid-column: span 6; } }
+  @media (max-width: 760px) { .specs > .card { grid-column: span 12 !important; } }
+  .specs .mgrid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .specs .mgroup { padding: 9px 10px; }
+  @media (max-width: 1500px) { .specs .mgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .specs .fld { grid-template-columns: 1fr; gap: 3px; }
+  .spec .name { font-size: 15.5px; font-weight: 600; }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: 5px 18px; margin: 0; }
+  dt { color: var(--muted); } dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--dim); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; padding: 3px 8px 5px 0; }
+  td { padding: 5px 8px 5px 0; border-top: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+  td.empty { color: var(--dim); font-style: italic; }
+  .pill { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 5px; background: var(--panel2); }
+  .toolbar { display: flex; margin-bottom: 10px; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .btn { border: 1px solid var(--line); background: var(--panel); color: var(--text); font: inherit; font-weight: 600; font-size: 13px;
+    padding: 6px 12px; border-radius: 8px; cursor: pointer; }
+  .btn:hover { background: var(--panel2); }
+  .btn.sm { padding: 3px 9px; font-size: 12px; }
+  .muted { color: var(--muted); }
+  .loading { padding: 50px; text-align: center; color: var(--muted); }
+  .spinner { width: 24px; height: 24px; border: 3px solid var(--line); border-top-color: var(--cpu); border-radius: 50%; margin: 0 auto 12px; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .mgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+  .mgroup { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 7px; align-content: start; }
+  .mgroup h5 { margin: 0 0 2px; font-size: 13px; }
+  .fld { display: grid; grid-template-columns: 120px 1fr; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); }
+  .fld input, .fld select { width: 100%; min-width: 0; background: var(--panel); color: var(--text); border: 1px solid var(--line);
+    border-radius: 7px; padding: 5px 8px; font: inherit; font-size: 13px; }
+  .fld input:focus, .fld select:focus { outline: 2px solid color-mix(in srgb, var(--cpu) 50%, transparent); border-color: transparent; }
+
+  /* =================== Stockage =================== */
+  .st-wrap { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 12px; align-items: start; }
+  .st-drives { display: grid; gap: 12px; position: sticky; top: 0; }
+  .st-drive { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; cursor: pointer; text-align: left;
+    font: inherit; color: var(--text); display: grid; gap: 4px; }
+  .st-drive:hover { background: var(--panel2); }
+  .st-drive.on { border-color: var(--disk); box-shadow: 0 0 0 1px var(--disk) inset; }
+  .st-drive .top { display: flex; align-items: center; gap: 6px; }
+  .st-drive b { font-size: 14px; } .st-drive small { color: var(--muted); font-size: 11.5px; }
+  .st-drive .hd { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .st-row.tmp-sub { padding-left: 18px; font-size: 12.5px; }
+  .st-main { display: grid; gap: 12px; min-width: 0; }
+  .st-head { display: grid; gap: 8px; }
+  .st-bar { display: flex; align-items: center; gap: 12px; flex-wrap: nowrap; min-width: 0; }
+  .st-bar .btn { flex-shrink: 0; white-space: nowrap; }
+  .st-bar .big { font-size: 20px; font-weight: 700; }
+  .st-use { flex: 0 1 auto; min-width: 0; display: grid; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; gap: 3px; font-size: 12px; color: var(--muted); }
+  .st-health { display: flex; flex-wrap: wrap; gap: 6px 28px; align-items: flex-end; padding-top: 10px; border-top: 1px solid var(--line); }
+  .st-health div { display: grid; gap: 2px; font-size: 13px; } .st-health small { color: var(--muted); font-size: 11.5px; }
+  .st-health .verdict-ok, .st-health .verdict-warn, .st-health .verdict-bad { margin-left: auto; }
+  .st-prog { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; white-space: nowrap; font-size: 12.5px; color: var(--muted); }
+  .st-prog .p { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--dim); }
+  .st-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 12px; align-items: start; }
+  .st-grid > .w7 { grid-column: span 7; } .st-grid > .w5 { grid-column: span 5; }
+  .st-grid > .st-big { grid-column: 8 / span 5; }
+  .st-grid > .w7.tall { grid-row: span 2; }
+  @media (max-width: 900px) { .st-wrap { grid-template-columns: 1fr; } .st-drives { position: static; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); } }
+  @media (max-width: 1100px) { .st-grid > .card { grid-column: span 12 !important; } }
+  .crumbs { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font-size: 13px; }
+  .crumbs button { border: 0; background: none; color: var(--cpu); cursor: pointer; font: inherit; padding: 1px 3px; border-radius: 4px; }
+  .crumbs button:hover { background: var(--panel2); } .crumbs span { color: var(--dim); }
+  .st-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px 76px 46px 64px 26px; gap: 10px; align-items: center;
+    padding: 6px 6px; border-radius: 7px; font-size: 13px; }
+  .st-row.head { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .4px; padding-bottom: 2px; }
+  .st-row.dir:not(.head) { cursor: pointer; }
+  .st-row:not(.head):hover { background: var(--panel2); }
+  .st-row .n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+  .st-row .n.dim { color: var(--muted); font-weight: 400; font-style: italic; }
+  .st-row .r { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .st-row .m { color: var(--muted); }
+  .st-list { max-height: 560px; overflow-y: auto; }
+  .catbar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: var(--track); margin: 4px 0 8px; }
+  .catrow { display: grid; grid-template-columns: 12px minmax(0, 1fr) 72px 44px; gap: 8px; align-items: center; padding: 5px 6px; border-radius: 7px; cursor: pointer; font-size: 13px; }
+  .catrow:hover, .catrow.on { background: var(--panel2); }
+  .file { display: grid; grid-template-columns: minmax(0, 1fr) 72px 26px; gap: 8px; align-items: center; padding: 5px 6px; border-radius: 7px; font-size: 13px; }
+  .file:hover { background: var(--panel2); }
+  .file .n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .file .n small { display: block; color: var(--dim); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kbd { display: inline-block; background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; font-weight: 600; font-size: 12.5px; min-width: 60px; text-align: center; }
+  .kbd.listen { border-color: var(--cpu); color: var(--cpu); }
+
+
+  /* =================== Historique =================== */
+  .hist { gap: 8px; }
+  .gm { gap: 10px; }
+  .gm table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .gm th { text-align: left; color: var(--dim); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; padding: 0 10px 6px 0; white-space: nowrap; }
+  .gm td { padding: 7px 10px 7px 0; border-top: 1px solid var(--line); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .gm td.n { font-weight: 600; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+  .gm .tw { overflow-x: auto; }
+  .gm-del { border: 0; background: none; color: var(--dim); cursor: pointer; font: inherit; font-size: 12px; padding: 2px 7px; border-radius: 6px; opacity: .6; }
+  .gm tr.gm-r:hover .gm-del { opacity: 1; } .gm-del:hover { color: var(--bad); background: var(--panel); }
+  .gm-del.sure { color: var(--bad); opacity: 1; font-weight: 600; }
+  button.ver { cursor: pointer; font-family: inherit; } button.ver:hover { color: var(--text); border-color: color-mix(in srgb, var(--cpu) 50%, var(--line)); }
+  .ver-wrap { position: relative; display: inline-flex; }
+  .up-pop { left: 0; right: auto; width: 330px; font-weight: 400; font-size: 13px; display: none; }
+  .up-pop.on { display: grid; gap: 10px; }
+  .up-pop .notes { white-space: pre-wrap; max-height: 200px; overflow-y: auto; background: var(--panel2); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; color: var(--muted); }
+  .pv-btn { border: 1px solid var(--line); background: var(--panel); color: var(--ok); width: 26px; height: 22px; border-radius: 6px;
+    display: grid; place-items: center; cursor: pointer; padding: 0; margin-left: -2px; }
+  .pv-btn:hover { background: var(--panel2); border-color: color-mix(in srgb, var(--ok) 50%, var(--line)); }
+  .prv { grid-column: 1 / -1; gap: 10px; scroll-margin-top: 72px; }
+  .prv h3 { margin: 6px 0 0; font-size: 14px; } .prv p { margin: 0; font-size: 13px; line-height: 1.6; }
+  .prv ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 13px; line-height: 1.5; }
+  .prv code { font-size: 12px; background: var(--panel2); padding: 1px 5px; border-radius: 4px; }
+  .prv-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 28px; }
+  .prv-cols > div { display: grid; gap: 8px; align-content: start; }
+  @media (max-width: 900px) { .prv-cols { grid-template-columns: 1fr; } }
+  .pv-badges { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; }
+  .pv-badge { display: flex; gap: 8px; align-items: center; background: var(--panel2); border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; font-size: 12.5px; font-weight: 600; }
+  .pv-badge span { font-size: 16px; }
+  .prv.flash { animation: prvflash 1.4s ease-out; }
+  @keyframes prvflash { 0% { box-shadow: 0 0 0 2px var(--ok); } 100% { box-shadow: 0 0 0 2px transparent; } }
+  .gm-live { font-size: 13px; display: flex; align-items: center; gap: 10px; }
+  .gm tr.gm-r { cursor: pointer; } .gm tr.gm-r:hover td, .gm tr.gm-r.on td { background: var(--panel2); }
+  .gm tr.gm-det td { border-top: 0; padding: 4px 0 14px; white-space: normal; }
+  .gm-charts { display: grid; gap: 6px; }
+  .gm-charts canvas { width: 100%; height: 64px; display: block; border-radius: 6px; background: var(--chart); }
+  .gm-wrap { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 12px; align-items: start; }
+  #gm-lib { position: sticky; top: 71px; max-height: calc(100vh - 71px - 16px); display: flex; flex-direction: column; }
+  #gm-lib > * { flex-shrink: 0; }
+  #gm-lib .gl-list { flex: 0 1 auto; min-height: 60px; }
+  .gl-search { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 7px; padding: 6px 9px; font: inherit; font-size: 13px; width: 100%; box-sizing: border-box; }
+  .gl-search:focus { outline: 2px solid color-mix(in srgb, var(--cpu) 50%, transparent); border-color: transparent; }
+  @media (max-width: 900px) { .gm-wrap { grid-template-columns: 1fr; } }
+  .gl-list { font-size: 13px; overflow-y: auto; margin: 0 -4px; }
+  .gl-list div { padding: 4px; border-radius: 6px; } .gl-list div:hover { background: var(--panel2); }
+  .gl-list div { break-inside: avoid; padding: 3px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .gl-man { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .gl-man select { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; font: inherit; font-size: 13px; flex: 1; min-width: 0; }
+  .gl-chip { display: inline-flex; gap: 6px; align-items: center; border: 1px solid var(--line); border-radius: 999px; padding: 3px 4px 3px 10px; font-size: 12.5px; }
+  .gl-chip button { border: 0; background: none; color: var(--muted); cursor: pointer; font: inherit; padding: 0 5px; border-radius: 50%; }
+  .gl-chip button:hover { color: var(--bad); }
+  .hist-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .hist-row { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 10px; align-items: center; }
+  .hist-row .lab { font-size: 12.5px; font-weight: 600; } .hist-row .lab small { display: block; color: var(--dim); font-weight: 400; font-size: 11px; }
+  .hist canvas { width: 100%; height: 64px; display: block; border-radius: 6px; background: var(--chart); cursor: crosshair; }
+  .hist-axis { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 10px; }
+  .hist-axis > div { position: relative; height: 16px; font-size: 11px; color: var(--dim); }
+  .hist-axis span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+  .hist-tip { position: fixed; z-index: 40; pointer-events: none; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px;
+    padding: 7px 10px; font-size: 12.5px; line-height: 1.5; box-shadow: 0 6px 20px #0005; display: none; max-width: 340px; }
+  .hist-tip b { font-variant-numeric: tabular-nums; }
+  /* santé des disques (panneau Détails) */
+  .d-extra { padding: 0 16px; }
+  .d-extra:empty { display: none; }
+  .health { border-bottom: 1px solid var(--line); padding: 10px 0 12px; display: grid; gap: 8px; }
+  .health h5 { margin: 0; font-size: 13.5px; display: flex; align-items: center; gap: 8px; }
+  .health dl { gap: 4px 14px; font-size: 13px; }
+  .verdict-ok { color: var(--ok); font-weight: 600; font-size: 13px; } .verdict-warn { color: var(--warn); font-weight: 600; font-size: 13px; }
+  .verdict-bad { color: var(--bad); font-weight: 600; font-size: 13px; }
+
+  /* =================== Personnalisation =================== */
+  .custom { display: grid; gap: 12px; grid-template-columns: repeat(6, minmax(0, 1fr)); align-items: stretch; }
+  .custom > .c-lang { grid-column: span 2; } .custom > .c-theme { grid-column: span 4; }
+  .custom > .c-order, .custom > .c-hidden { grid-column: span 3; }
+  @media (max-width: 900px) { .custom > .card { grid-column: 1 / -1 !important; } }
+  .custom h2 { margin: 0; font-size: 15px; }
+  .themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+  .theme { border: 2px solid var(--line); border-radius: 11px; padding: 8px; cursor: pointer; background: var(--panel2); text-align: left; font: inherit; color: var(--text); }
+  .theme.on { border-color: var(--cpu); }
+  .theme .pv { height: 70px; border-radius: 7px; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .theme .pv i { display: block; height: 7px; border-radius: 4px; }
+  .theme .nm { font-weight: 600; margin-top: 7px; font-size: 13px; }
+  .orderlist { display: grid; gap: 6px; }
+  .check { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; font-weight: 600; }
+  .check input { width: 17px; height: 17px; margin: 2px 0 0; accent-color: var(--cpu); flex: none; }
+  .orow { display: flex; align-items: center; gap: 10px; background: var(--panel2); border: 1px solid var(--line); border-radius: 9px; padding: 6px 10px; }
+  .orow span { flex: 1; font-weight: 600; }
+  .orow .btn:disabled { opacity: .35; cursor: default; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(20px); opacity: 0; z-index: 30;
+    background: var(--panel2); border: 1px solid var(--line); padding: 8px 15px; border-radius: 9px; transition: .25s; pointer-events: none; }
+  .toast.on { opacity: 1; transform: translateX(-50%); }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">
+    <svg width="24" height="24" viewBox="0 0 26 26"><rect width="26" height="26" rx="7" fill="var(--panel2)"/>
+      <path d="M4 14h4l2.5-6 4 11 2.5-5H22" fill="none" stroke="var(--cpu)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Pulse Monitor <span class="ver-wrap"><button class="ver" id="ver-btn" data-ti="up_tip">v{{VERSION}}</button><div class="pop up-pop" id="up-pop"></div></span>
+    <button class="pv-btn" id="pv-btn" data-ti="pv_btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/><path d="m9 12 2 2 4-4"/></svg></button>
+  </div>
+  <div class="seg" id="tabs"><span id="tab-ind"></span>
+    <button class="on" data-tab="perf" data-i="tab_perf"></button>
+    <button data-tab="comp" data-i="tab_comp"></button>
+    <button data-tab="storage" data-i="tab_storage"></button>
+    <button data-tab="analysis" data-i="tab_analysis"></button>
+    <button data-tab="gaming" class="neon" data-i="tab_gaming"></button>
+    <button data-tab="custom" data-i="tab_custom"></button>
+  </div>
+  <div class="hdr-right">
+    <span data-tipk="procs"><span data-i="procs"></span> <b id="h-procs">–</b></span>
+    <span data-tipk="uptime"><span data-i="uptime"></span> <b id="h-uptime">–</b></span>
+    <button class="bell" id="bell" data-ti="bell_tip"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span class="bdot" id="bdot"></span>
+      <div class="pop bellpop" id="bell-pop"></div></button>
+    <span class="chip" id="appuse"><span data-i="app_use"></span> : <b id="h-app">–</b>
+      <div class="pop" id="app-pop"></div></span>
+  </div>
+</header>
+
+<main>
+  <section id="perf" class="tab on">
+    <div class="toolbar" style="margin:-4px 0 6px"><span class="muted" style="font-size:12.5px" data-i="cards_lbl"></span>
+      <div class="seg small" id="sizeseg">
+        <button data-size="collapsed"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 8h16M4 16h16"/></svg><span data-i="sz_collapsed"></span></button>
+        <button data-size="small"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span data-i="sz_small"></span></button>
+        <button data-size="large"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg><span data-i="sz_large"></span></button>
+      </div></div>
+    <div id="sections">
+      <div class="section" data-id="sec-main"><div class="section-title"><span class="grip" draggable="true">⋮⋮</span>CHEV<span data-i="sec_main"></span></div><div class="grid" id="grid-main"></div></div>
+      <div class="section" data-id="sec-disks"><div class="section-title"><span class="grip" draggable="true">⋮⋮</span>CHEV<span data-i="sec_disks"></span> <span class="count" id="cnt-disks"></span></div><div class="grid" id="grid-disks"></div></div>
+      <div class="section" data-id="sec-net"><div class="section-title"><span class="grip" draggable="true">⋮⋮</span>CHEV<span data-i="sec_net"></span> <span class="count" id="cnt-net"></span></div><div class="grid" id="grid-net"></div></div>
+    </div>
+  </section>
+  <section id="comp" class="tab"><div id="comp-body"></div></section>
+  <section id="storage" class="tab"><div id="st-body"></div></section>
+  <section id="analysis" class="tab">
+    <div class="card hist" id="an-hist"></div>
+    <div id="an-body" class="st-grid" style="margin-top:12px"></div></section>
+  <section id="gaming" class="tab"><div class="gm-wrap"><div class="card gm" id="gm-lib"></div><div class="card gm" id="an-games"></div></div></section>
+  <section id="custom" class="tab"><div id="custom-body" class="custom"></div></section>
+</main>
+<div class="toast" id="toast"></div>
+<div class="tipbox" id="tipbox"></div>
+<div class="dimmer" id="dimmer"></div>
+<aside class="drawer" id="drawer">
+  <div class="d-head"><span class="dot" id="d-dot"></span><div style="flex:1;min-width:0"><div class="d-title" id="d-title"></div><div class="d-sub" id="d-sub"></div></div>
+    <button class="detbtn" id="d-close" style="width:28px;height:28px">✕</button></div>
+  <div class="d-note" id="d-note"></div>
+  <div class="d-extra" id="d-extra"></div>
+  <div class="d-list" id="d-list"></div>
+  <div class="d-foot" id="d-foot"></div>
+</aside>
+
+<script>
+// =================== Textes FR / EN ===================
+const I18N = {
+  fr: {
+    tab_privacy: "Vie privée", pv_btn: "Vie privée : ce que l'appli fait de tes données",
+    pv_t: "Tes données restent sur ton PC",
+    pv_intro: "Pulse Monitor fonctionne entièrement en local. Pas de compte, pas de publicité, pas de statistiques d'utilisation, pas de serveur distant. Rien n'est collecté, envoyé, vendu ou partagé : les informations servent uniquement à t'afficher l'état de ton PC dans l'appli.",
+    pv_b1: "Aucune donnée envoyée sur Internet",
+    pv_b2: "Rien n'est vendu ni partagé",
+    pv_b3: "Aucun compte, aucune pub, aucun traceur",
+    pv_b4: "Tout est supprimable à tout moment",
+    pv_read_t: "Ce que l'appli lit, et pourquoi",
+    pv_read: ["<b>Performances</b> (processeur, carte graphique, mémoire, disques, réseau) : pour les graphiques. Pour le réseau, seulement le débit, jamais ce que tu échanges.", "<b>Composants</b> (modèles, quantités, versions) : lus auprès de Windows pour l'onglet Composants.", "<b>Noms des programmes ouverts</b> et ce qu'ils consomment : pour les détails, les conseils de la cloche et les sessions de jeu.", "<b>Noms et tailles des fichiers</b> : seulement quand tu lances une analyse dans Stockage. Le contenu des fichiers n'est jamais ouvert.", "<b>Jeux installés</b> (dossiers Steam, Epic, GOG, programmes installés) : seulement quand tu cliques sur « Rechercher les jeux installés ».", "<b>Santé des disques</b> : seulement quand tu cliques sur le bouton, avec ton accord (droits administrateur)."],
+    pv_store_t: "Ce qui est gardé, uniquement sur ton PC",
+    pv_store: ["<code>settings.json</code> : tes réglages (langue, thème, ordre des cartes…)", "<code>history/</code> : l'historique 24 h / 7 jours (1 point par minute, effacé après 8 jours)", "<code>games.json</code> et <code>games_lib.json</code> : tes sessions de jeu et la liste des jeux reconnus", "<code>scans/</code> : les résultats des analyses de stockage et de santé des disques", "<code>stats.json</code> : l'analyse d'usage (onglet Analyse)", "<code>pulse_monitor.log</code> : un journal technique en cas d'erreur, jamais envoyé"],
+    pv_store_note: "Tout est dans le dossier de Pulse Monitor. Tu peux supprimer ces fichiers quand tu veux : l'appli repart de zéro.",
+    pv_open: "Ouvrir le dossier des données",
+    pv_net_t: "Connexions",
+    pv_net: ["L'appli ne se connecte à Internet que si tu cliques sur « Vérifier les mises à jour » (clic sur le numéro de version) : elle demande alors à GitHub quelle est la dernière version, et la télécharge seulement si tu cliques sur « Installer ». Aucune information sur toi ou ton PC n'est envoyée.", "La fenêtre parle à l'appli par un petit serveur interne, accessible <b>uniquement depuis ton PC</b> (adresse 127.0.0.1). Les sites web ne peuvent pas l'utiliser.", "Seul le fichier <code>.bat</code> se connecte une fois, au premier lancement, au dépôt officiel de Python (PyPI) pour installer les bibliothèques nécessaires."],
+    pv_never_t: "Ce que l'appli ne fait jamais",
+    pv_never: ["Lire le contenu de tes fichiers, de tes pages web ou de tes messages", "Supprimer ou modifier tes fichiers (elle ouvre seulement l'Explorateur)", "Enregistrer ce que tu tapes : le raccourci du widget n'écoute que la combinaison choisie, et la touche Ctrl n'est surveillée que pour déplacer le widget épinglé", "Faire des captures d'écran ou accéder à ta webcam ou ton micro"],
+    up_tip: "Version de l'appli · cliquer pour vérifier les mises à jour", up_t: "Mises à jour", up_cur: "Version installée :", up_check: "Vérifier les mises à jour",
+    up_checking: "Vérification sur GitHub…", up_ok: "Tu as la dernière version.", up_avail: "Nouvelle version disponible :", up_install: "Installer et redémarrer",
+    up_inst_note: "Tes réglages, ton historique et tes sessions sont gardés. L'ancienne version est copiée dans le dossier backup.",
+    up_installing: "Téléchargement et installation…", up_restart: "Installé ! Redémarrage de Pulse Monitor…",
+    up_norepo: "Les mises à jour ne sont pas encore configurées.", up_net: "Impossible de joindre GitHub. Vérifie ta connexion Internet.", up_err: "La mise à jour a échoué (voir pulse_monitor.log).",
+    up_privacy: "Seule connexion Internet de l'appli, et seulement quand tu cliques. Rien n'est envoyé.",
+    tab_perf: "Performances", tab_comp: "Composants", tab_custom: "Paramètres",
+    procs: "Processus", uptime: "Allumé depuis", app_use: "Cette appli", settings: "Paramètres", language: "Langue",
+    sec_main: "Vue d'ensemble", sec_disks: "Stockage", sec_net: "Réseau",
+    cpu: "Processeur", ram: "Mémoire (RAM)", gpu: "Carte graphique", gpu_int: "Carte graphique intégrée", disk: "Disque",
+    usage: "Utilisation", freq: "Fréquence", ct: "Cœurs / threads", maxcore: "Cœur le + chargé", threads: "threads",
+    used: "Utilisée", avail: "Disponible", swap: "Fichier d'échange",
+    temp: "Température", vram: "Mémoire vidéo", shared: "partagée", na: "N/D",
+    read: "Lecture", write: "Écriture", type: "Type", active: "% actif", activity: "Activité", free: "libres", space: "Espace libre",
+    down: "Réception", up: "Envoi", link: "Vitesse du lien",
+    idle: "Calme", moderate: "Modéré", busy: "Chargé", maxed: "Saturé",
+    loading: "Analyse des composants…", spec_err: "Impossible de lire les composants (voir pulse_monitor.log).",
+    copy_hint: "Pratique pour demander conseil sur un forum ou à un vendeur →", copy_btn: "Copier le résumé de ma config",
+    copied: "Résumé copié dans le presse-papiers", expand_all: "Tout déplier", collapse_all: "Tout replier",
+    tips_title: "Conseils pour changer des pièces", tips_lead: "Générés automatiquement à partir de ce qui est détecté sur ce PC.",
+    no_tips: "Rien de particulier à signaler.",
+    cat_ram: "RAM", cat_cpu: "CPU", cat_gpu: "GPU", cat_storage: "Stockage", cat_board: "Carte mère",
+    board: "Carte mère", bios_ver: "Version BIOS", bios_date: "Date du BIOS", ram_slots: "Emplacements RAM", ram_max: "RAM max supportée",
+    base_freq: "Fréquence de base", socket: "Socket", cache: "Cache L2 / L3",
+    th_slot: "Emplacement", th_size: "Taille", th_type: "Type", th_speed: "Vitesse (MT/s)", th_maker: "Fabricant", th_part: "Référence",
+    slot_free: "Emplacement libre", max: "max", DIMM: "DIMM (PC fixe)", "SO-DIMM": "SO-DIMM (portable)",
+    driver: "Pilote", driver_date: "Date du pilote", display: "Affichage",
+    th_disk: "Disque", th_letters: "Lecteurs", th_model: "Modèle", th_health: "Santé",
+    health0: "Bon", health1: "Attention", health2: "Problème",
+    system: "Système", windows: "Windows", version: "Version", build: "build", arch: "Architecture", pcname: "Nom du PC",
+    netscreens: "Réseau & écrans", netcard: "Carte réseau", screen: "Écran", unknown: "Inconnue",
+    tip_cpu_use: "Part du processeur utilisée en ce moment.",
+    tip_freq: "Vitesse actuelle du processeur. Elle monte quand il travaille, baisse au repos.",
+    tip_ct: "Cœurs = unités de calcul réelles. Threads = tâches qu'il peut mener en même temps.",
+    tip_maxcore: "Le cœur le plus occupé. À 100 %, il peut limiter les jeux même si le total est bas.",
+    tip_cores: "Une barre par thread : sa charge actuelle.",
+    tip_ram_use: "Part de la mémoire vive (RAM) utilisée.",
+    tip_used: "RAM occupée par Windows et tes programmes.",
+    tip_avail: "RAM encore libre pour lancer d'autres programmes.",
+    tip_swap: "Bout du disque utilisé comme RAM de secours quand elle est pleine (beaucoup plus lent).",
+    tip_gpu_use: "Charge de la carte graphique.",
+    tip_temp: "Température de la puce graphique. Jusqu'à ~85 °C en jeu, c'est normal.",
+    tip_vram: "Mémoire propre à la carte graphique (utilisée / totale). Pleine = saccades en jeu.",
+    tip_active: "Temps où le disque est occupé. Proche de 100 %, il ralentit le PC.",
+    tip_read: "Quantité de données lues sur le disque par seconde.",
+    tip_write: "Quantité de données écrites sur le disque par seconde.",
+    tip_type: "HDD = disque dur mécanique (lent). SSD = rapide. NVMe = SSD le plus rapide.",
+    tip_space: "Espace libre sur chaque lecteur de ce disque.",
+    tip_down: "Données reçues par seconde (téléchargement).",
+    tip_up: "Données envoyées par seconde (envoi).",
+    tip_link: "Vitesse max de la connexion entre le PC et la box / le routeur (pas ta vitesse internet).",
+    tip_procs: "Nombre de programmes et services en cours d'exécution.",
+    tip_uptime: "Temps écoulé depuis le dernier démarrage de Windows.",
+    tip_base_freq: "Fréquence garantie du processeur ; il monte plus haut en turbo.",
+    tip_socket: "Type de support du processeur sur la carte mère. Un nouveau CPU doit avoir le même.",
+    tip_cache: "Petite mémoire ultra-rapide intégrée au processeur.",
+    tip_bios_ver: "Version du micrologiciel de la carte mère.",
+    tip_bios_date: "Date de sortie de cette version du BIOS.",
+    tip_ram_slots: "Emplacements de RAM utilisés / disponibles sur la carte mère.",
+    tip_ram_max: "RAM maximale que la carte mère peut gérer.",
+    tip_driver: "Version du pilote (logiciel) de la carte graphique.",
+    tip_driver_date: "Date du pilote : plus il est récent, mieux c'est pour les jeux récents.",
+    tip_th_speed: "Vitesse de la RAM (en millions de transferts par seconde). Entre parenthèses : sa vitesse max.",
+    tip_th_part: "Référence exacte de la barrette, utile pour en racheter une identique.",
+    tip_th_slot: "Nom de l'emplacement sur la carte mère.",
+    tip_th_health: "État de santé rapporté par le disque.",
+    tip_th_type: "HDD = disque dur mécanique (lent). SSD = rapide. NVMe = SSD le plus rapide.",
+    tip_f_watt: "Puissance max de l'alimentation, écrite sur son étiquette.",
+    tip_f_cert: "Rendement de l'alimentation (Bronze < Gold < Platinum). Plus haut = plus efficace.",
+    tip_f_gpumm: "Longueur max de carte graphique que le boîtier accepte (fiche du boîtier).",
+    tip_f_coolmm: "Hauteur max de ventirad que le boîtier accepte.",
+    tip_f_m2: "Nombre total de ports M.2 (pour SSD NVMe) sur la carte mère.",
+    tip_f_sata: "Nombre total de ports SATA (SSD/disques durs classiques) sur la carte mère.",
+    tip_head: "Clic : replier / déplier · Ctrl + clic : masquer la carte",
+    tip_head_spec: "Ctrl + clic : masquer la carte",
+    tip_sec: "Clic : replier / déplier la catégorie",
+    tip_app: "Ce que Pulse Monitor consomme lui-même.",
+    details: "Détails : ce qui utilise cette ressource", close: "Fermer",
+    det_cpu: "Ce qui utilise le processeur", det_ram: "Ce qui utilise la mémoire (RAM)",
+    det_gpu: "Ce qui utilise la carte graphique", det_disk: "Ce qui lit / écrit sur les disques",
+    det_note_cpu: "En % du processeur entier, processus regroupés par programme.",
+    det_note_ram: "Mémoire privée de chaque programme (tous ses processus additionnés).",
+    det_note_gpu: "Charge du moteur graphique le plus utilisé par chaque programme, et sa mémoire vidéo dédiée.",
+    det_note_disk: "Lectures + écritures par seconde, par programme, tous disques confondus (peut inclure d'autres échanges du programme).",
+    det_loading: "Analyse des programmes…", det_empty: "Rien de notable pour l'instant.",
+    det_foot: "processus · mis à jour toutes les 2 s", det_of_ram: "de la RAM",
+    close_t: "Démarrage et fermeture",
+    autostart_opt: "Lancer avec Windows", as_tip: "En fond, sans ouvrir la fenêtre.",
+    tray_opt: "Garder en fond à la fermeture",
+    tray_hint: "En fond, avec une petite icône près de l'horloge (~30 Mo). Clic : rouvrir. Clic droit : Quitter.",
+    dismiss: "Masquer (revient si le problème réapparaît plus tard)", dismiss_sig: "Masquer (revient si le nombre change)",
+    hidden_alerts: "conseil(s) masqué(s)",
+    hist_t: "Historique", hist_7d: "7 jours", hist_opt: "Enregistrer l'historique (même fenêtre fermée)",
+    hist_empty: "Pas encore de données : l'historique se remplit d'un point par minute (gardé 8 jours).",
+    hist_sub_cpu: "moyenne · max", hist_sub_gpu: "moyenne · max · °C", hist_sub_ram: "utilisée", hist_sub_vram: "max",
+    hist_progs: "Programmes en cause :", hist_10min: "moyenne sur 10 min",
+    h_title: "Santé du disque", h_state: "État", h_temp: "Température", h_life: "Durée de vie restante", h_used: "usure", h_hours: "Heures de fonctionnement",
+    h_years: "ans", h_errors: "Erreurs de lecture / écriture", h_unc: "non corrigées", h_starts: "Démarrages",
+    h_ok: "✓ Rien d'inquiétant.", h_warn: "⚠ Le disque s'use ou signale un avertissement : surveille-le et garde des sauvegardes.",
+    h_bad: "⚠ Problème détecté : sauvegarde tes données et prévois de remplacer ce disque.", h_hot: "⚠ Température élevée : vérifie la ventilation du boîtier.",
+    h_need_admin: "Windows ne donne la santé des disques (température, usure, heures, erreurs) qu'avec les droits administrateur. Clique ci-dessous et accepte la fenêtre : le résultat est gardé, pas besoin de le refaire à chaque fois.",
+    h_loading: "Lecture de la santé du disque…", h_title_all: "Santé des disques", h_life_s: "de vie", gap_off: "PC éteint ou appli fermée",
+    h_refresh: "Actualiser", h_admin: "Vérifier la santé des disques (admin)", h_reread: "Revérifier la santé des disques (admin)", h_read: "Lu le", h_none: "Aucune info de santé pour ce disque.",
+    h_wait_admin: "Accepte la fenêtre de Windows…", h_refused: "Droits administrateur refusés.",
+    tip_h_temp: "Température actuelle du disque (et max enregistrée par le disque).",
+    tip_h_life: "Pour les SSD : part de leur endurance d'écriture qui reste. Sous 20 %, prévois de le remplacer.",
+    tip_h_hours: "Temps total pendant lequel le disque a été allumé.",
+    tip_h_errors: "Erreurs rencontrées par le disque. Les « non corrigées » sont le signe d'un disque qui lâche.",
+    tab_analysis: "Analyse", tab_gaming: "Gaming", an_now: "En ce moment :", an_now_load: "usage intensif, ce moment est compté",
+    an_now_idle: "usage léger, rien n'est assez sollicité pour te limiter : pas compté", an_how_t: "Comment ça marche",
+    gl_search: "Rechercher un jeu…", gl_t: "Jeux reconnus", gl_tn: "jeux reconnus", gl_find: "Chercher dans la liste", gl_scan: "Rechercher les jeux installés", gl_busy: "Recherche…", gl_found: "jeux trouvés", gl_last: "Dernière recherche le",
+    gl_none: "Lance une recherche : Pulse Monitor regarde Steam, Epic, GOG et les jeux installés (Riot, Blizzard, EA, Ubisoft…). Les jeux connus (League of Legends, Valorant, Fortnite, WoW…) sont déjà reconnus d'office.",
+    gl_manual: "Ajouter un jeu à la main", gl_pick: "Choisis un programme ouvert…", gl_add: "Ajouter", gl_manual_hint: "Lance le jeu, puis choisis-le dans la liste. Il sera toujours compté comme un jeu.", gl_rm: "Retirer",
+    gm_stop: "Pause et voir le résumé", gm_stop_tip: "Termine la session maintenant et affiche ses graphiques. Le programme n'est plus suivi jusqu'à ce que tu relances le suivi (ou qu'il soit fermé).",
+    gm_del: "Supprimer cette session", gm_del_sure: "Supprimer ?", gm_paused: "En pause :", gm_resume: "Relancer le suivi", gm_resume_tip: "Démarre une nouvelle session tout de suite pour ce programme.",
+    gm_t: "Sessions de jeu", gm_avg: "moy.", gm_show: "Cliquer pour voir les graphiques", gm_hide: "Cliquer pour masquer les graphiques",
+    gm_no_tl: "Pas de graphique pour cette session : elle a été enregistrée avant la v0.4.5.", gm_opt: "Détecter mes sessions de jeu", gm_clear: "Effacer la liste", gm_sure: "Sûr ? Clique encore", gm_now: "En cours :",
+    gm_empty: "Aucune session pour l'instant. Lance un jeu : il est reconnu en 10 s s'il est connu ou trouvé par la recherche, sinon en 30 s (jeu dans un dossier Steam, Epic, Battle.net… ou en plein écran avec la carte graphique sollicitée). Les sessions de moins de 3 min ne sont pas gardées.",
+    gm_game: "Jeu", gm_date: "Date", gm_dur: "Durée", gm_temp: "Temp. GPU", gm_verdict: "Ce qui limitait", gm_avgmax: "moyenne / max",
+    gm_v_gpu: "Carte graphique à fond", gm_v_cpu: "Processeur", gm_v_ram: "RAM pleine", gm_v_vram: "Mémoire vidéo pleine", gm_v_none: "Rien",
+    gm_vt_gpu: "La carte graphique travaillait à fond la plupart du temps : c'est normal en jeu, c'est elle qui fixe tes FPS.",
+    gm_vt_cpu: "Le processeur était souvent saturé alors que la carte graphique ne l'était pas : il bridait tes FPS.",
+    gm_vt_ram: "La RAM était souvent presque pleine : ça peut causer des saccades.",
+    gm_vt_vram: "La mémoire vidéo saturait : baisse la qualité des textures.",
+    gm_vt_none: "Aucun composant n'était à sa limite : ton PC avait de la marge (ou les FPS étaient plafonnés).",
+    an_how: "L'appli ne compte que les moments d'usage intensif : processeur ou carte graphique à 40 % ou plus, ou RAM / mémoire vidéo remplies à 80 % ou plus. À chacun de ces moments, elle note le composant saturé : carte graphique à 93 % ou plus, processeur à 90 % ou plus (ou un cœur à 95 %) pendant que la carte graphique est sous 85 %, mémoire vidéo ou RAM presque pleines. Après 10 min de charge, elle désigne celui qui te limite le plus souvent. Les données sont gardées entre les sessions.",
+    tab_storage: "Stockage", st_scan: "Analyser l'espace utilisé sur {d}", st_rescan: "Réanalyser l'espace utilisé sur {d}", st_stop: "Arrêter", st_never: "Jamais analysé",
+    st_scanned: "Analysé le", st_files: "fichiers", st_dirs: "dossiers", st_elapsed: "écoulé",
+    st_pick: "Choisis un disque puis lance l'analyse. Elle peut prendre quelques minutes sur un gros disque dur (HDD).",
+    st_tree: "Dossiers", st_name: "Nom", st_size: "Taille", st_share: "Part", st_nfiles: "Fichiers",
+    st_direct: "[fichiers dans ce dossier]", st_more: "autres dossiers", st_small: "Contenu non détaillé (dossier de moins de 64 Mo)",
+    tmp_t: "Fichiers temporaires", tmp_total: "au total", tmp_refresh: "Recalculer", tmp_win: "Ouvrir le nettoyage de Windows", tmp_busy: "Calcul en cours…",
+    tmp_note: "Pulse Monitor ne supprime rien. Ces fichiers peuvent être supprimés sans risque (ferme d'abord le programme concerné). Le plus simple : « Ouvrir le nettoyage de Windows » → Fichiers temporaires. Clique sur une ligne pour voir les dossiers.",
+    tmp_win_temp: "Fichiers temporaires Windows", tmp_updates: "Mises à jour Windows déjà installées", tmp_browsers: "Cache des navigateurs",
+    tmp_apps: "Cache des applis (Discord, Spotify, Steam)", tmp_shaders: "Cache des shaders (jeux)", tmp_thumbs: "Miniatures de l'Explorateur",
+    tmp_crash: "Rapports de plantage", tmp_recycle: "Corbeille",
+    tmpt_win_temp: "Fichiers laissés par les installations et les programmes. Ceux en cours d'utilisation ne peuvent pas être supprimés, c'est normal.",
+    tmpt_updates: "Fichiers d'installation des mises à jour Windows déjà faites. Le nettoyage de Windows les enlève proprement.",
+    tmpt_browsers: "Images et pages gardées pour charger les sites plus vite. Se recrée tout seul. Ferme le navigateur avant de vider.",
+    tmpt_apps: "Même principe que les navigateurs, pour Discord, Spotify et le magasin Steam.",
+    tmpt_shaders: "Effets graphiques pré-calculés par les jeux. Si tu les supprimes, les jeux les recalculent (petites saccades au début).",
+    tmpt_thumbs: "Aperçus des images et vidéos dans l'Explorateur. Se recrée tout seul.",
+    tmpt_crash: "Rapports créés quand un programme plante. Inutiles sauf pour un dépannage.", tmpt_recycle: "Fichiers que tu as supprimés. Vide la corbeille pour libérer la place.",
+    st_types: "Répartition par type", st_big: "Plus gros fichiers", st_open: "Ouvrir dans l'Explorateur",
+    st_back: "Tous les types", st_info: "Durée", st_denied: "Inaccessible (dossiers protégés, autres comptes…)",
+    st_stopped: "Analyse arrêtée.", st_err: "L'analyse a échoué (voir pulse_monitor.log).",
+    cat_video: "Vidéos", cat_image: "Images", cat_audio: "Musique", cat_archive: "Archives & ISO", cat_game: "Jeux & programmes",
+    cat_document: "Documents", cat_dev: "Développement", cat_other: "Autres",
+    hk_t: "Raccourci clavier", hk_none: "Aucun", hk_set: "Changer", hk_clear: "Retirer", hk_listen: "Appuie sur la combinaison…",
+    hk_taken: "Ce raccourci est déjà utilisé par une autre appli.", hk_need: "Utilise Ctrl, Alt ou Win avec une touche (ou une touche F1-F12).",
+    widget_t: "Widget de bureau", widget_opt: "Afficher le widget (CPU, GPU, température, VRAM, RAM)", widget_style: "Style :",
+    ws_compact: "Compact", ws_bars: "Barres",
+    widget_hint: "Déplace-le à la souris. 📌 l'épingle au-dessus de tout : les clics passent alors à travers et la croix disparaît — maintiens Ctrl pour le déplacer ou le désépingler. Aussi dans le menu de l'icône (clic droit). Coût : ~5-10 Mo.",
+    bell_tip: "Conseils en direct", now_t: "En ce moment", all_good: "✓ Tout va bien",
+    usage_t: "Quel composant te limite ?", usage_since: "Analysé depuis le", usage_load: "de charge analysées",
+    usage_reset: "Réinitialiser l'analyse", usage_off: "Analyse en arrière-plan désactivée (Paramètres) : seuls les moments où la fenêtre est ouverte comptent.",
+    sh_gpu: "Carte gr.", sh_cpu: "Processeur", sh_ram: "RAM", sh_vram: "Mém. vidéo",
+    sh_tip: "Part du temps de charge où ce composant était saturé.",
+    cat_disk: "Disque", cat_startup: "Démarrage", cat_play: "Jeu",
+    bg_opt: "Analyser l'usage en arrière-plan (même fenêtre fermée)",
+    bg_hint: "Pour compter aussi tes sessions de jeu quand la fenêtre est fermée. Coût : ~0,1 % de processeur, rien en RAM.",
+    cards_lbl: "Cartes :", sz_collapsed: "Repliées", sz_small: "Petites", sz_large: "Grandes",
+    big_on: "Graphiques en grand", big_off: "Graphiques compacts",
+    hidden_t: "Cartes masquées", hidden_none: "Aucune carte masquée.", show: "Afficher", show_all: "Tout réafficher",
+    hidden_hint: "Ctrl + clic sur une carte pour la masquer.", hidden_toast: "Carte masquée — à réafficher dans Paramètres",
+    manual_t: "Infos à compléter (non détectables)",
+    manual_lead: "Ces pièces ne sont pas lisibles par logiciel. Remplis ce que tu connais (choisis dans la liste ou tape ta valeur) : c'est enregistré et ajouté au résumé de ta config. Astuce : la puissance est sur l'étiquette de l'alimentation.",
+    m_psu: "Alimentation", m_case: "Boîtier", m_cool: "Refroidissement CPU", m_board: "Carte mère (ports)",
+    f_brand: "Marque", f_model: "Modèle", f_watt: "Puissance", f_cert: "Certification", f_mod: "Modulaire",
+    f_form: "Format", f_gpumm: "Longueur GPU max (mm)", f_coolmm: "Hauteur ventirad max (mm)", f_type: "Type",
+    f_m2: "Ports M.2 (total)", f_sata: "Ports SATA (total)", choose: "— choisir —",
+    cert_none: "Aucune", mod_no: "Non", mod_semi: "Semi-modulaire", mod_full: "Modulaire",
+    form_atx: "Moyen tour ATX", form_full: "Grand tour", form_matx: "Micro-ATX", form_itx: "Mini-ITX",
+    cool_stock: "Ventirad d'origine", cool_air: "Ventirad tour", cool_aio120: "AIO 120 mm", cool_aio240: "AIO 240 mm",
+    cool_aio280: "AIO 280 mm", cool_aio360: "AIO 360 mm", cool_aio420: "AIO 420 mm", cool_custom: "Watercooling custom",
+    cat_psu: "Alim", cat_case: "Boîtier", cat_cool: "Refroid.",
+    s_psu: "Alimentation", s_case: "Boîtier", s_cool: "Refroidissement",
+    undetect_t: "Non détectable par logiciel",
+    undetect: "L'alimentation (puissance), le boîtier (taille max de carte graphique), le ventirad et le nombre exact de ports M.2 / SATA libres. Regarde l'étiquette de l'alimentation et la fiche de ta carte mère sur le site du fabricant.",
+    k_python: "Pulse Monitor (Python)", k_window: "Fenêtre", k_powershell: "PowerShell", k_other: "Autre",
+    app_title: "Ressources utilisées par l'appli", app_part: "Partie", app_total: "Total",
+    app_note: "Mesuré comme le Gestionnaire des tâches : CPU en % du processeur entier, RAM = mémoire privée active, en % de la RAM totale du PC. Quand la fenêtre est réduite, l'appli rend sa RAM inutilisée à Windows.",
+    toggle: "Cliquer pour replier / déplier", drag: "Glisser pour déplacer",
+    themes: "Thème", th_dark: "Sombre", th_light: "Clair", th_oled: "Noir OLED", th_midnight: "Bleu nuit", th_terminal: "Terminal",
+    order: "Ordre des catégories", order_hint: "Tu peux aussi glisser-déposer les catégories et les cartes avec la poignée ⋮⋮ qui apparaît au survol.",
+    reset: "Réinitialiser la disposition", reset_done: "Disposition réinitialisée", up_btn: "Monter", down_btn: "Descendre",
+    units: ["o", "Ko", "Mo", "Go", "To"], dec: ",",
+    s_cpu: "Processeur", s_board: "Carte mère", s_ram: "RAM", s_gpu: "Carte graphique", s_disk: "Stockage", s_os: "Système",
+    s_cores: "cœurs", s_slots: "emplacements utilisés", d: "j", h: "h", min: "min",
+  },
+  en: {
+    tab_privacy: "Privacy", pv_btn: "Privacy: what the app does with your data",
+    pv_t: "Your data stays on your PC",
+    pv_intro: "Pulse Monitor runs entirely locally. No account, no ads, no usage statistics, no remote server. Nothing is collected, sent, sold or shared: the information is only used to show you your PC's status in the app.",
+    pv_b1: "No data sent over the Internet",
+    pv_b2: "Nothing is sold or shared",
+    pv_b3: "No account, no ads, no trackers",
+    pv_b4: "Everything can be deleted anytime",
+    pv_read_t: "What the app reads, and why",
+    pv_read: ["<b>Performance</b> (CPU, graphics card, memory, disks, network): for the charts. For the network, only the speed, never what you exchange.", "<b>Components</b> (models, amounts, versions): read from Windows for the Components tab.", "<b>Names of open programs</b> and what they use: for details, bell tips and gaming sessions.", "<b>File names and sizes</b>: only when you start an analysis in Storage. File contents are never opened.", "<b>Installed games</b> (Steam, Epic, GOG folders, installed programs): only when you click \"Find installed games\".", "<b>Disk health</b>: only when you click the button, with your consent (administrator rights)."],
+    pv_store_t: "What is kept, only on your PC",
+    pv_store: ["<code>settings.json</code>: your settings (language, theme, card order…)", "<code>history/</code>: the 24 h / 7-day history (1 point per minute, deleted after 8 days)", "<code>games.json</code> and <code>games_lib.json</code>: your gaming sessions and the list of recognized games", "<code>scans/</code>: storage analysis and disk health results", "<code>stats.json</code>: the usage analysis (Analysis tab)", "<code>pulse_monitor.log</code>: a technical log in case of errors, never sent"],
+    pv_store_note: "Everything is in the Pulse Monitor folder. You can delete these files anytime: the app starts from scratch.",
+    pv_open: "Open the data folder",
+    pv_net_t: "Connections",
+    pv_net: ["The app only connects to the Internet if you click \"Check for updates\" (click the version number): it then asks GitHub for the latest version, and downloads it only if you click \"Install\". No information about you or your PC is sent.", "The window talks to the app through a small internal server, reachable <b>only from your PC</b> (address 127.0.0.1). Websites can't use it.", "Only the <code>.bat</code> file connects once, on first launch, to the official Python repository (PyPI) to install the required libraries."],
+    pv_never_t: "What the app never does",
+    pv_never: ["Read the contents of your files, web pages or messages", "Delete or change your files (it only opens Explorer)", "Record what you type: the widget shortcut only listens for the chosen combination, and the Ctrl key is only watched to move the pinned widget", "Take screenshots or access your webcam or microphone"],
+    up_tip: "App version · click to check for updates", up_t: "Updates", up_cur: "Installed version:", up_check: "Check for updates",
+    up_checking: "Checking GitHub…", up_ok: "You have the latest version.", up_avail: "New version available:", up_install: "Install and restart",
+    up_inst_note: "Your settings, history and sessions are kept. The old version is copied to the backup folder.",
+    up_installing: "Downloading and installing…", up_restart: "Installed! Restarting Pulse Monitor…",
+    up_norepo: "Updates aren't set up yet.", up_net: "Can't reach GitHub. Check your Internet connection.", up_err: "The update failed (see pulse_monitor.log).",
+    up_privacy: "The app's only Internet connection, and only when you click. Nothing is sent.",
+    tab_perf: "Performance", tab_comp: "Components", tab_custom: "Settings",
+    procs: "Processes", uptime: "Uptime", app_use: "This app", settings: "Settings", language: "Language",
+    sec_main: "Overview", sec_disks: "Storage", sec_net: "Network",
+    cpu: "Processor", ram: "Memory (RAM)", gpu: "Graphics card", gpu_int: "Integrated graphics", disk: "Disk",
+    usage: "Usage", freq: "Frequency", ct: "Cores / threads", maxcore: "Busiest core", threads: "threads",
+    used: "Used", avail: "Available", swap: "Page file",
+    temp: "Temperature", vram: "Video memory", shared: "shared", na: "N/A",
+    read: "Read", write: "Write", type: "Type", active: "% active", activity: "Activity", free: "free", space: "Free space",
+    down: "Download", up: "Upload", link: "Link speed",
+    idle: "Idle", moderate: "Moderate", busy: "Busy", maxed: "Maxed out",
+    loading: "Scanning components…", spec_err: "Couldn't read components (see pulse_monitor.log).",
+    copy_hint: "Handy for asking advice on a forum or at a store →", copy_btn: "Copy my specs summary",
+    copied: "Summary copied to clipboard", expand_all: "Expand all", collapse_all: "Collapse all",
+    tips_title: "Upgrade tips", tips_lead: "Generated automatically from what was detected on this PC.",
+    no_tips: "Nothing in particular to report.",
+    cat_ram: "RAM", cat_cpu: "CPU", cat_gpu: "GPU", cat_storage: "Storage", cat_board: "Motherboard",
+    board: "Motherboard", bios_ver: "BIOS version", bios_date: "BIOS date", ram_slots: "RAM slots", ram_max: "Max supported RAM",
+    base_freq: "Base clock", socket: "Socket", cache: "L2 / L3 cache",
+    th_slot: "Slot", th_size: "Size", th_type: "Type", th_speed: "Speed (MT/s)", th_maker: "Manufacturer", th_part: "Part number",
+    slot_free: "Empty slot", max: "max", DIMM: "DIMM (desktop)", "SO-DIMM": "SO-DIMM (laptop)",
+    driver: "Driver", driver_date: "Driver date", display: "Display",
+    th_disk: "Disk", th_letters: "Drives", th_model: "Model", th_health: "Health",
+    health0: "Healthy", health1: "Warning", health2: "Unhealthy",
+    system: "System", windows: "Windows", version: "Version", build: "build", arch: "Architecture", pcname: "PC name",
+    netscreens: "Network & displays", netcard: "Network adapter", screen: "Display", unknown: "Unknown",
+    tip_cpu_use: "Share of the processor in use right now.",
+    tip_freq: "Current CPU speed. It rises under load and drops when idle.",
+    tip_ct: "Cores = real processing units. Threads = tasks it can run at the same time.",
+    tip_maxcore: "The busiest core. At 100% it can hold games back even if the total is low.",
+    tip_cores: "One bar per thread: its current load.",
+    tip_ram_use: "Share of memory (RAM) in use.",
+    tip_used: "RAM taken by Windows and your programs.",
+    tip_avail: "RAM still free to open more programs.",
+    tip_swap: "Part of the disk used as backup RAM when it's full (much slower).",
+    tip_gpu_use: "Graphics card load.",
+    tip_temp: "Graphics chip temperature. Up to ~85 °C while gaming is normal.",
+    tip_vram: "The graphics card's own memory (used / total). Full = stutter in games.",
+    tip_active: "Time the disk is busy. Near 100% it slows the PC down.",
+    tip_read: "Data read from the disk per second.",
+    tip_write: "Data written to the disk per second.",
+    tip_type: "HDD = mechanical hard drive (slow). SSD = fast. NVMe = fastest SSD.",
+    tip_space: "Free space on each drive of this disk.",
+    tip_down: "Data received per second (download).",
+    tip_up: "Data sent per second (upload).",
+    tip_link: "Max speed of the link between the PC and the router (not your internet speed).",
+    tip_procs: "Number of programs and services running.",
+    tip_uptime: "Time since Windows last started.",
+    tip_base_freq: "Guaranteed CPU speed; it goes higher with turbo.",
+    tip_socket: "CPU socket type on the motherboard. A new CPU must use the same one.",
+    tip_cache: "Small, ultra-fast memory built into the CPU.",
+    tip_bios_ver: "Version of the motherboard firmware.",
+    tip_bios_date: "Release date of this BIOS version.",
+    tip_ram_slots: "RAM slots used / available on the motherboard.",
+    tip_ram_max: "Max RAM the motherboard supports.",
+    tip_driver: "Graphics card driver (software) version.",
+    tip_driver_date: "Driver date: newer is better for recent games.",
+    tip_th_speed: "RAM speed (million transfers per second). In brackets: its rated max.",
+    tip_th_part: "Exact part number of the stick, handy to buy a matching one.",
+    tip_th_slot: "Slot name on the motherboard.",
+    tip_th_health: "Health status reported by the disk.",
+    tip_th_type: "HDD = mechanical hard drive (slow). SSD = fast. NVMe = fastest SSD.",
+    tip_f_watt: "Max power of the PSU, printed on its label.",
+    tip_f_cert: "PSU efficiency (Bronze < Gold < Platinum). Higher = more efficient.",
+    tip_f_gpumm: "Max graphics card length the case fits (case spec sheet).",
+    tip_f_coolmm: "Max CPU cooler height the case fits.",
+    tip_f_m2: "Total M.2 slots (for NVMe SSDs) on the motherboard.",
+    tip_f_sata: "Total SATA ports (regular SSDs / hard drives) on the motherboard.",
+    tip_head: "Click: collapse / expand · Ctrl + click: hide the card",
+    tip_head_spec: "Ctrl + click: hide the card",
+    tip_sec: "Click: collapse / expand the category",
+    tip_app: "What Pulse Monitor itself uses.",
+    details: "Details: what's using this resource", close: "Close",
+    det_cpu: "What's using the CPU", det_ram: "What's using memory (RAM)",
+    det_gpu: "What's using the graphics card", det_disk: "What's reading / writing to disks",
+    det_note_cpu: "As % of the whole processor, processes grouped by program.",
+    det_note_ram: "Private memory of each program (all its processes added up).",
+    det_note_gpu: "Load of the graphics engine each program uses most, and its dedicated video memory.",
+    det_note_disk: "Reads + writes per second, per program, all disks combined (may include other program I/O).",
+    det_loading: "Scanning programs…", det_empty: "Nothing notable right now.",
+    det_foot: "processes · refreshed every 2 s", det_of_ram: "of RAM",
+    close_t: "Startup and closing",
+    autostart_opt: "Start with Windows", as_tip: "In the background, without opening the window.",
+    tray_opt: "Keep in tray when closed",
+    tray_hint: "In the background, with a small icon near the clock (~30 MB). Click: reopen. Right-click: Quit.",
+    dismiss: "Hide (comes back if the problem returns later)", dismiss_sig: "Hide (comes back if the number changes)",
+    hidden_alerts: "tip(s) hidden",
+    hist_t: "History", hist_7d: "7 days", hist_opt: "Record history (even with the window closed)",
+    hist_empty: "No data yet: history fills up with one point per minute (kept 8 days).",
+    hist_sub_cpu: "average · max", hist_sub_gpu: "average · max · °C", hist_sub_ram: "used", hist_sub_vram: "max",
+    hist_progs: "Programs involved:", hist_10min: "10-min average",
+    h_title: "Disk health", h_state: "Status", h_temp: "Temperature", h_life: "Remaining life", h_used: "wear", h_hours: "Power-on hours",
+    h_years: "years", h_errors: "Read / write errors", h_unc: "uncorrected", h_starts: "Start/stop cycles",
+    h_ok: "✓ Nothing to worry about.", h_warn: "⚠ The disk is wearing out or reports a warning: keep an eye on it and keep backups.",
+    h_bad: "⚠ Problem detected: back up your data and plan to replace this disk.", h_hot: "⚠ High temperature: check your case airflow.",
+    h_need_admin: "Windows only provides disk health (temperature, wear, hours, errors) with administrator rights. Click below and accept the prompt: the result is kept, no need to redo it every time.",
+    h_loading: "Reading disk health…", h_title_all: "Disk health", h_life_s: "life left", gap_off: "PC off or app closed",
+    h_refresh: "Refresh", h_admin: "Check disk health (admin)", h_reread: "Re-check disk health (admin)", h_read: "Read on", h_none: "No health info for this disk.",
+    h_wait_admin: "Accept the Windows prompt…", h_refused: "Administrator rights declined.",
+    tip_h_temp: "Current disk temperature (and the max recorded by the disk).",
+    tip_h_life: "For SSDs: share of their write endurance left. Below 20%, plan to replace it.",
+    tip_h_hours: "Total time the disk has been powered on.",
+    tip_h_errors: "Errors the disk ran into. \"Uncorrected\" ones are the sign of a failing disk.",
+    tab_analysis: "Analysis", tab_gaming: "Gaming", an_now: "Right now:", an_now_load: "heavy usage, this moment counts",
+    an_now_idle: "light usage, nothing is loaded enough to limit you: not counted", an_how_t: "How it works",
+    gl_search: "Search a game…", gl_t: "Recognized games", gl_tn: "recognized games", gl_find: "Search the list", gl_scan: "Find installed games", gl_busy: "Searching…", gl_found: "games found", gl_last: "Last search on",
+    gl_none: "Run a search: Pulse Monitor looks at Steam, Epic, GOG and installed games (Riot, Blizzard, EA, Ubisoft…). Well-known games (League of Legends, Valorant, Fortnite, WoW…) are already recognized.",
+    gl_manual: "Add a game manually", gl_pick: "Pick an open program…", gl_add: "Add", gl_manual_hint: "Start the game, then pick it in the list. It will always count as a game.", gl_rm: "Remove",
+    gm_stop: "Pause and see the summary", gm_stop_tip: "Ends the session now and shows its charts. The program isn't tracked until you resume tracking (or it's closed).",
+    gm_del: "Delete this session", gm_del_sure: "Delete?", gm_paused: "Paused:", gm_resume: "Resume tracking", gm_resume_tip: "Starts a new session right away for this program.",
+    gm_t: "Gaming sessions", gm_avg: "avg", gm_show: "Click to see the charts", gm_hide: "Click to hide the charts",
+    gm_no_tl: "No chart for this session: it was recorded before v0.4.5.", gm_opt: "Detect my gaming sessions", gm_clear: "Clear the list", gm_sure: "Sure? Click again", gm_now: "In progress:",
+    gm_empty: "No session yet. Start a game: it's recognized within 10 s if known or found by the search, otherwise 30 s (game in a Steam, Epic, Battle.net… folder, or full screen with the graphics card under load). Sessions shorter than 3 min aren't kept.",
+    gm_game: "Game", gm_date: "Date", gm_dur: "Duration", gm_temp: "GPU temp.", gm_verdict: "What limited", gm_avgmax: "average / max",
+    gm_v_gpu: "Graphics card maxed", gm_v_cpu: "CPU", gm_v_ram: "RAM full", gm_v_vram: "Video memory full", gm_v_none: "Nothing",
+    gm_vt_gpu: "The graphics card was working flat out most of the time: normal in games, it sets your FPS.",
+    gm_vt_cpu: "The CPU was often saturated while the graphics card wasn't: it was capping your FPS.",
+    gm_vt_ram: "RAM was often nearly full: this can cause stutters.",
+    gm_vt_vram: "Video memory was saturated: lower texture quality.",
+    gm_vt_none: "No component was at its limit: your PC had headroom (or FPS were capped).",
+    an_how: "The app only counts moments of heavy usage: CPU or graphics card at 40% or more, or RAM / video memory 80% full or more. At each of those moments it notes which component is maxed out: graphics card at 93% or more, CPU at 90% or more (or one core at 95%) while the graphics card is under 85%, video memory or RAM almost full. After 10 min of load, it names the one that limits you most often. Data is kept between sessions.",
+    tab_storage: "Storage", st_scan: "Analyze space used on {d}", st_rescan: "Re-analyze space used on {d}", st_stop: "Stop", st_never: "Never analyzed",
+    st_scanned: "Analyzed on", st_files: "files", st_dirs: "folders", st_elapsed: "elapsed",
+    st_pick: "Pick a drive and start the analysis. It can take a few minutes on a large hard drive (HDD).",
+    st_tree: "Folders", st_name: "Name", st_size: "Size", st_share: "Share", st_nfiles: "Files",
+    st_direct: "[files in this folder]", st_more: "more folders", st_small: "Contents not detailed (folder under 64 MB)",
+    tmp_t: "Temporary files", tmp_total: "in total", tmp_refresh: "Recalculate", tmp_win: "Open Windows cleanup", tmp_busy: "Calculating…",
+    tmp_note: "Pulse Monitor doesn't delete anything. These files are safe to delete (close the program first). The easiest way: \"Open Windows cleanup\" → Temporary files. Click a row to see the folders.",
+    tmp_win_temp: "Windows temporary files", tmp_updates: "Already installed Windows updates", tmp_browsers: "Browser cache",
+    tmp_apps: "App cache (Discord, Spotify, Steam)", tmp_shaders: "Shader cache (games)", tmp_thumbs: "Explorer thumbnails",
+    tmp_crash: "Crash reports", tmp_recycle: "Recycle Bin",
+    tmpt_win_temp: "Files left by installers and programs. Files in use can't be deleted, that's normal.",
+    tmpt_updates: "Setup files of Windows updates already applied. Windows cleanup removes them properly.",
+    tmpt_browsers: "Images and pages kept to load sites faster. Rebuilt automatically. Close the browser before clearing.",
+    tmpt_apps: "Same idea as browsers, for Discord, Spotify and the Steam store.",
+    tmpt_shaders: "Graphics effects precomputed by games. If deleted, games rebuild them (small stutters at first).",
+    tmpt_thumbs: "Image and video previews in Explorer. Rebuilt automatically.",
+    tmpt_crash: "Reports created when a program crashes. Useless unless troubleshooting.", tmpt_recycle: "Files you deleted. Empty the bin to free the space.",
+    st_types: "By file type", st_big: "Largest files", st_open: "Show in Explorer",
+    st_back: "All types", st_info: "Duration", st_denied: "Inaccessible (protected folders, other accounts…)",
+    st_stopped: "Analysis stopped.", st_err: "Analysis failed (see pulse_monitor.log).",
+    cat_video: "Videos", cat_image: "Images", cat_audio: "Music", cat_archive: "Archives & ISO", cat_game: "Games & programs",
+    cat_document: "Documents", cat_dev: "Development", cat_other: "Other",
+    hk_t: "Keyboard shortcut", hk_none: "None", hk_set: "Change", hk_clear: "Remove", hk_listen: "Press the key combination…",
+    hk_taken: "This shortcut is already used by another app.", hk_need: "Use Ctrl, Alt or Win with a key (or an F1-F12 key).",
+    widget_t: "Desktop widget", widget_opt: "Show the widget (CPU, GPU, temperature, VRAM, RAM)", widget_style: "Style:",
+    ws_compact: "Compact", ws_bars: "Bars",
+    widget_hint: "Drag it with the mouse. 📌 pins it above everything: clicks then go through it and the close button disappears — hold Ctrl to move or unpin it. Also in the icon menu (right-click). Cost: ~5-10 MB.",
+    bell_tip: "Live tips", now_t: "Right now", all_good: "✓ All good",
+    usage_t: "Which component holds you back?", usage_since: "Analyzed since", usage_load: "of load analyzed",
+    usage_reset: "Reset analysis", usage_off: "Background analysis is off (Settings): only time with the window open counts.",
+    sh_gpu: "Graphics", sh_cpu: "CPU", sh_ram: "RAM", sh_vram: "VRAM",
+    sh_tip: "Share of load time when this component was maxed out.",
+    cat_disk: "Disk", cat_startup: "Startup", cat_play: "Game",
+    bg_opt: "Analyze usage in the background (even with the window closed)",
+    bg_hint: "So your gaming sessions count even with the window closed. Cost: ~0.1% CPU, no RAM.",
+    cards_lbl: "Cards:", sz_collapsed: "Collapsed", sz_small: "Small", sz_large: "Large",
+    big_on: "Large charts", big_off: "Compact charts",
+    hidden_t: "Hidden cards", hidden_none: "No hidden cards.", show: "Show", show_all: "Show all",
+    hidden_hint: "Ctrl + click a card to hide it.", hidden_toast: "Card hidden — restore it in Settings",
+    manual_t: "Fill in (not detectable)",
+    manual_lead: "Software can't read these parts. Fill in what you know (pick from the list or type your own): it's saved and added to your specs summary. Tip: the wattage is on your power supply's label.",
+    m_psu: "Power supply", m_case: "Case", m_cool: "CPU cooling", m_board: "Motherboard (ports)",
+    f_brand: "Brand", f_model: "Model", f_watt: "Wattage", f_cert: "Certification", f_mod: "Modular",
+    f_form: "Form factor", f_gpumm: "Max GPU length (mm)", f_coolmm: "Max cooler height (mm)", f_type: "Type",
+    f_m2: "M.2 slots (total)", f_sata: "SATA ports (total)", choose: "— choose —",
+    cert_none: "None", mod_no: "No", mod_semi: "Semi-modular", mod_full: "Fully modular",
+    form_atx: "ATX mid tower", form_full: "Full tower", form_matx: "Micro-ATX", form_itx: "Mini-ITX",
+    cool_stock: "Stock cooler", cool_air: "Tower air cooler", cool_aio120: "120 mm AIO", cool_aio240: "240 mm AIO",
+    cool_aio280: "280 mm AIO", cool_aio360: "360 mm AIO", cool_aio420: "420 mm AIO", cool_custom: "Custom loop",
+    cat_psu: "PSU", cat_case: "Case", cat_cool: "Cooling",
+    s_psu: "Power supply", s_case: "Case", s_cool: "CPU cooling",
+    undetect_t: "Not detectable by software",
+    undetect: "Power supply (wattage), case (max graphics card length), CPU cooler and the exact number of free M.2 / SATA ports. Check the label on your power supply and your motherboard's spec page on the manufacturer's website.",
+    k_python: "Pulse Monitor (Python)", k_window: "Window", k_powershell: "PowerShell", k_other: "Other",
+    app_title: "Resources used by the app", app_part: "Part", app_total: "Total",
+    app_note: "Measured like Task Manager: CPU as % of the whole processor, RAM = private working set, as % of the PC's total RAM. When the window is minimized, the app gives unused RAM back to Windows.",
+    toggle: "Click to collapse / expand", drag: "Drag to move",
+    themes: "Theme", th_dark: "Dark", th_light: "Light", th_oled: "OLED black", th_midnight: "Midnight blue", th_terminal: "Terminal",
+    order: "Category order", order_hint: "You can also drag and drop categories and cards using the ⋮⋮ handle that appears on hover.",
+    reset: "Reset layout", reset_done: "Layout reset", up_btn: "Move up", down_btn: "Move down",
+    units: ["B", "KB", "MB", "GB", "TB"], dec: ".",
+    s_cpu: "CPU", s_board: "Motherboard", s_ram: "RAM", s_gpu: "Graphics card", s_disk: "Storage", s_os: "OS",
+    s_cores: "cores", s_slots: "slots used", d: "d", h: "h", min: "min",
+  },
+};
+let lang = "fr";
+const T = k => (I18N[lang][k] ?? I18N.fr[k] ?? k);
+const THEMES = ["dark", "light", "oled", "midnight", "terminal"];
+
+// =================== Réglages ===================
+let collapsed = new Set(), order = {}, theme = "dark", manual = {}, hidden = {}, bigMode = false, trayMode = true, bgMode = true, dismissed = {}, widgetOn = false, widgetStyle = "compact", widgetPatch = {}, autostart = false, histOn = true, hotkey = null, wgLock = 0;
+async function loadSettings() {
+  try {
+    const s = await (await fetch("/api/settings", {cache: "no-store"})).json();
+    lang = s.lang === "en" || s.lang === "fr" ? s.lang : (navigator.language || "fr").startsWith("fr") ? "fr" : "en";
+    theme = THEMES.includes(s.theme) ? s.theme : "dark";
+    collapsed = new Set(s.collapsed || []);
+    order = s.order && typeof s.order === "object" ? s.order : {};
+    manual = s.manual && typeof s.manual === "object" ? s.manual : {};
+    hidden = s.hidden && typeof s.hidden === "object" ? s.hidden : {};
+    for (const k of Object.keys(hidden)) if (k.startsWith("spec-")) delete hidden[k];
+    bigMode = !!s.big;
+    trayMode = s.tray !== false;
+    bgMode = s.bg !== false;
+    dismissed = s.dismissed && typeof s.dismissed === "object" ? s.dismissed : {};
+    histOn = s.history !== false;
+    widgetOn = !!s.widget; hotkey = s.hotkey && s.hotkey.vk ? s.hotkey : null; widgetStyle = s.widget_style === "bars" ? "bars" : "compact";
+    autostart = !!s.autostart;
+  } catch (e) {}
+}
+let saveTimer = null;
+function saveSettings() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    // le widget n'est envoyé que si on vient de le changer ici (il peut aussi changer depuis l'icône ou sa croix)
+    const body = {lang, theme, collapsed: [...collapsed], order, manual, hidden, big: bigMode, tray: trayMode, bg: bgMode, dismissed, ...widgetPatch,
+                  history: histPatch != null ? histPatch : histOn};
+    if (histPatch != null) { histOn = histPatch; histPatch = null; }
+    widgetPatch = {};
+    fetch("/api/settings", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)}).catch(() => {});
+  }, 300);
+}
+
+// =================== Formatage ===================
+const dec = (x, n) => x.toFixed(n).replace(".", T("dec"));
+function fmtBytes(b, d) {
+  if (b == null) return "–";
+  const u = T("units"); let i = 0;
+  while (b >= 1024 && i < u.length - 1) { b /= 1024; i++; }
+  return dec(b, d ?? (b >= 10 || i < 2 ? 0 : 1)) + " " + u[i];
+}
+const fmtPct = v => v == null ? "–" : Math.round(v) + " %";
+function fmtRate(bps) {
+  if (bps == null) return "–";
+  const bits = bps * 8;
+  if (bits >= 1e9) return dec(bits / 1e9, 1) + " Gb/s";
+  if (bits >= 1e6) return dec(bits / 1e6, 1) + " Mb/s";
+  if (bits >= 1e3) return Math.round(bits / 1e3) + " Kb/s";
+  return Math.round(bits) + " b/s";
+}
+const fmtBytesRate = b => b == null ? "–" : fmtBytes(b, b >= 1048576 ? 1 : 0) + "/s";
+const fmtLink = m => m ? (m >= 1000 ? dec(m / 1000, m % 1000 ? 1 : 0) + " Gb/s" : m + " Mb/s") : "–";
+function fmtUptime(s) {
+  s = Math.floor(s); const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+  return (d ? d + " " + T("d") + " " : "") + h + " " + T("h") + " " + String(m).padStart(2, "0") + " " + T("min");
+}
+function loadState(p) {
+  if (p == null) return ["", ""];
+  if (p >= 90) return [T("maxed"), "var(--bad)"];
+  if (p >= 70) return [T("busy"), "var(--warn)"];
+  if (p >= 30) return [T("moderate"), "var(--text)"];
+  return [T("idle"), "var(--ok)"];
+}
+const tipAttr = k => I18N[lang]["tip_" + k] ? ` data-tip="${esc(T("tip_" + k))}"` : "";
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const letterTxt = l => l.length === 1 ? l + ":" : l;
+const setText = (el, t) => { if (el && el.textContent !== t) el.textContent = t; };
+const setHTML = (el, h) => { if (el && el._h !== h) { el.innerHTML = h; el._h = h; } };
+
+// =================== Couleurs du thème ===================
+let COL = {};
+function readColors() {
+  const cs = getComputedStyle(document.documentElement);
+  for (const k of ["cpu", "ram", "gpu", "disk", "net", "up", "grid", "chart"]) COL[k] = cs.getPropertyValue("--" + k).trim();
+}
+
+// =================== Historique & graphiques ===================
+const HIST = 60, hist = {};
+let noPush = false;
+function push(key, v) {
+  const a = hist[key] || (hist[key] = new Array(HIST).fill(null));
+  if (noPush) return a;
+  a.push(v); if (a.length > HIST) a.shift();
+  return a;
+}
+function draw(canvas, series, max, small) {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (!w || !h) return;   // replié ou onglet caché : rien à dessiner
+  const dpr = window.devicePixelRatio || 1;
+  if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+    canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+  }
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  if (!small) {
+    ctx.strokeStyle = COL.grid; ctx.lineWidth = 1; ctx.beginPath();
+    for (let i = 1; i < 3; i++) { const y = Math.round(h * i / 3) + .5; ctx.moveTo(0, y); ctx.lineTo(w, y); }
+    for (let i = 1; i < 6; i++) { const x = Math.round(w * i / 6) + .5; ctx.moveTo(x, 0); ctx.lineTo(x, h); }
+    ctx.stroke();
+  }
+  const step = w / (HIST - 1);
+  for (const s of series) {
+    const pts = [];
+    s.data.forEach((v, i) => { if (v != null) pts.push([i * step, h - 2 - Math.min(1, v / max) * (h - 5)]); });
+    if (pts.length < 2) continue;
+    if (!s.noFill) {
+      const g = ctx.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, s.color + "55"); g.addColorStop(1, s.color + "05");
+      ctx.beginPath(); ctx.moveTo(pts[0][0], h);
+      pts.forEach(p => ctx.lineTo(p[0], p[1]));
+      ctx.lineTo(pts[pts.length - 1][0], h); ctx.closePath(); ctx.fillStyle = g; ctx.fill();
+    }
+    ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]));
+    ctx.strokeStyle = s.color; ctx.lineWidth = small ? 1.4 : 1.6; ctx.lineJoin = "round"; ctx.stroke();
+  }
+}
+
+// =================== Repli ===================
+const CHEV = `<svg class="chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+document.querySelectorAll(".section-title").forEach(t => t.innerHTML = t.innerHTML.replace("CHEV", CHEV));
+function applyCollapsed(root = document) {
+  root.querySelectorAll(".card[data-id]:not(.spec), .section[data-id]").forEach(el => el.classList.toggle("collapsed", collapsed.has(el.dataset.id)));
+}
+document.addEventListener("click", e => {
+  const db = e.target.closest(".detbtn");
+  if (db) { openDetails(db.dataset.det, db.closest(".card")); return; }
+  if (drawer.classList.contains("on") && !e.target.closest("#drawer")) closeDetails();
+  if (e.target.closest(".grip")) return;
+  if (e.ctrlKey || e.metaKey) {   // Ctrl + clic : masquer la carte
+    const cardEl = e.target.closest(".card[data-id]:not(.spec)");   // pas de masquage dans Composants
+    if (cardEl && !e.target.closest("input, select, button, #custom")) {
+      e.preventDefault();
+      hidden[cardEl.dataset.id] = (cardEl.querySelector(".c-title")?.textContent || cardEl.dataset.id) +
+        (cardEl.querySelector(".c-sub")?.textContent && !cardEl.dataset.id.startsWith("net-") ? " — " + cardEl.querySelector(".c-sub").textContent : "");
+      cardEl.classList.add("hid"); hideTip();
+      saveSettings(); renderCustom(); toast(T("hidden_toast"));
+    }
+    return;
+  }
+  const head = e.target.closest(".c-head, .section-title");
+  if (!head || head.classList.contains("nofold")) return;
+  const box = head.classList.contains("section-title") ? head.closest(".section") : head.closest(".card");
+  const id = box && box.dataset.id; if (!id) return;
+  collapsed.has(id) ? collapsed.delete(id) : collapsed.add(id);
+  box.classList.toggle("collapsed", collapsed.has(id));
+  saveSettings(); redrawAll(); applyBig();
+});
+function setAll(ids, collapse) {
+  ids.forEach(id => collapse ? collapsed.add(id) : collapsed.delete(id));
+  applyCollapsed(); saveSettings(); redrawAll();
+}
+
+// =================== Ordre (glisser-déposer) ===================
+let defSeq = 0;
+function applyOrder(container) {
+  const key = container.id || container.dataset.okey;
+  const list = order[key] || [];
+  const kids = [...container.children].filter(n => n.dataset.id);
+  const rank = n => { const i = list.indexOf(n.dataset.id); return i < 0 ? 1000 + (+n.dataset.def || 0) : i; };
+  const sorted = [...kids].sort((a, b) => rank(a) - rank(b));
+  if (sorted.some((n, i) => n !== kids[i])) sorted.forEach(n => container.appendChild(n));
+}
+function saveOrder(container) {
+  order[container.id || container.dataset.okey] = [...container.children].filter(n => n.dataset.id).map(n => n.dataset.id);
+  saveSettings();
+}
+let dragEl = null;
+document.addEventListener("dragstart", e => {
+  const g = e.target.closest && e.target.closest(".grip");
+  if (!g) return;
+  dragEl = g.closest(".card, .section");
+  dragEl.classList.add("dragging");
+  e.dataTransfer.effectAllowed = "move";
+  e.dataTransfer.setData("text/plain", dragEl.dataset.id);
+  try { e.dataTransfer.setDragImage(dragEl, 20, 14); } catch (_) {}
+});
+document.addEventListener("dragover", e => {
+  if (!dragEl) return;
+  const cont = dragEl.parentNode;
+  let t = e.target.closest && e.target.closest(".card, .section");
+  while (t && t.parentNode !== cont) t = t.parentNode && t.parentNode.closest ? t.parentNode.closest(".card, .section") : null;
+  e.preventDefault();
+  if (!t || t === dragEl) return;
+  const r = t.getBoundingClientRect();
+  const sameRow = e.clientY >= r.top && e.clientY <= r.bottom && dragEl.classList.contains("card") && r.width < cont.clientWidth * .9;
+  const after = sameRow ? e.clientX > r.left + r.width / 2 : e.clientY > r.top + r.height / 2;
+  cont.insertBefore(dragEl, after ? t.nextSibling : t);
+});
+document.addEventListener("dragend", () => {
+  if (!dragEl) return;
+  dragEl.classList.remove("dragging");
+  saveOrder(dragEl.parentNode);
+  dragEl = null;
+  redrawAll(); renderCustom();
+});
+
+// =================== Cartes « Performances » ===================
+const cards = {};
+const gridMain = document.getElementById("grid-main");
+const gridDisks = document.getElementById("grid-disks");
+const gridNet = document.getElementById("grid-net");
+const sectionsEl = document.getElementById("sections");
+
+function card(id, parent, {title, color, body, tip, det}) {
+  if (cards[id]) return cards[id];
+  const el = document.createElement("div");
+  el.className = "card" + (collapsed.has(id) ? " collapsed" : "") + (hidden[id] ? " hid" : "");
+  el.dataset.id = id; el.dataset.def = defSeq++;
+  el.innerHTML = `<div class="c-head"${tipAttr("head")}><span class="grip" draggable="true" data-tip="${esc(T("drag"))}">⋮⋮</span>
+      <span class="dot" style="background:${color}"></span>
+      <span class="c-title" data-r="title">${esc(title)}</span><span class="c-sub" data-r="sub"></span>
+      <span class="hval" data-r="hval"${tipAttr(tip)}></span>${det ? `<button class="detbtn" data-det="${det}" data-tip="${esc(T("details"))}">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>` : ""}${CHEV}</div>
+    <div class="crow"><span class="mini" data-r="mini"></span><canvas class="spark" data-r="spark"${tipAttr(tip)}></canvas></div>
+    <div class="chartwrap"${tipAttr(tip)}><canvas class="chart" data-r="chart"></canvas>
+      <div class="over"><span class="big" data-r="big">–</span><span class="state" data-r="state"></span></div></div>${body || ""}`;
+  parent.appendChild(el);
+  applyOrder(parent);
+  const refs = {el, id};
+  el.querySelectorAll("[data-r]").forEach(n => refs[n.dataset.r] = n);
+  cards[id] = refs;
+  return refs;
+}
+const isCollapsed = c => c.el.classList.contains("collapsed");
+const perfTab = document.getElementById("perf");
+const tabOn = () => perfTab.classList.contains("on");
+function head(c, bigHTML, pct, mini, hval) {
+  setHTML(c.big, bigHTML);
+  setText(c.hval, hval ?? (pct == null ? "–" : Math.round(pct) + " %"));
+  c.hval.style.color = pct != null && pct >= 70 ? (pct >= 90 ? "var(--bad)" : "var(--warn)") : "";
+  const [t, col] = loadState(pct);
+  setText(c.state, t); c.state.style.color = col; c.state.style.display = t ? "" : "none";
+  if (isCollapsed(c)) setHTML(c.mini, mini.filter(x => x).map(([k, v]) => `<span${tipAttr(k)}>${esc(T(k))}<b>${esc(v)}</b></span>`).join(""));
+}
+// dessine le grand graphique ou le mini-graphique selon l'état ; renvoie true si la carte est dépliée
+function plot(c, series, max) {
+  if (!tabOn()) return false;
+  if (isCollapsed(c)) { draw(c.spark, series, max, true); return false; }
+  draw(c.chart, series, max);
+  return true;
+}
+const stat = (k, ref) => `<div class="stat"${tipAttr(k)}><div class="k">${esc(T(k))}</div><div class="v" data-r="${ref}">–</div></div>`;
+
+function renderCPU(d) {
+  const c = card("cpu", gridMain, {det: "cpu", tip: "cpu_use", title: T("cpu"), color: "var(--cpu)",
+    body: `<div class="stats">${stat("freq", "freq")}${stat("ct", "ct")}${stat("maxcore", "maxcore")}</div>
+           <div class="cores" data-r="cores"${tipAttr("cores")}></div>`});
+  const freq = d.freq_mhz ? dec(d.freq_mhz / 1000, 2) + " GHz" : "–";
+  const sc = specs && specs.cpu;
+  const ct = sc ? `${sc.cores ?? "?"} / ${sc.threads ?? "?"}` : `${d.per.length} ${T("threads")}`;
+  setText(c.sub, d.name || "");
+  head(c, Math.round(d.usage) + "<small>%</small>", d.usage,
+    [["freq", freq], ["ct", ct], ["maxcore", fmtPct(Math.max(...d.per))]]);
+  const data = push("cpu", d.usage);
+  if (!plot(c, [{data, color: COL.cpu}], 100)) return;
+  setText(c.freq, freq); setText(c.ct, ct); setText(c.maxcore, fmtPct(Math.max(...d.per)));
+  if (c.cores.children.length !== d.per.length)
+    c.cores.innerHTML = d.per.map(() => `<div class="core"><i></i></div>`).join("");
+  d.per.forEach((v, i) => c.cores.children[i].firstChild.style.height = v + "%");
+}
+
+function renderRAM(d) {
+  const c = card("ram", gridMain, {det: "ram", tip: "ram_use", title: T("ram"), color: "var(--ram)",
+    body: `<div class="stats">${stat("used", "used")}${stat("avail", "avail")}${stat("swap", "swap")}</div>`});
+  const sr = specs && specs.ram;
+  setText(c.sub, fmtBytes(d.total) + (sr && sr.type ? " " + sr.type + (sr.configured ? " · " + sr.configured + " MT/s" : "") : ""));
+  const used = `${fmtBytes(d.used, 1)} / ${fmtBytes(d.total)}`;
+  head(c, Math.round(d.percent) + "<small>%</small>", d.percent,
+    [["used", fmtBytes(d.used, 1)], ["avail", fmtBytes(d.available, 1)]]);
+  const data = push("ram", d.percent);
+  if (!plot(c, [{data, color: COL.ram}], 100)) return;
+  setText(c.used, fmtBytes(d.used, 1));
+  setText(c.avail, fmtBytes(d.available, 1));
+  setText(c.swap, d.swap_total ? `${fmtBytes(d.swap_used, 1)} / ${fmtBytes(d.swap_total)}` : "–");
+}
+
+function renderGPU(g) {
+  const id = "gpu-" + g.id;
+  const c = card(id, gridMain, {det: "gpu:" + g.id, tip: "gpu_use", title: T(g.integrated ? "gpu_int" : "gpu"), color: "var(--gpu)",
+    body: `<div class="stats">${stat("temp", "temp")}${stat("vram", "vram")}</div>
+           <div class="bar"${tipAttr("vram")}><i data-r="vbar" style="background:var(--gpu)"></i></div>`});
+  setText(c.sub, g.name);
+  const temp = g.temp != null ? Math.round(g.temp) + " °C" : T("na");
+  const vram = g.integrated ? (g.shared_used != null ? fmtBytes(g.shared_used, 1) + " " + T("shared") : T("shared"))
+                            : `${fmtBytes(g.vram_used, 1)} / ${fmtBytes(g.vram_total)}`;
+  head(c, g.usage == null ? "–" : Math.round(g.usage) + "<small>%</small>", g.usage,
+    [["temp", temp], ["vram", vram]]);
+  const data = push(id, g.usage);
+  if (!plot(c, [{data, color: COL.gpu}], 100)) return;
+  setText(c.temp, temp);
+  c.temp.style.color = g.temp >= 85 ? "var(--bad)" : g.temp >= 75 ? "var(--warn)" : "";
+  setText(c.vram, vram);
+  c.vbar.parentNode.style.display = g.integrated ? "none" : "";
+  if (!g.integrated) c.vbar.style.width = g.vram_used && g.vram_total ? Math.min(100, g.vram_used / g.vram_total * 100) + "%" : "0";
+}
+
+function diskLabel(d) {
+  return T("disk") + " " + d.id + (d.letters && d.letters.length ? " (" + d.letters.map(letterTxt).join(", ") + ")" : "");
+}
+function renderDisk(d) {
+  const id = "disk-" + d.id;
+  const c = card(id, gridDisks, {det: "disk:" + d.id, tip: "active", title: diskLabel(d), color: "var(--disk)",
+    body: `<div class="stats">${stat("read", "read")}${stat("write", "write")}${stat("type", "kind")}</div><div data-r="vols"${tipAttr("space")}></div>`});
+  setText(c.title, diskLabel(d)); setText(c.sub, d.name);
+  const kind = [d.media, d.bus && d.bus !== "?" ? "(" + d.bus + ")" : ""].filter(x => x && x !== "?").join(" ") || "–";
+  const freeTxt = d.volumes.map(v => `${letterTxt(v.letter)} ${fmtBytes(v.total - v.used)}`).join(" · ");
+  head(c, Math.round(d.active) + "<small>%</small>", d.active,
+    [["read", fmtBytesRate(d.read)], ["write", fmtBytesRate(d.write)], freeTxt ? ["space", freeTxt] : null]);
+  const data = push(id, d.active);
+  if (!plot(c, [{data, color: COL.disk}], 100)) return;
+  setText(c.read, fmtBytesRate(d.read)); setText(c.write, fmtBytesRate(d.write)); setText(c.kind, kind);
+  setHTML(c.vols, d.volumes.map(v => {
+    const p = v.used / v.total * 100;
+    const col = p >= 90 ? "var(--bad)" : p >= 75 ? "var(--warn)" : "var(--disk)";
+    return `<div class="vol"><b>${esc(letterTxt(v.letter))}</b><div class="bar"><i style="width:${p.toFixed(1)}%;background:${col}"></i></div>
+      <span class="t">${fmtBytes(v.total - v.used)} ${T("free")} / ${fmtBytes(v.total)}</span></div>`;
+  }).join(""));
+}
+
+function renderNet(n) {
+  const id = "net-" + n.name;
+  const c = card(id, gridNet, {tip: "down", title: n.name, color: "var(--net)",
+    body: `<div class="legend"><span style="--c:var(--net)">${esc(T("down"))}</span><span style="--c:var(--up)">${esc(T("up"))}</span></div>
+           <div class="stats">${stat("down", "down")}${stat("up", "up")}${stat("link", "link")}</div>`});
+  setHTML(c.big, esc(fmtRate(n.down)).replace(/ (\S+)$/, "<small>$1</small>"));
+  c.state.style.display = "none";
+  setText(c.sub, "↓ " + T("down"));
+  setText(c.hval, "↓ " + fmtRate(n.down));
+  if (isCollapsed(c)) setHTML(c.mini, [["up", fmtRate(n.up)], ["link", fmtLink(n.link_mbps)]]
+    .map(([k, v]) => `<span${tipAttr(k)}>${esc(T(k))}<b>${esc(v)}</b></span>`).join(""));
+  const dn = push("net-d-" + n.name, n.down), up = push("net-u-" + n.name, n.up);
+  const mx = Math.max(16384, ...dn.filter(v => v != null), ...up.filter(v => v != null)) * 1.15;
+  if (!plot(c, [{data: dn, color: COL.net}, {data: up, color: COL.up, noFill: true}], mx)) return;
+  setText(c.down, fmtRate(n.down)); setText(c.up, fmtRate(n.up)); setText(c.link, fmtLink(n.link_mbps));
+}
+
+function prune(prefix, keep) {
+  for (const id of Object.keys(cards))
+    if (id.startsWith(prefix) && !keep.has(id)) { cards[id].el.remove(); delete cards[id]; }
+}
+
+// ---- consommation de l'appli : info-bulle maison, mise à jour sans clignoter ----
+let appData = null, appTot = 0;
+const ramPct = b => appTot ? dec(b / appTot * 100, b / appTot < 0.01 ? 2 : 1) + " %" : fmtBytes(b);
+const appPop = document.getElementById("app-pop");
+function renderApp(a, tot) {
+  if (!a) return;
+  if (tot) appTot = tot;
+  appData = a;
+  setText(document.getElementById("h-app"), `CPU ${dec(a.cpu, 1)} % · RAM ${ramPct(a.ram)}`);
+  if (!appPop.classList.contains("on")) return;
+  const rows = [...a.parts].sort((x, y) => y.ram - x.ram).map(p =>
+    `<tr><td>${esc(T("k_" + p.kind))}${p.n > 1 ? " ×" + p.n : ""}</td><td>${dec(p.cpu, 1)} %</td><td>${fmtBytes(p.ram)} <span class="muted">(${ramPct(p.ram)})</span></td></tr>`).join("");
+  setHTML(appPop, `<h4>${esc(T("app_title"))}</h4><table><tr><th>${esc(T("app_part"))}</th><th>CPU</th><th>RAM</th></tr>${rows}
+    <tr><td><b>${esc(T("app_total"))}</b></td><td><b>${dec(a.cpu, 1)} %</b></td><td><b>${fmtBytes(a.ram)}</b> <span class="muted">(${ramPct(a.ram)})</span></td></tr></table>
+    <div class="note">${esc(T("app_note"))}</div>`);
+}
+const appChip = document.getElementById("appuse");
+appChip.addEventListener("mouseenter", () => { appPop.classList.add("on"); renderApp(appData); });
+appChip.addEventListener("mouseleave", () => appPop.classList.remove("on"));
+
+let last = null, specs = null, specsAsked = false;
+function renderLive(d) {
+  renderCPU(d.cpu);
+  renderRAM(d.ram);
+  [...d.gpus].sort((a, b) => a.integrated - b.integrated).forEach(renderGPU);
+  prune("gpu-", new Set(d.gpus.map(g => "gpu-" + g.id)));
+  d.disks.forEach(renderDisk);
+  prune("disk-", new Set(d.disks.map(x => "disk-" + x.id)));
+  d.net.forEach(renderNet);
+  prune("net-", new Set(d.net.map(x => "net-" + x.name)));
+  setText(document.getElementById("cnt-disks"), "(" + d.disks.length + ")");
+  setText(document.getElementById("cnt-net"), "(" + d.net.length + ")");
+  setText(document.getElementById("h-procs"), String(d.cpu.procs ?? "–"));
+  setText(document.getElementById("h-uptime"), fmtUptime(d.cpu.uptime));
+  renderApp(d.app, d.ram && d.ram.total);
+  if (!noPush) { liveAlerts = d.alerts || []; liveInsight = d.insight || null; }
+  if (typeof d.widget_on === "boolean" && d.widget_on !== widgetOn && Date.now() > wgLock) {   // fermé avec sa croix, le raccourci ou l'icône
+    widgetOn = d.widget_on;
+    const cb = document.getElementById("wg-cb"); if (cb) cb.checked = widgetOn;
+  }
+  renderBell();
+  if (document.getElementById("analysis").classList.contains("on")) renderAnalysis();
+  if (document.getElementById("gaming").classList.contains("on") && Date.now() - gmT > 15000) loadGames();
+  equalize(d);
+}
+
+// Toutes les cartes de Performances à la même hauteur (dépliées entre elles, repliées entre elles).
+// Ne recalcule que si la disposition a changé, pour ne pas gaspiller de ressources.
+let eqSig = "";
+function equalize(d) {
+  if (!tabOn()) return;
+  const all = [...perfTab.querySelectorAll(".card[data-id]:not(.hid)")];
+  const sig = [innerWidth, perfTab.classList.contains("bigmode"), lang, !!specs, all.map(n => n.dataset.id + (n.classList.contains("collapsed") ? "c" : "")).join(),
+    d.disks.map(x => x.volumes.length).join(), [...perfTab.querySelectorAll(".section.collapsed")].length].join("|");
+  if (sig === eqSig) return;
+  eqSig = sig;
+  const open = all.filter(n => !n.classList.contains("collapsed"));
+  open.forEach(n => n.style.minHeight = "");
+  const h = Math.max(0, ...open.map(n => n.offsetHeight));
+  open.forEach(n => n.style.minHeight = h + "px");
+  requestAnimationFrame(() => redrawAll());
+  all.filter(n => n.classList.contains("collapsed")).forEach(n => n.style.minHeight = "");
+}
+// redessine sans ajouter de point (dépliage, onglet, langue, thème…)
+function redrawAll() {
+  if (!last) return;
+  noPush = true;
+  try { renderLive(last); } finally { noPush = false; }
+}
+async function tick() {
+  try {
+    const d = await (await fetch("/api/live", {cache: "no-store"})).json();
+    if (!d.cpu) return;
+    last = d;
+    renderLive(d);
+    if (d.specs_ready && !specs && !specsAsked) { specsAsked = true; loadSpecs(); }
+  } catch (e) { /* serveur arrêté */ }
+}
+
+// =================== Composants ===================
+async function loadSpecs() {
+  specs = await (await fetch("/api/specs", {cache: "no-store"})).json();
+  renderSpecs(); redrawAll();
+  if (stDrives.length) stRender();
+}
+const row = (k, v) => v == null || v === "" ? "" : `<dt${tipAttr(k)}>${esc(T(k))}</dt><dd${tipAttr(k)}>${esc(v)}</dd>`;
+const th = k => `<th${tipAttr(k)}>${esc(T(k))}</th>`;
+const rowRaw = (label, v) => v == null || v === "" ? "" : `<dt>${esc(label)}</dt><dd>${esc(v)}</dd>`;
+const specCard = (id, color, title, inner, cls = "") =>
+  `<div class="card spec ${cls}" data-id="${id}" data-def="${defSeq++}"><div class="c-head nofold"><span class="grip" draggable="true" data-tip="${esc(T("drag"))}">⋮⋮</span><span class="dot" style="background:${color}"></span>
+   <span class="c-title">${esc(title)}</span><span class="c-sub"></span></div>${inner}</div>`;
+const sizeTxt = gb => gb ? (gb >= 1000 ? dec(gb / 1000, 1) + " " + T("units")[4] : gb + " " + T("units")[3]) : "?";
+
+function renderSpecs() {
+  const el = document.getElementById("comp-body"), s = specs;
+  if (!s) { el.innerHTML = `<div class="loading"><div class="spinner"></div>${esc(T("loading"))}</div>`; return; }
+  if (s.error) { el.innerHTML = `<div class="loading">${esc(T("spec_err"))}</div>`; return; }
+  const ram = s.ram, cpu = s.cpu, b = s.board, os = s.os, GBu = " " + T("units")[3];
+
+  const ramRows = (ram.modules || []).map(m => `<tr><td>${esc(m.slot)}</td><td>${dec(m.size_gb, m.size_gb % 1 ? 1 : 0)}${GBu}</td>
+      <td>${m.configured || "?"}${m.speed && m.speed !== m.configured ? ` <span class="muted">(${T("max")} ${m.speed})</span>` : ""}</td>
+      <td>${esc(m.maker)}</td><td>${esc(m.part)}</td></tr>`);
+  if (ram.slots && ram.slots_used != null)
+    for (let i = ram.slots_used; i < ram.slots; i++) ramRows.push(`<tr><td colspan="5" class="empty">${esc(T("slot_free"))}</td></tr>`);
+  const ng = (s.gpus || []).length;
+  const r1 = ng <= 1 ? "w4" : "w3";          // ligne 1 : processeur · carte(s) graphique(s) · carte mère
+  const gspan = ng <= 2 ? r1 : "w3";
+  const gpus = (s.gpus || []).map((g, i) => specCard("spec-gpu-" + i, "var(--gpu)", T(g.integrated ? "gpu_int" : "gpu"),
+    `<div class="name">${esc(g.name)}</div>
+     <dl>${row("vram", g.vram_gb ? dec(g.vram_gb, g.vram_gb % 1 ? 1 : 0) + GBu : null)}
+         ${row("driver", g.driver)}${row("driver_date", g.driver_date)}
+         ${row("display", g.res ? g.res + (g.hz ? " @ " + g.hz + " Hz" : "") : null)}</dl>`, gspan)).join("");
+  const disks = (s.disks || []).map(d => `<tr><td>${esc(d.id)}</td><td>${esc((d.letters || []).map(letterTxt).join(" "))}</td>
+      <td>${esc(d.name)}</td><td><span class="pill">${esc(d.media)}</span> ${esc(d.bus !== "?" ? d.bus : "")}</td>
+      <td>${sizeTxt(d.size_gb)}</td><td>${d.health == null ? "" : esc(T("health" + d.health))}</td></tr>`).join("");
+
+  const ids = ["spec-cpu", ...(s.gpus || []).map((_, i) => "spec-gpu-" + i), "spec-board",
+               "spec-ram", "spec-disks", "spec-os", "spec-manual", "spec-net"];
+  el.innerHTML = `
+    <div class="toolbar" style="margin:-4px 0 6px">
+      <span class="muted">${esc(T("copy_hint"))}</span><button class="btn sm" id="copy">${esc(T("copy_btn"))}</button></div>
+    <div class="specs" data-okey="specs">
+      ${specCard("spec-cpu", "var(--cpu)", T("cpu"), `<div class="name">${esc(cpu.name)}</div>
+        <dl>${row("ct", `${cpu.cores ?? "?"} / ${cpu.threads ?? "?"}`)}
+            ${row("base_freq", cpu.base_mhz ? dec(cpu.base_mhz / 1000, 2) + " GHz" : null)}
+            ${row("socket", cpu.socket)}
+            ${row("cache", cpu.l2_kb || cpu.l3_kb ? `${cpu.l2_kb ? Math.round(cpu.l2_kb / 1024) + " " + T("units")[2] : "?"} / ${cpu.l3_kb ? Math.round(cpu.l3_kb / 1024) + " " + T("units")[2] : "?"}` : null)}</dl>`, r1)}
+      ${gpus}
+      ${specCard("spec-board", "var(--muted)", T("board"), `<div class="name">${esc(((b.maker || "") + " " + (b.model || "")).trim() || T("unknown"))}</div>
+        <dl>${row("bios_ver", b.bios)}${row("bios_date", b.bios_date)}
+            ${row("ram_slots", ram.slots ? `${ram.slots_used ?? "?"} / ${ram.slots}` : null)}
+            ${row("ram_max", ram.max_gb ? ram.max_gb + GBu : null)}</dl>`, r1)}
+      ${specCard("spec-ram", "var(--ram)", T("ram"), `<div class="name">${dec(ram.total_gb, ram.total_gb % 1 ? 1 : 0)}${GBu}${ram.type ? " " + ram.type : ""}${ram.form ? " · " + esc(T(ram.form)) : ""}${ram.configured ? " · " + ram.configured + " MT/s" : ""}</div>
+        ${ramRows.length ? `<table><tr>${th("th_slot")}${th("th_size")}${th("th_speed")}${th("th_maker")}${th("th_part")}</tr>${ramRows.join("")}</table>` : ""}`, "w6")}
+      ${specCard("spec-disks", "var(--disk)", T("sec_disks"), `<table><tr>${th("th_disk")}${th("th_letters")}${th("th_model")}${th("th_type")}${th("th_size")}${th("th_health")}</tr>${disks}</table>`, "w6")}
+      ${specCard("spec-os", "var(--muted)", T("system"), `<dl>${row("windows", os.name)}${row("version", os.build ? `${os.version} (${T("build")} ${os.build})` : os.version)}
+            ${row("arch", os.arch)}${row("pcname", os.pc_name)}</dl>`, "w6")}
+      ${specCard("spec-manual", "var(--warn)", T("manual_t"), manualForm(), "w6 tall")}
+      ${specCard("spec-net", "var(--net)", T("netscreens"), `<dl>${(s.net || []).map(n => rowRaw(n.conn || T("netcard"), n.name + (n.speed_mbps ? ` (${fmtLink(n.speed_mbps)})` : ""))).join("")}
+            ${(s.monitors || []).map((m, i) => rowRaw(T("screen") + " " + (i + 1), m)).join("")}</dl>`, "w6")}
+    </div>`;
+  applyCollapsed(el);
+  const specsBox = el.querySelector(".specs");
+  [...specsBox.children].forEach((n, i) => n.dataset.def = i);   // ordre par défaut = ordre d'affichage
+  applyOrder(specsBox);
+  document.getElementById("copy").onclick = copySummary;
+  el.querySelectorAll("[data-mk]").forEach(inp => inp.addEventListener("change", () => {
+    const v = inp.value.trim();
+    if (v) manual[inp.dataset.mk] = v; else delete manual[inp.dataset.mk];
+    saveSettings();
+  }));
+
+}
+
+// ---------- infos saisies à la main ----------
+const LISTS = {
+  psu_brand: ["Corsair", "be quiet!", "Seasonic", "MSI", "ASUS", "Cooler Master", "EVGA", "Thermaltake", "NZXT", "Gigabyte",
+    "Fractal Design", "Phanteks", "Lian Li", "Antec", "FSP", "Super Flower", "XPG", "DeepCool", "Montech", "Arctic", "Endorfy", "Mars Gaming"],
+  psu_model: ["RM750e", "RM850x", "RM1000x", "HX1000i", "CX650", "Pure Power 12 M 750W", "Straight Power 12 850W", "Dark Power 13",
+    "Focus GX-750", "Focus GX-850", "Vertex GX-1000", "MPG A850G", "MAG A650BN", "ROG Strix 850G", "TUF Gaming 750B",
+    "MWE Gold 850 V2", "V850 Gold V2", "C850 Gold", "Toughpower GF3 1000W", "Century II 850W"],
+  case_model: ["Fractal Design North", "Fractal Design Pop Air", "Fractal Design Meshify 2", "Lian Li O11 Dynamic EVO", "Lian Li Lancool 216",
+    "Lian Li Lancool III", "NZXT H5 Flow", "NZXT H7 Flow", "NZXT H9 Flow", "Corsair 4000D Airflow", "Corsair 5000D Airflow",
+    "Corsair 3500X", "be quiet! Pure Base 500DX", "be quiet! Shadow Base 800", "Phanteks NV7", "Phanteks XT Pro", "Phanteks Eclipse G360A",
+    "Cooler Master MasterBox TD500 Mesh", "Montech Air 903", "Montech King 95", "HYTE Y60", "HYTE Y70", "DeepCool CH560", "Antec C8"],
+  cool_model: ["Noctua NH-D15", "Noctua NH-D15 G2", "Noctua NH-U12S", "Thermalright Peerless Assassin 120 SE", "Thermalright Phantom Spirit 120 SE",
+    "be quiet! Dark Rock Pro 5", "be quiet! Pure Rock 2", "DeepCool AK620", "DeepCool AK400", "Arctic Freezer 36", "Arctic Liquid Freezer III 240",
+    "Arctic Liquid Freezer III 360", "Corsair iCUE H150i Elite", "NZXT Kraken 360", "Lian Li Galahad II Trinity 360", "MSI MAG CoreLiquid 360R",
+    "Intel Laminar RM1", "AMD Wraith Prism", "AMD Wraith Stealth"],
+};
+const SELECTS = {
+  psu_watt: [450, 500, 550, 600, 650, 700, 750, 800, 850, 1000, 1200, 1300, 1500, 1600].map(w => [String(w), w + " W"]),
+  psu_cert: ["none", "white", "bronze", "silver", "gold", "platinum", "titanium"].map(c => [c, c === "none" ? null : "80+ " + c[0].toUpperCase() + c.slice(1)]),
+  psu_mod: ["no", "semi", "full"].map(c => [c, null]),
+  case_form: ["atx", "full", "matx", "itx"].map(c => [c, null]),
+  cool_type: ["stock", "air", "aio120", "aio240", "aio280", "aio360", "aio420", "custom"].map(c => [c, null]),
+  m2_total: [1, 2, 3, 4, 5, 6].map(n => [String(n), String(n)]),
+  sata_total: [0, 2, 4, 6, 8].map(n => [String(n), String(n)]),
+};
+const SEL_LABEL = {psu_cert: "cert_", psu_mod: "mod_", case_form: "form_", cool_type: "cool_"};
+function field(key, label, kind) {
+  const v = manual[key] ?? "";
+  let input;
+  if (SELECTS[key]) {
+    input = `<select data-mk="${key}"><option value="">${esc(T("choose"))}</option>${SELECTS[key].map(([val, lab]) =>
+      `<option value="${val}" ${val === v ? "selected" : ""}>${esc(lab ?? T(SEL_LABEL[key] + val))}</option>`).join("")}</select>`;
+  } else if (kind === "num") {
+    input = `<input type="number" min="50" max="600" step="1" data-mk="${key}" value="${esc(v)}" placeholder="mm">`;
+  } else {
+    input = `<input type="text" data-mk="${key}" value="${esc(v)}" ${LISTS[key] ? `list="dl-${key}"` : ""} autocomplete="off">` +
+      (LISTS[key] ? `<datalist id="dl-${key}">${LISTS[key].map(o => `<option value="${esc(o)}">`).join("")}</datalist>` : "");
+  }
+  return `<label class="fld"${tipAttr(label)}><span>${esc(T(label))}</span>${input}</label>`;
+}
+function manualForm() {
+  const group = (t, fields) => `<div class="mgroup"><h5>${esc(T(t))}</h5>${fields.join("")}</div>`;
+  return `<p class="lead muted" style="margin:0">${esc(T("manual_lead"))}</p><div class="mgrid">
+    ${group("m_psu", [field("psu_brand", "f_brand"), field("psu_model", "f_model"), field("psu_watt", "f_watt"), field("psu_cert", "f_cert"), field("psu_mod", "f_mod")])}
+    ${group("m_case", [field("case_model", "f_model"), field("case_form", "f_form"), field("case_gpu_mm", "f_gpumm", "num"), field("case_cool_mm", "f_coolmm", "num")])}
+    ${group("m_cool", [field("cool_type", "f_type"), field("cool_model", "f_model")])}
+    ${group("m_board", [field("m2_total", "f_m2"), field("sata_total", "f_sata")])}
+  </div>`;
+}
+function summaryText() {
+  const s = specs, r = s.ram, L = [], GBu = " " + T("units")[3];
+  L.push(`${T("s_cpu")} : ${s.cpu.name}${s.cpu.cores ? ` (${s.cpu.cores} ${T("s_cores")} / ${s.cpu.threads} ${T("threads")})` : ""}`);
+  L.push(`${T("s_board")} : ${`${s.board.maker} ${s.board.model}`.trim()}${s.board.bios ? ` (BIOS ${s.board.bios})` : ""}`);
+  const mods = (r.modules || []).map(m => m.size_gb + GBu).join(" + ");
+  L.push(`${T("s_ram")} : ${r.total_gb}${GBu} ${r.type || ""}${r.configured ? " " + r.configured + " MT/s" : ""}${mods ? " (" + mods + ")" : ""}${r.slots ? `, ${r.slots_used}/${r.slots} ${T("s_slots")}` : ""}`);
+  (s.gpus || []).forEach(g => L.push(`${T("s_gpu")} : ${g.name}${g.vram_gb ? ` (${g.vram_gb}${GBu})` : ""}`));
+  (s.disks || []).forEach(d => L.push(`${T("s_disk")} : ${d.name} – ${d.media} ${d.bus !== "?" ? d.bus : ""} ${sizeTxt(d.size_gb)}`.replace(/\s+/g, " ")));
+  const M = manual, cert = M.psu_cert ? (M.psu_cert === "none" ? "" : " 80+ " + M.psu_cert[0].toUpperCase() + M.psu_cert.slice(1)) : "";
+  if (M.psu_brand || M.psu_model || M.psu_watt)
+    L.push(`${T("s_psu")} : ${[M.psu_brand, M.psu_model].filter(Boolean).join(" ")}${M.psu_watt ? " " + M.psu_watt + " W" : ""}${cert}`);
+  if (M.case_model || M.case_gpu_mm)
+    L.push(`${T("s_case")} : ${[M.case_model, M.case_form ? T("form_" + M.case_form) : "", M.case_gpu_mm ? "GPU max " + M.case_gpu_mm + " mm" : ""].filter(Boolean).join(", ")}`);
+  if (M.cool_type || M.cool_model)
+    L.push(`${T("s_cool")} : ${[M.cool_type ? T("cool_" + M.cool_type) : "", M.cool_model].filter(Boolean).join(" – ")}`);
+  L.push(`${T("s_os")} : ${s.os.name}${s.os.build ? ` (${T("build")} ${s.os.build})` : ""}`);
+  return L.join("\n");
+}
+function toast(msg) {
+  const t = document.getElementById("toast"); t.textContent = msg;
+  t.classList.add("on"); setTimeout(() => t.classList.remove("on"), 1800);
+}
+async function copySummary() {
+  const text = summaryText();
+  try { await navigator.clipboard.writeText(text); }
+  catch (e) {
+    const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta);
+    ta.select(); document.execCommand("copy"); ta.remove();
+  }
+  toast(T("copied"));
+}
+
+// =================== Personnalisation ===================
+function renderCustom() {
+  const el = document.getElementById("custom-body");
+  const themeTiles = THEMES.map(t => `<button class="theme ${t === theme ? "on" : ""}" data-theme-pick="${t}">
+      <div class="pv" data-theme="${t}" style="background:var(--bg)">
+        <i style="background:var(--panel);height:14px"></i><i style="background:var(--cpu);width:80%"></i>
+        <i style="background:var(--ram);width:55%"></i><i style="background:var(--gpu);width:68%"></i></div>
+      <div class="nm">${esc(T("th_" + t))}</div></button>`).join("");
+  const secs = [...sectionsEl.children].map(n => n.dataset.id);
+  const rows = secs.map((id, i) => `<div class="orow"><span>${esc(T(id.replace("sec-", "sec_")))}</span>
+      <button class="btn sm" data-mv="${id}" data-dir="-1" ${i === 0 ? "disabled" : ""} title="${esc(T("up_btn"))}">↑</button>
+      <button class="btn sm" data-mv="${id}" data-dir="1" ${i === secs.length - 1 ? "disabled" : ""} title="${esc(T("down_btn"))}">↓</button></div>`).join("");
+  el.innerHTML = `
+    <div class="card c-lang"><h2>${esc(T("language"))}</h2>
+      <div class="seg" id="langs" style="width:fit-content"><button data-lang="fr" class="${lang === "fr" ? "on" : ""}">Français</button><button data-lang="en" class="${lang === "en" ? "on" : ""}">English</button></div></div>
+    <div class="card c-theme"><h2>${esc(T("themes"))}</h2><div class="themes">${themeTiles}</div></div>
+    <div class="card c-order"><h2>${esc(T("order"))}</h2><div class="orderlist">${rows}</div>
+      <p class="muted" style="margin:0;font-size:12.5px">${esc(T("order_hint"))}</p>
+      <div><button class="btn" id="reset">${esc(T("reset"))}</button></div></div>
+    ${hiddenHTML()}
+    <div class="card c-order"><h2>${esc(T("close_t"))}</h2>
+      <label class="check" data-tip="${esc(T("as_tip"))}"><input type="checkbox" id="as-cb" ${autostart ? "checked" : ""}><span>${esc(T("autostart_opt"))}</span></label>
+      <label class="check" data-tip="${esc(T("tray_hint"))}"><input type="checkbox" id="tray-cb" ${trayMode ? "checked" : ""}><span>${esc(T("tray_opt"))}</span></label></div>
+    <div class="card c-order"><h2>${esc(T("widget_t"))}</h2>
+      <label class="check"><input type="checkbox" id="wg-cb" ${widgetOn ? "checked" : ""}><span>${esc(T("widget_opt"))}</span></label>
+      <div style="display:flex;align-items:center;gap:10px"><span class="muted" style="font-size:12.5px">${esc(T("widget_style"))}</span>
+        <div class="seg small" id="wg-style"><button data-ws="compact" class="${widgetStyle === "compact" ? "on" : ""}">${esc(T("ws_compact"))}</button><button data-ws="bars" class="${widgetStyle === "bars" ? "on" : ""}">${esc(T("ws_bars"))}</button></div></div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="muted" style="font-size:12.5px">${esc(T("hk_t"))} :</span>
+        <span class="kbd" id="hk-kbd">${esc(hotkey ? hotkey.label : T("hk_none"))}</span>
+        <button class="btn sm" id="hk-set">${esc(T("hk_set"))}</button>${hotkey ? `<button class="btn sm" id="hk-clear">${esc(T("hk_clear"))}</button>` : ""}
+        <span class="muted" id="hk-msg" style="font-size:12px"></span></div>
+      <p class="muted" style="margin:0;font-size:12.5px">${esc(T("widget_hint"))}</p></div>
+    ${privacyHTML()}`;
+  document.getElementById("pv-open").onclick = () => fetch("/api/storage/openfolder?path=__data");
+  document.getElementById("wg-cb").onchange = e => { widgetOn = e.target.checked; wgLock = Date.now() + 4000; widgetPatch.widget = widgetOn; saveSettings(); };
+  setupHotkeyUI();
+  el.querySelectorAll("[data-ws]").forEach(b => b.onclick = () => {
+    widgetStyle = b.dataset.ws; widgetPatch.widget_style = widgetStyle; saveSettings(); renderCustom();
+  });
+  document.getElementById("as-cb").onchange = e => { autostart = e.target.checked; widgetPatch.autostart = autostart; saveSettings(); };
+  document.getElementById("tray-cb").onchange = e => { trayMode = e.target.checked; saveSettings(); };
+  el.querySelectorAll("[data-unhide]").forEach(b => b.onclick = () => unhide([b.dataset.unhide]));
+  const ua = document.getElementById("unhide-all"); if (ua) ua.onclick = () => unhide(Object.keys(hidden));
+  el.querySelectorAll("[data-theme-pick]").forEach(b => b.onclick = () => setTheme(b.dataset.themePick));
+  el.querySelectorAll("#langs button").forEach(b => b.onclick = () => {
+    if (b.dataset.lang === lang) return;
+    lang = b.dataset.lang; saveSettings(); applyLang();
+  });
+  el.querySelectorAll("[data-mv]").forEach(b => b.onclick = () => {
+    const n = sectionsEl.querySelector(`[data-id="${b.dataset.mv}"]`);
+    if (+b.dataset.dir < 0) n.previousElementSibling && sectionsEl.insertBefore(n, n.previousElementSibling);
+    else n.nextElementSibling && sectionsEl.insertBefore(n.nextElementSibling, n);
+    saveOrder(sectionsEl); renderCustom();
+  });
+  document.getElementById("reset").onclick = () => {
+    order = {}; collapsed = new Set(); saveSettings();  // les infos saisies à la main sont conservées
+    [sectionsEl, gridMain, gridDisks, gridNet].forEach(applyOrder);
+    const sp = document.querySelector(".specs"); if (sp) applyOrder(sp);
+    applyCollapsed(); redrawAll(); renderCustom(); toast(T("reset_done"));
+  };
+}
+function setTheme(t) {
+  theme = t; document.documentElement.dataset.theme = t;
+  readColors(); saveSettings(); redrawAll(); renderCustom();
+}
+
+// =================== Panneau « Détails » ===================
+const drawer = document.getElementById("drawer");
+let detKind = null, detGpu = null, detTimer = null, detColor = "", detCard = null;
+function openDetails(det, cardEl) {
+  const [kind, gpu] = det.split(":");
+  detKind = kind; detGpu = kind === "gpu" && gpu ? gpu.replace(/^gpu-/, "") : null; detCard = cardEl;
+  detDisk = kind === "disk" ? gpu : null;
+  document.getElementById("d-extra").innerHTML = detDisk != null ? `<div class="health"><h5>${esc(T("h_title"))}
+    <span class="spinner" style="width:14px;height:14px;margin:0;border-width:2px"></span></h5>
+    <div class="muted" style="font-size:12.5px">${esc(T("h_loading"))}</div></div>` : "";
+  if (detDisk != null) loadHealth(false, false);
+  detColor = {cpu: "var(--cpu)", ram: "var(--ram)", gpu: "var(--gpu)", disk: "var(--disk)"}[kind];
+  drawer.style.top = document.querySelector("header").offsetHeight + "px";
+  document.getElementById("d-dot").style.background = detColor;
+  setText(document.getElementById("d-title"), T("det_" + kind));
+  setText(document.getElementById("d-sub"), cardEl ? (cardEl.querySelector(".c-sub")?.textContent || cardEl.querySelector(".c-title")?.textContent || "") : "");
+  setText(document.getElementById("d-note"), T("det_note_" + kind));
+  document.getElementById("d-list").innerHTML = `<div class="loading" style="padding:30px"><div class="spinner"></div>${esc(T("det_loading"))}</div>`;
+  document.getElementById("d-list")._h = null;
+  setText(document.getElementById("d-foot"), "");
+  const dim = document.getElementById("dimmer");
+  dim.style.top = drawer.style.top; dim.classList.add("on");
+  drawer.classList.add("on"); hideTip();
+  clearTimeout(detTimer); loadDetails();
+}
+let detDisk = null, healthBusy = false;
+async function loadHealth(refresh, admin) {
+  const box = document.getElementById("d-extra"), disk = detDisk;
+  healthBusy = true;
+  if (refresh || admin) {
+    box.querySelectorAll("button").forEach(b => b.disabled = true);
+    const h5 = box.querySelector("h5");
+    if (h5 && !h5.querySelector(".spinner")) h5.insertAdjacentHTML("beforeend", `<span class="spinner" style="width:14px;height:14px;margin:0;border-width:2px"></span>`);
+  }
+  if (admin) setText(box.querySelector(".h-msg"), T("h_wait_admin"));
+  try {
+    const h = await stJ(`/api/health?refresh=${refresh ? 1 : 0}&admin=${admin ? 1 : 0}`);
+    if (detDisk === disk) renderHealth(h);
+  } catch (e) {}
+  healthBusy = false;
+}
+function healthVerdict(d) {
+  const isHdd = d.media === 3, unc = (d.rUnc || 0) + (d.wUnc || 0);
+  if (d.health === 2 || unc > 0) return ["verdict-bad", T("h_bad")];
+  if (d.health === 1 || (!isHdd && d.wear != null && d.wear >= 80)) return ["verdict-warn", T("h_warn")];
+  if (d.temp && d.temp >= (isHdd ? 55 : 70)) return ["verdict-warn", T("h_hot")];
+  return ["verdict-ok", T("h_ok")];
+}
+function healthRows(d) {
+  const isHdd = d.media === 3;
+  const unc = (d.rUnc || 0) + (d.wUnc || 0);
+  const v = healthVerdict(d);
+  const st = {0: [T("health0"), "var(--ok)"], 1: [T("health1"), "var(--warn)"], 2: [T("health2"), "var(--bad)"]}[d.health] || ["?", "var(--muted)"];
+  const years = d.hours != null ? ` (≈ ${dec(d.hours / 8766, 1)} ${T("h_years")})` : "";
+  return [
+    ["h_state", `<span style="color:${st[1]}">● ${esc(st[0])}</span>`],
+    d.temp ? ["h_temp", `${d.temp} °C${d.tempMax ? ` <span class="muted">(max ${d.tempMax} °C)</span>` : ""}`] : null,
+    d.wear != null && !isHdd ? ["h_life", `<span style="color:${d.wear >= 80 ? "var(--warn)" : "inherit"}">${100 - d.wear} %</span> <span class="muted">(${esc(T("h_used"))} ${d.wear} %)</span>`] : null,
+    d.hours != null ? ["h_hours", `${d.hours.toLocaleString(lang)} h<span class="muted">${years}</span>`] : null,
+    d.rErr != null || d.wErr != null ? ["h_errors", `${(d.rErr || 0) + (d.wErr || 0)} <span class="muted">(${esc(T("h_unc"))} : ${unc})</span>`] : null,
+    d.starts != null ? ["h_starts", (d.starts || 0).toLocaleString(lang)] : null,
+  ].filter(Boolean).map(([k, val]) => `<dt${tipAttr(k)}>${esc(T(k))}</dt><dd>${val}</dd>`).join("");
+}
+function renderHealth(h) {
+  const box = document.getElementById("d-extra"), d = (h.disks || {})[String(detDisk)];
+  if (!d) { box.innerHTML = `<div class="health"><h5>${esc(T("h_title"))}</h5><div class="muted" style="font-size:12.5px">${esc(T("h_need_admin"))}</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn sm" id="h-adm">${esc(T("h_admin"))}</button>
+      <span class="muted h-msg" style="font-size:12px">${h.admin_refused ? esc(T("h_refused")) : ""}</span></div></div>`;
+    document.getElementById("h-adm").onclick = () => loadHealth(false, true); return; }
+  const rows = healthRows(d), v = healthVerdict(d);
+  const date = h.date ? new Date(h.date * 1000).toLocaleString(lang === "fr" ? "fr-FR" : "en-GB", {dateStyle: "short", timeStyle: "short"}) : "";
+  box.innerHTML = `<div class="health"><h5>${esc(T("h_title"))}</h5><dl>${rows}</dl>
+    <div class="${v[0]}">${esc(v[1])}</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn sm" id="h-adm">${esc(T("h_reread"))}</button><span class="muted h-msg" style="font-size:12px">${h.admin_refused ? esc(T("h_refused")) : date ? esc(T("h_read")) + " " + date : ""}</span></div></div>`;
+  document.getElementById("h-adm").onclick = () => loadHealth(false, true);
+}
+function closeDetails() { document.getElementById("dimmer").classList.remove("on"); drawer.classList.remove("on"); detKind = null; clearTimeout(detTimer); }
+document.getElementById("d-close").onclick = e => { e.stopPropagation(); closeDetails(); };
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeDetails(); });
+async function loadDetails() {
+  if (!detKind) return;
+  const kind = detKind;
+  try {
+    if (!document.hidden) {
+      const r = await fetch(`/api/details?kind=${kind}${detGpu ? "&gpu=" + encodeURIComponent(detGpu) : ""}`, {cache: "no-store"});
+      const d = await r.json();
+      if (kind === detKind) renderDetails(d);
+    }
+  } catch (e) {}
+  if (kind === detKind) detTimer = setTimeout(loadDetails, 2000);
+}
+function renderDetails(d) {
+  const ramTotal = last && last.ram ? last.ram.total : 0;
+  const val = g => ({
+    cpu: [dec(g.cpu, 1) + " %", fmtBytes(g.ram)],
+    ram: [fmtBytes(g.ram, g.ram >= 1073741824 ? 1 : 0), ramTotal ? dec(g.ram / ramTotal * 100, 1) + " % " + T("det_of_ram") : ""],
+    gpu: [dec(g.gpu, 1) + " %", d.vram_ok && g.vram ? fmtBytes(g.vram, 1) + " VRAM" : ""],
+    disk: [fmtBytesRate(g.read + g.write), "↓ " + fmtBytesRate(g.read) + "  ↑ " + fmtBytesRate(g.write)],
+  })[d.kind];
+  const metric = g => ({cpu: g.cpu, ram: g.ram, gpu: g.gpu || g.vram / 1e9, disk: g.read + g.write})[d.kind];
+  const items = (d.items || []).filter(g => metric(g) > 0);
+  const top = Math.max(1e-9, ...items.map(metric));
+  const html = items.length ? items.map(g => {
+    const [v1, v2] = val(g);
+    return `<div class="d-row"><div class="d-name" title="${esc(g.name)}">${esc(g.name)}${g.n > 1 ? `<small>×${g.n}</small>` : ""}</div>
+      <div class="bar"><i style="width:${(metric(g) / top * 100).toFixed(1)}%;background:${detColor}"></i></div>
+      <div class="d-val">${esc(v1)}${v2 ? `<small>${esc(v2)}</small>` : ""}</div></div>`;
+  }).join("") : `<p class="muted" style="padding:14px">${esc(T("det_empty"))}</p>`;
+  setHTML(document.getElementById("d-list"), html);
+  setText(document.getElementById("d-foot"), d.procs ? `${d.procs} ${T("det_foot")}` : "");
+}
+
+// =================== Cloche : conseils en direct ===================
+const bell = document.getElementById("bell"), bellPop = document.getElementById("bell-pop"), bdot = document.getElementById("bdot");
+const seenAlerts = new Set();
+const dismissedNow = new Set();   // alertes en direct masquées : reviennent si elles disparaissent puis réapparaissent
+function isDismissed(a) {
+  if (a.sig != null) return a.id in dismissed && a.sig === dismissed[a.id];  // ex. démarrage : revient dès que le nombre change
+  return dismissedNow.has(a.id);
+}
+let liveAlerts = [], liveInsight = null;
+bell.addEventListener("click", e => {
+  if (e.target.closest("#bell-pop")) {
+    const x = e.target.closest("[data-dismiss]");
+    if (x) {
+      const a = liveAlerts.find(a => a.id === x.dataset.dismiss);
+      if (a && a.sig != null) { dismissed[a.id] = a.sig; saveSettings(); } else if (a) dismissedNow.add(a.id);
+      renderBell();
+    }
+    if (e.target.closest("#al-restore")) { dismissed = {}; dismissedNow.clear(); saveSettings(); renderBell(); }
+    return;
+  }
+  bellPop.classList.toggle("on"); bell.classList.toggle("on", bellPop.classList.contains("on")); hideTip();
+  renderBell();
+});
+document.addEventListener("click", e => { if (!e.composedPath().includes(bell)) { bellPop.classList.remove("on"); bell.classList.remove("on"); } });
+function renderBell() {
+  const key = a => a.id + "|" + a.level;
+  const activeIds = new Set(liveAlerts.map(a => a.id));
+  for (const id of [...dismissedNow]) if (!activeIds.has(id)) dismissedNow.delete(id);
+  const shown = liveAlerts.filter(a => !isDismissed(a));
+  const active = new Set(shown.map(key));
+  for (const k of [...seenAlerts]) if (!active.has(k)) seenAlerts.delete(k);   // une alerte qui revient refera clignoter
+  if (bellPop.classList.contains("on")) shown.forEach(a => seenAlerts.add(key(a)));
+  const unseen = shown.filter(a => !seenAlerts.has(key(a)));
+  const warn = unseen.some(a => a.level === "warn");
+  bdot.className = "bdot" + (unseen.length ? " on" : "") + (warn ? " pulse" : unseen.length ? " info" : "");
+  if (!bellPop.classList.contains("on")) return;
+  const alerts = (shown.length ? shown.map(a =>
+    `<div class="al"><span class="tag ${a.level}">${esc(T("cat_" + a.cat))}</span><div>${esc(a[lang] || a.fr)}</div>
+      <button class="alx" data-dismiss="${esc(a.id)}" data-tip="${esc(T(a.sig != null ? "dismiss_sig" : "dismiss"))}">✕</button></div>`).join("")
+    : `<div class="allgood">${esc(T("all_good"))}</div>`);
+  setHTML(bellPop, `<h4>${esc(T("now_t"))}</h4>${alerts}`);
+}
+
+// =================== Info-bulles ===================
+const tipbox = document.getElementById("tipbox");
+let tipEl = null, tipTimer = null, tipShown = false;
+function hideTip() { clearTimeout(tipTimer); tipbox.classList.remove("on"); tipShown = false; tipEl = null; }
+function placeTip(x, y) {
+  const r = tipbox.getBoundingClientRect();
+  let left = x + 14, top = y + 16;
+  if (left + r.width > innerWidth - 8) left = x - r.width - 10;
+  if (top + r.height > innerHeight - 8) top = y - r.height - 10;
+  tipbox.style.left = left + "px"; tipbox.style.top = top + "px";
+}
+document.addEventListener("mouseover", e => {
+  const el = e.target.closest && e.target.closest("[data-tip]");
+  if (!el) { if (tipEl) hideTip(); return; }
+  if (el === tipEl) return;
+  tipEl = el;
+  tipbox.textContent = el.dataset.tip;
+  clearTimeout(tipTimer);
+  if (tipShown) { placeTip(e.clientX, e.clientY); return; }
+  tipTimer = setTimeout(() => { tipbox.classList.add("on"); tipShown = true; }, 350);
+  placeTip(e.clientX, e.clientY);
+});
+document.addEventListener("mousemove", e => { if (tipEl) placeTip(e.clientX, e.clientY); });
+document.addEventListener("mousedown", hideTip);
+document.addEventListener("scroll", hideTip, true);
+
+// =================== Taille des cartes : repliées / petites / grandes ===================
+const perfIds = () => [...perfTab.querySelectorAll(".card[data-id]")].map(n => n.dataset.id);
+function currentSize() {
+  const ids = perfIds();
+  if (ids.length && ids.every(id => collapsed.has(id))) return "collapsed";
+  return bigMode ? "large" : "small";
+}
+function applyBig() {
+  perfTab.classList.toggle("bigmode", bigMode);
+  const cur = currentSize();
+  document.querySelectorAll("#sizeseg button").forEach(b => b.classList.toggle("on", b.dataset.size === cur));
+}
+document.querySelectorAll("#sizeseg button").forEach(b => b.onclick = () => {
+  const size = b.dataset.size;
+  if (size === "collapsed") setAll(perfIds(), true);
+  else { bigMode = size === "large"; applyBig(); setAll([...perfIds(), "sec-main", "sec-disks", "sec-net"], false); }
+  applyBig(); redrawAll();
+});
+
+// =================== Cartes masquées ===================
+function unhide(ids) {
+  ids.forEach(id => { delete hidden[id]; document.querySelectorAll(`.card[data-id="${CSS.escape(id)}"]`).forEach(n => n.classList.remove("hid")); });
+  saveSettings(); renderCustom(); redrawAll();
+}
+function hiddenHTML() {
+  const ids = Object.keys(hidden);
+  const rows = ids.map(id => `<div class="orow"><span>${esc(hidden[id])}</span><button class="btn sm" data-unhide="${esc(id)}">${esc(T("show"))}</button></div>`).join("");
+  return `<div class="card c-hidden"><h2>${esc(T("hidden_t"))}</h2>
+    ${ids.length ? `<div class="orderlist">${rows}</div><div><button class="btn" id="unhide-all">${esc(T("show_all"))}</button></div>` : `<p class="muted" style="margin:0">${esc(T("hidden_none"))}</p>`}
+    <p class="muted" style="margin:0;font-size:12.5px">${esc(T("hidden_hint"))}</p></div>`;
+}
+
+// =================== Analyse : quel composant te limite ? ===================
+// ---------- Historique 24 h / 7 jours ----------
+let histRange = 24, histData = null, histT = 0, histCursor = null;
+const HSERIES = [
+  {k: "cpu", lab: "CPU", avg: "c", max: "C", col: () => COL.cpu},
+  {k: "gpu", lab: "GPU", avg: "g", max: "G", col: () => COL.gpu, temp: true},
+  {k: "ram", lab: "RAM", avg: "r", col: () => COL.ram},
+  {k: "vram", lab: "VRAM", avg: "v", col: () => COL.gpu},
+];
+async function loadHistory(force) {
+  if (!force && histData && Date.now() - histT < 60000) return renderHistory();
+  histT = Date.now();
+  histData = await stJ("/api/history?hours=" + histRange);
+  renderHistory();
+}
+function renderHistory() {
+  const el = document.getElementById("an-hist"), D = histData;
+  if (!D) { if (!el.innerHTML) el.innerHTML = `<div class="loading" style="padding:20px"><div class="spinner"></div></div>`; return; }
+  // déjà construit avec des données : on redessine seulement (pas de clignotement)
+  if (D.points.length && el.querySelector("canvas[data-hs]")) {
+    el.querySelectorAll("[data-h]").forEach(x => x.classList.toggle("on", +x.dataset.h === histRange));
+    drawHistory(); return;
+  }
+  const head = `<div class="hist-head"><h2 style="margin:0;font-size:16px">${esc(T("hist_t"))}</h2>
+      <div class="seg small" id="hist-range"><button data-h="24" class="${histRange === 24 ? "on" : ""}">24 h</button><button data-h="168" class="${histRange === 168 ? "on" : ""}">${esc(T("hist_7d"))}</button></div>
+      <span style="flex:1"></span>
+      <label class="check" style="font-weight:400;font-size:12.5px"><input type="checkbox" id="hist-cb" ${D.on ? "checked" : ""}><span>${esc(T("hist_opt"))}</span></label></div>`;
+  if (!D.points.length) {
+    el.innerHTML = head + `<div class="muted" style="font-size:13px;padding:8px 0">${esc(T("hist_empty"))}</div>`;
+  } else {
+    el.innerHTML = head + HSERIES.map(s => `<div class="hist-row"><div class="lab" style="color:${s.col()}">${s.lab}
+        <small>${esc(T("hist_sub_" + s.k))}</small></div><canvas data-hs="${s.k}"></canvas></div>`).join("") +
+      `<div class="hist-axis"><div></div><div id="hist-axis"></div></div>`;
+    drawHistory();
+    el.querySelectorAll("canvas").forEach(c => {
+      c.onmousemove = e => { const r = c.getBoundingClientRect(); histCursor = (e.clientX - r.left) / r.width; drawHistory(); histTip(e); };
+      c.onmouseleave = () => { histCursor = null; drawHistory(); histTipEl.style.display = "none"; };
+    });
+  }
+  el.querySelectorAll("[data-h]").forEach(b => b.onclick = () => {
+    histRange = +b.dataset.h;   // on garde l'ancien graphique affiché jusqu'à l'arrivée des nouvelles données
+    el.querySelectorAll("[data-h]").forEach(x => x.classList.toggle("on", +x.dataset.h === histRange));
+    loadHistory(true);
+  });
+  document.getElementById("hist-cb").onchange = e => { histPatch = e.target.checked; saveSettings(); };
+}
+let histPatch = null;
+const histTipEl = Object.assign(document.createElement("div"), {className: "hist-tip"});
+document.body.appendChild(histTipEl);
+function histRangeT() { const t1 = Date.now() / 1000; return [t1 - histRange * 3600, t1]; }
+function histPointAt(frac) {
+  const [t0, t1] = histRangeT(), t = t0 + frac * (t1 - t0), P = histData.points;
+  let best = null, bd = Infinity;
+  for (const p of P) { const dd = Math.abs(p.t - t); if (dd < bd) { bd = dd; best = p; } }
+  return bd <= histData.step * 2 ? best : null;
+}
+let TC = null;   // couleurs ok / attention / mauvais du thème (relues à chaque dessin)
+const tempCol = v => { if (!TC) { const cs = getComputedStyle(document.documentElement); TC = ["--ok", "--warn", "--bad"].map(k => cs.getPropertyValue(k).trim()); }
+  return TC[v >= 85 ? 2 : v >= 75 ? 1 : 0]; };
+function drawHistory() {
+  TC = null;
+  const D = histData; if (!D || !D.points.length) return;
+  const [t0, t1] = histRangeT(), P = D.points, gap = D.step * 2.5;
+  document.querySelectorAll("#an-hist canvas[data-hs]").forEach(cv => {
+    const s = HSERIES.find(x => x.k === cv.dataset.hs);
+    const w = cv.clientWidth, h = cv.clientHeight; if (!w) return;
+    const dpr = window.devicePixelRatio || 1;
+    if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+    const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+    const X = t => (t - t0) / (t1 - t0) * w, Y = v => h - 2 - Math.min(100, Math.max(0, v || 0)) / 100 * (h - 6);
+    ctx.strokeStyle = COL.grid; ctx.lineWidth = 1; ctx.beginPath();
+    for (let i = 1; i < 4; i++) { const y = Math.round(h * i / 4) + .5; ctx.moveTo(0, y); ctx.lineTo(w, y); }
+    ctx.stroke();
+    const segs = []; let cur = [];
+    for (const p of P) { if (cur.length && p.t - cur[cur.length - 1].t > gap) { segs.push(cur); cur = []; } cur.push(p); }
+    if (cur.length) segs.push(cur);
+    // périodes sans données (PC éteint / appli fermée) : zone grisée + traits verticaux de séparation
+    ctx.save();
+    for (let i = 1; i < segs.length; i++) {
+      const a = X(segs[i - 1][segs[i - 1].length - 1].t), b = X(segs[i][0].t);
+      ctx.fillStyle = COL.grid; ctx.fillRect(a, 0, Math.max(1, b - a), h);
+      ctx.strokeStyle = "#8b93a7aa"; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.moveTo(Math.round(a) + .5, 0); ctx.lineTo(Math.round(a) + .5, h); ctx.moveTo(Math.round(b) + .5, 0); ctx.lineTo(Math.round(b) + .5, h); ctx.stroke();
+    }
+    ctx.restore();
+    const line = (key, color, width, fill, scale) => {
+      for (const seg of segs) {
+        const pts = seg.filter(p => p[key] != null).map(p => [X(p.t), scale ? h - 2 - Math.min(1, (p[key] - 20) / 80) * (h - 6) : Y(p[key])]);
+        if (pts.length < 2) continue;
+        if (fill) {
+          const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, color + "55"); g.addColorStop(1, color + "05");
+          ctx.beginPath(); ctx.moveTo(pts[0][0], h); pts.forEach(q => ctx.lineTo(q[0], q[1])); ctx.lineTo(pts[pts.length - 1][0], h); ctx.closePath();
+          ctx.fillStyle = g; ctx.fill();
+        }
+        ctx.beginPath(); pts.forEach((q, i) => i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]));
+        ctx.strokeStyle = color; ctx.lineWidth = width; ctx.stroke();
+      }
+    };
+    if (s.max) { ctx.globalAlpha = .45; line(s.max, s.col(), 1, false); ctx.globalAlpha = 1; }
+    line(s.avg, s.col(), 1.5, true);
+    if (s.temp) for (const seg of segs) {          // température : chaque bout de courbe prend la couleur de sa chaleur
+      const pts = seg.filter(p => p.T != null);
+      ctx.lineWidth = 1.4;
+      for (let i = 1; i < pts.length; i++) {
+        const a = pts[i - 1], b = pts[i], yy = v => h - 2 - Math.min(1, Math.max(0, (v - 20) / 80)) * (h - 6);
+        ctx.beginPath(); ctx.moveTo(X(a.t), yy(a.T)); ctx.lineTo(X(b.t), yy(b.T));
+        ctx.strokeStyle = tempCol(Math.max(a.T, b.T)); ctx.stroke();
+      }
+    }
+    if (histCursor != null) { const x = Math.round(histCursor * w) + .5; ctx.strokeStyle = "#ffffff55"; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+  });
+  const ax = document.getElementById("hist-axis");
+  if (ax) {
+    const n = 6, fmt = histRange <= 24 ? {hour: "2-digit", minute: "2-digit"} : {weekday: "short", day: "numeric"};
+    setHTML(ax, Array.from({length: n + 1}, (_, i) => `<span style="left:${i / n * 100}%">${esc(new Date((t0 + i / n * (t1 - t0)) * 1000).toLocaleString(lang === "fr" ? "fr-FR" : "en-GB", fmt))}</span>`).join(""));
+  }
+}
+function histTip(e) {
+  const p = histPointAt(histCursor);
+  if (!p) {
+    // dans un trou de l'historique (et après le 1er point) : on le dit
+    const [t0, t1] = histRangeT(), t = t0 + histCursor * (t1 - t0), P = histData.points;
+    if (P.length && t > P[0].t && t < P[P.length - 1].t) {
+      histTipEl.innerHTML = `<span class="muted">${esc(T("gap_off"))}</span>`;
+      histTipEl.style.display = "block";
+      const r = histTipEl.getBoundingClientRect();
+      histTipEl.style.left = Math.min(innerWidth - r.width - 8, e.clientX + 14) + "px";
+      histTipEl.style.top = Math.max(8, e.clientY - r.height - 12) + "px";
+    } else histTipEl.style.display = "none";
+    return;
+  }
+  const when = new Date(p.t * 1000).toLocaleString(lang === "fr" ? "fr-FR" : "en-GB", {weekday: "short", hour: "2-digit", minute: "2-digit"});
+  const progs = p.p ? Object.entries(p.p).map(([k, v]) => `${k.toUpperCase()} → <b>${esc(v)}</b>`).join("<br>") : "";
+  histTipEl.innerHTML = `<div class="muted">${esc(when)}${histData.step > 60 ? " (" + T("hist_10min") + ")" : ""}</div>
+    CPU <b>${Math.round(p.c)} %</b> <span class="muted">(max ${Math.round(p.C)} %)</span><br>
+    GPU <b>${Math.round(p.g)} %</b> <span class="muted">(max ${Math.round(p.G)} %)</span>${p.T ? ` · <b style="color:${tempCol(p.T)}">${Math.round(p.T)} °C</b>` : ""}<br>
+    RAM <b>${Math.round(p.r)} %</b> · VRAM <b>${Math.round(p.v)} %</b>${progs ? `<div style="margin-top:4px;border-top:1px solid var(--line);padding-top:4px"><span class="muted">${esc(T("hist_progs"))}</span><br>${progs}</div>` : ""}`;
+  histTipEl.style.display = "block";
+  const r = histTipEl.getBoundingClientRect();
+  histTipEl.style.left = Math.min(innerWidth - r.width - 8, e.clientX + 14) + "px";
+  histTipEl.style.top = Math.max(8, e.clientY - r.height - 12) + "px";
+}
+
+let gmData = null, gmT = 0, gmOpen = null;
+const gmTl = {};
+const GSER = [
+  {k: "cpu", lab: "CPU", a: 1, m: 2, col: () => COL.cpu, sub: g => `${T("gm_avg")} ${g.cpu} % · max ${g.cpu_max} %`},
+  {k: "gpu", lab: "GPU", a: 3, m: 4, t: 5, col: () => COL.gpu, sub: g => `${T("gm_avg")} ${g.gpu} % · max ${g.gpu_max} %${g.temp_max ? " · " + g.temp_max + " °C" : ""}`},
+  {k: "ram", lab: "RAM", a: 6, col: () => COL.ram, sub: g => `max ${g.ram_max} %`},
+  {k: "vram", lab: "VRAM", a: 7, col: () => COL.gpu, sub: g => `max ${g.vram_max} %`},
+];
+async function loadTl(st) {
+  if (!gmTl[st]) { try { gmTl[st] = (await stJ("/api/games/session?start=" + st)).tl || []; } catch (e) { gmTl[st] = []; } }
+  drawSession();
+}
+function drawSession() {
+  const tl = gmOpen && gmTl[gmOpen]; if (!tl || !tl.length) return;
+  const g = gmData && gmData.sessions.find(x => x.start === gmOpen); if (!g) return;
+  const dur = Math.max(60, g.dur);
+  document.querySelectorAll("#an-games canvas[data-gc]").forEach(cv => {
+    const s = GSER.find(x => x.k === cv.dataset.gc);
+    const w = cv.clientWidth, h = cv.clientHeight; if (!w) return;
+    const dpr = window.devicePixelRatio || 1;
+    if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+    const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+    const X = t => Math.min(1, t / dur) * w, Y = v => h - 2 - Math.min(100, Math.max(0, v || 0)) / 100 * (h - 6);
+    ctx.strokeStyle = COL.grid; ctx.lineWidth = 1; ctx.beginPath();
+    for (let i = 1; i < 4; i++) { const y = Math.round(h * i / 4) + .5; ctx.moveTo(0, y); ctx.lineTo(w, y); }
+    ctx.stroke();
+    const line = (idx, color, width, fill, yf) => {
+      const pts = tl.filter(p => p[idx] != null).map(p => [X(Math.max(0, p[0] - 30)), (yf || Y)(p[idx])]);
+      if (!pts.length) return;
+      if (pts.length === 1) pts.unshift([0, pts[0][1]]);
+      if (fill) { const gr = ctx.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, color + "55"); gr.addColorStop(1, color + "05");
+        ctx.beginPath(); ctx.moveTo(pts[0][0], h); pts.forEach(q => ctx.lineTo(q[0], q[1])); ctx.lineTo(pts[pts.length - 1][0], h); ctx.closePath(); ctx.fillStyle = gr; ctx.fill(); }
+      ctx.beginPath(); pts.forEach((q, i) => i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1])); ctx.strokeStyle = color; ctx.lineWidth = width; ctx.stroke();
+    };
+    if (s.m) { ctx.globalAlpha = .45; line(s.m, s.col(), 1, false); ctx.globalAlpha = 1; }
+    line(s.a, s.col(), 1.5, true);
+    if (s.t) { const yT = v => h - 2 - Math.min(1, Math.max(0, (v - 20) / 80)) * (h - 6); ctx.lineWidth = 1.4;
+      const pts = tl.filter(p => p[5] != null);
+      const XT = t => X(Math.max(0, t - 30));
+      for (let i = 1; i < pts.length; i++) { ctx.beginPath(); ctx.moveTo(XT(pts[i - 1][0]), yT(pts[i - 1][5])); ctx.lineTo(XT(pts[i][0]), yT(pts[i][5]));
+        ctx.strokeStyle = tempCol(Math.max(pts[i - 1][5], pts[i][5])); ctx.stroke(); } }
+  });
+  const ax = document.getElementById("gm-axis");
+  if (ax) { const n = 4, loc = lang === "fr" ? "fr-FR" : "en-GB";
+    setHTML(ax, Array.from({length: n + 1}, (_, i) => `<span style="left:${i / n * 100}%;${i === 0 ? "transform:none" : i === n ? "transform:translateX(-100%)" : ""}">${esc(new Date((g.start + i / n * dur) * 1000).toLocaleTimeString(loc, {hour: "2-digit", minute: "2-digit"}))}</span>`).join("")); }
+}
+function vcol(v) { return {gpu: "var(--gpu)", cpu: "var(--cpu)", ram: "var(--ram)", vram: "var(--gpu)", none: "var(--ok)"}[v]; }
+function gmVerdict(g) {
+  const L = g.limit || {};
+  return (L.vram || 0) >= .2 ? "vram" : (L.cpu || 0) >= .25 && (L.cpu || 0) > (L.gpu || 0) ? "cpu" : (L.ram || 0) >= .2 ? "ram" : (L.gpu || 0) >= .4 ? "gpu" : "none";
+}
+let glData = null, glApps = [], glTimer = null, glQuery = "", glSearch = false;
+async function loadLib(q) {
+  clearTimeout(glTimer);
+  try { glData = await stJ("/api/games/" + (q || "lib")); } catch (e) {}
+  if (glData && glData.busy) glTimer = setTimeout(() => loadLib(), 1500);
+  renderLib();
+}
+function renderLib() {
+  const el = document.getElementById("gm-lib"), D = glData; if (!D) return;
+  const loc = lang === "fr" ? "fr-FR" : "en-GB";
+  const list = D.games.length ? `${glSearch ? `<input class="gl-search" id="gl-q" type="search" placeholder="${esc(T("gl_search"))}">` : ""}
+      <div class="gl-list" id="gl-list">${D.games.map(g => `<div title="${esc(g.dir)}" data-n="${esc(g.name.toLowerCase())}">${esc(g.name)} <small class="muted">${esc(g.src)}</small></div>`).join("")}</div>`
+    : `<div class="muted" style="font-size:13px">${esc(T("gl_none"))}</div>`;
+  const opts = glApps.filter(a => !D.manual.includes(a.toLowerCase())).map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join("");
+  setHTML(el, `<button class="btn" id="gl-scan" style="width:100%;display:flex;gap:8px;justify-content:center;align-items:center" ${D.busy ? "disabled" : ""}>${D.busy ? `<span class="spinner" style="width:14px;height:14px;margin:0;border-width:2px"></span>` : ""}${esc(T(D.busy ? "gl_busy" : "gl_scan"))}</button>
+    <div style="display:flex;align-items:center;gap:8px"><h2 style="margin:0;font-size:16px;flex:1">${D.games.length ? D.games.length + " " + esc(T("gl_tn")) : esc(T("gl_t"))}</h2>
+      ${D.games.length ? `<button class="detbtn ${glSearch ? "on" : ""}" id="gl-find" data-tip="${esc(T("gl_find"))}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>` : ""}</div>
+      ${D.date ? `<small class="muted" style="margin-top:-6px" data-tip="${esc(T("gl_last"))} ${esc(new Date(D.date * 1000).toLocaleString(loc, {dateStyle: "short", timeStyle: "short"}))}">${esc(new Date(D.date * 1000).toLocaleDateString(loc))}</small>` : ""}
+    ${list}
+    <h3 style="margin:6px 0 0;font-size:14px;padding-top:10px;border-top:1px solid var(--line)">${esc(T("gl_manual"))}</h3>
+    <div class="gl-man"><select id="gl-sel"><option value="">${esc(T("gl_pick"))}</option>${opts}</select>
+      <button class="btn sm" id="gl-add">${esc(T("gl_add"))}</button></div><span class="muted" style="font-size:12px">${esc(T("gl_manual_hint"))}</span>
+    ${D.manual.length ? `<div class="gl-man">${D.manual.map(n => `<span class="gl-chip">${esc(n)}<button data-glrm="${esc(n)}" data-tip="${esc(T("gl_rm"))}">✕</button></span>`).join("")}</div>` : ""}`);
+  document.getElementById("gl-scan").onclick = () => loadLib("scan");
+  const fb = document.getElementById("gl-find");
+  if (fb) fb.onclick = e => { e.stopPropagation(); glSearch = !glSearch; if (!glSearch) glQuery = ""; renderLib(); const i = document.getElementById("gl-q"); if (i) i.focus(); };
+  const q = document.getElementById("gl-q");
+  if (!q) document.querySelectorAll("#gl-list [data-n]").forEach(d => d.style.display = "");
+  if (q) {
+    const apply = () => { const v = q.value.trim().toLowerCase(); glQuery = q.value;
+      document.querySelectorAll("#gl-list [data-n]").forEach(d => d.style.display = !v || d.dataset.n.includes(v) ? "" : "none"); };
+    if (q.value !== glQuery) q.value = glQuery;
+    q.oninput = apply; apply();
+  }
+  const sel = document.getElementById("gl-sel");
+  document.getElementById("gl-add").onclick = () => { if (sel.value) loadLib("add?name=" + encodeURIComponent(sel.value)); };
+  el.querySelectorAll("[data-glrm]").forEach(b => b.onclick = () => loadLib("remove?name=" + encodeURIComponent(b.dataset.glrm)));
+}
+async function loadGames(q) {
+  gmT = Date.now();
+  try { gmData = await stJ("/api/games" + (q || "")); } catch (e) {}
+  renderGames();
+}
+function renderGames() {
+  const el = document.getElementById("an-games"), D = gmData;
+  if (!D) return;
+  const fmtD = s => { const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60); return h ? `${h} h ${String(m).padStart(2, "0")}` : `${m} min`; };
+  const tc = v => v == null ? "" : `color:${v >= 85 ? "var(--bad)" : v >= 75 ? "var(--warn)" : "var(--ok)"}`;
+  const loc = lang === "fr" ? "fr-FR" : "en-GB";
+  const rows = D.sessions.map(g => { const v = gmVerdict(g), op = gmOpen === g.start;
+    const det = op ? `<tr class="gm-det"><td colspan="10">${g.has_tl ? `<div class="gm-charts">${GSER.map(x => `<div class="hist-row"><div class="lab" style="color:${x.col()}">${x.lab}
+        <small>${esc(x.sub(g))}</small></div><canvas data-gc="${x.k}"></canvas></div>`).join("")}
+        <div class="hist-axis"><div></div><div id="gm-axis"></div></div></div>`
+      : `<div class="muted" style="font-size:12.5px;padding:6px 0">${esc(T("gm_no_tl"))}</div>`}</td></tr>` : "";
+    return `<tr class="gm-r ${op ? "on" : ""}" data-gs="${g.start}" data-tip="${esc(T(op ? "gm_hide" : "gm_show"))}"><td class="n" title="${esc(g.name)}">${op ? "▾" : "▸"} ${esc(g.name)}</td>
+      <td>${esc(new Date(g.start * 1000).toLocaleString(loc, {weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"}))}</td>
+      <td>${fmtD(g.dur)}</td><td>${g.gpu} / <span class="muted">${g.gpu_max} %</span></td><td>${g.cpu} / <span class="muted">${g.cpu_max} %</span></td>
+      <td>${g.temp_max != null ? `<span style="${tc(g.temp)}">${g.temp}</span> / <span style="${tc(g.temp_max)}">${g.temp_max} °C</span>` : "–"}</td>
+      <td>${g.ram_max} %</td><td>${g.vram_max} %</td>
+      <td data-tip="${esc(T("gm_vt_" + v))}"><span style="color:${vcol(v)}">●</span> ${esc(T("gm_v_" + v))}</td>
+      <td style="text-align:right;padding-right:0"><button class="gm-del" data-gdel="${g.start}" data-tip="${esc(T("gm_del"))}">✕</button></td></tr>${det}`; }).join("");
+  const am = ` <span style="text-transform:none;letter-spacing:0">(${esc(T("gm_avgmax"))})</span>`;
+  const cur = (D.current || []).map(c => `<div class="gm-live"><span><span style="color:var(--ok);font-weight:600">● ${esc(T("gm_now"))}</span> ${esc(c.name)} · ${fmtD(c.dur)}</span>
+      <button class="btn sm" data-gstop="${esc(c.key)}" data-tip="${esc(T("gm_stop_tip"))}">⏸ ${esc(T("gm_stop"))}</button></div>`).join("")
+    + (D.paused || []).map(c => `<div class="gm-live"><span><span class="muted" style="font-weight:600">⏸ ${esc(T("gm_paused"))}</span> ${esc(c.name)}</span>
+      <button class="btn sm" data-gres="${esc(c.key)}" data-tip="${esc(T("gm_resume_tip"))}">▶ ${esc(T("gm_resume"))}</button></div>`).join("");
+  setHTML(el, `<div class="hist-head"><h2 style="margin:0;font-size:16px">${esc(T("gm_t"))}</h2><span style="flex:1"></span>
+      ${D.sessions.length ? `<button class="btn sm" id="gm-clear">${esc(T("gm_clear"))}</button>` : ""}
+      <label class="check" style="font-weight:400;font-size:12.5px"><input type="checkbox" id="gm-cb" ${D.on ? "checked" : ""}><span>${esc(T("gm_opt"))}</span></label></div>
+    ${cur}
+    ${D.sessions.length ? `<div class="tw"><table><tr><th>${esc(T("gm_game"))}</th><th>${esc(T("gm_date"))}</th><th>${esc(T("gm_dur"))}</th>
+      <th>GPU${am}</th><th>CPU${am}</th><th>${esc(T("gm_temp"))}${am}</th><th>RAM max</th><th>VRAM max</th><th>${esc(T("gm_verdict"))}</th><th></th></tr>${rows}</table></div>`
+      : `<div class="muted" style="font-size:13px">${esc(T("gm_empty"))}</div>`}`);
+  const cb = document.getElementById("gm-cb"); if (cb) cb.onchange = e => loadGames("?on=" + (e.target.checked ? 1 : 0));
+  const cl = document.getElementById("gm-clear"); if (cl) cl.onclick = () => { if (cl.dataset.ok) return loadGames("?clear=1"); cl.dataset.ok = 1; cl.textContent = T("gm_sure"); };
+  el.querySelectorAll("[data-gstop]").forEach(sb => sb.onclick = async () => { sb.disabled = true;
+    try { const d = await stJ("/api/games/stop?key=" + encodeURIComponent(sb.dataset.gstop)); gmData = d; gmT = Date.now(); if (d.stopped) { gmOpen = d.stopped; delete gmTl[d.stopped]; loadTl(d.stopped); } } catch (e) {}
+    renderGames(); });
+  el.querySelectorAll("[data-gdel]").forEach(b => b.onclick = async e => { e.stopPropagation();
+    if (!b.dataset.ok) { b.dataset.ok = 1; b.classList.add("sure"); b.textContent = T("gm_del_sure"); return; }
+    const st = +b.dataset.gdel; if (gmOpen === st) gmOpen = null;
+    try { gmData = await stJ("/api/games/delete?start=" + st); gmT = Date.now(); } catch (e) {}
+    renderGames(); });
+  el.querySelectorAll("[data-gres]").forEach(b => b.onclick = async () => { b.disabled = true;
+    try { gmData = await stJ("/api/games/resume?key=" + encodeURIComponent(b.dataset.gres)); gmT = Date.now(); } catch (e) {}
+    renderGames(); });
+  el.querySelectorAll("[data-gs]").forEach(tr => tr.onclick = () => { const st = +tr.dataset.gs; gmOpen = gmOpen === st ? null : st; renderGames(); if (gmOpen) loadTl(gmOpen); });
+  drawSession();
+}
+function renderAnalysis(force) {
+  if (force || !histData || Date.now() - histT > 60000) loadHistory(force);
+  const el = document.getElementById("an-body"), I = liveInsight;
+  if (!I) { if (force) el.innerHTML = `<div class="card w7"><div class="loading"><div class="spinner"></div></div></div>`; return; }
+  const dur = s => { s = Math.floor(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60);
+    return h ? `${h} ${T("h")} ${String(m).padStart(2, "0")} ${T("min")}` : m ? `${m} ${T("min")} ${String(s % 60).padStart(2, "0")} s` : `${s} s`; };
+  const rows = ["gpu", "cpu", "vram", "ram"].map(k => `<span${tipAttr("sh")}>${esc(T("sh_" + k))}</span>
+      <div class="bar" style="height:10px"><i style="width:${(I.shares[k] * 100).toFixed(1)}%;background:var(--${k === "vram" ? "gpu" : k})"></i></div>
+      <b style="text-align:right">${Math.round(I.shares[k] * 100)} %</b>`).join("");
+  const pct = Math.min(100, I.load_s / I.need_s * 100);
+  const now = I.loading_now
+    ? `<span style="color:var(--ok);font-weight:600">● ${esc(T("an_now_load"))}</span>`
+    : `<span class="muted">○ ${esc(T("an_now_idle"))}</span>`;
+  const since = new Date(I.since + "T12:00").toLocaleDateString(lang === "fr" ? "fr-FR" : "en-GB");
+  const html = `
+    <div class="card w7"><h2 style="margin:0;font-size:16px">${esc(T("usage_t"))}</h2>
+      ${I.ready ? `<div class="verdict" style="font-size:15px">${esc(I[lang] || I.fr)}</div>`
+        : `<div style="font-size:13.5px">${esc(I[lang] || I.fr)}</div>
+           <div class="bar" style="height:10px"><i style="width:${pct.toFixed(1)}%;background:var(--cpu)"></i></div>`}
+      <div class="shares" style="grid-template-columns:110px 1fr 46px">${rows}</div>
+      <div class="muted" style="font-size:12.5px">${dur(I.load_s)} ${esc(T("usage_load"))} · ${esc(T("usage_since"))} ${esc(since)}</div>
+      <div style="font-size:13px">${esc(T("an_now"))} ${now} <span class="muted">(CPU ${Math.round(I.now.cpu)} % · GPU ${Math.round(I.now.gpu)} % · RAM ${Math.round(I.now.ram || 0)} % · VRAM ${Math.round(I.now.vram || 0)} %)</span></div>
+      <div><button class="btn sm" id="ins-reset">${esc(T("usage_reset"))}</button></div></div>
+    <div class="card w5"><h2 style="margin:0;font-size:15px">${esc(T("an_how_t"))}</h2>
+      <p style="margin:0;font-size:13px;line-height:1.55">${esc(T("an_how"))}</p>
+      <label class="check"><input type="checkbox" id="bg-cb" ${bgMode ? "checked" : ""}><span>${esc(T("bg_opt"))}</span></label>
+      <p class="muted" style="margin:0;font-size:12.5px">${esc(T(I.bg ? "bg_hint" : "usage_off"))}</p></div>`;
+  setHTML(el, html);
+  const r = document.getElementById("ins-reset"); if (r) r.onclick = () => fetch("/api/insights_reset").catch(() => {});
+  const cb = document.getElementById("bg-cb"); if (cb) cb.onchange = e => { bgMode = e.target.checked; saveSettings(); };
+}
+
+// =================== Raccourci clavier du widget ===================
+const VK = c => /^Key[A-Z]$/.test(c) ? c.charCodeAt(3) : /^Digit[0-9]$/.test(c) ? c.charCodeAt(5) :
+  /^F([1-9]|1[0-2])$/.test(c) ? 0x6F + +c.slice(1) : ({Space: 0x20, Home: 0x24, End: 0x23, Insert: 0x2D, PageUp: 0x21, PageDown: 0x22})[c] || 0;
+function setupHotkeyUI() {
+  const kbd = document.getElementById("hk-kbd"), msg = document.getElementById("hk-msg");
+  document.getElementById("hk-set").onclick = () => {
+    kbd.textContent = T("hk_listen"); kbd.classList.add("listen"); setText(msg, "");
+    const onKey = async e => {
+      e.preventDefault(); e.stopPropagation();
+      if (["Control", "Alt", "Shift", "Meta"].includes(e.key)) return;
+      document.removeEventListener("keydown", onKey, true); kbd.classList.remove("listen");
+      if (e.key === "Escape") { renderCustom(); return; }
+      const vk = VK(e.code), fkey = /^F\d/.test(e.code);
+      const mods = (e.altKey ? 1 : 0) | (e.ctrlKey ? 2 : 0) | (e.shiftKey ? 4 : 0) | (e.metaKey ? 8 : 0);
+      if (!vk || (!(mods & 11) && !fkey)) { kbd.textContent = hotkey ? hotkey.label : T("hk_none"); setText(msg, T("hk_need")); return; }
+      const label = [e.ctrlKey && "Ctrl", e.altKey && "Alt", e.shiftKey && "Shift", e.metaKey && "Win",
+                     e.code.replace(/^Key|^Digit/, "")].filter(Boolean).join(" + ");
+      const r = await (await fetch(`/api/hotkey?mods=${mods}&vk=${vk}&label=${encodeURIComponent(label)}`)).json();
+      if (r.ok) { hotkey = {mods, vk, label}; renderCustom(); }
+      else { kbd.textContent = hotkey ? hotkey.label : T("hk_none"); setText(msg, T("hk_taken")); }
+    };
+    document.addEventListener("keydown", onKey, true);
+  };
+  const clr = document.getElementById("hk-clear");
+  if (clr) clr.onclick = async () => { await fetch("/api/hotkey?mods=0&vk=0"); hotkey = null; renderCustom(); };
+}
+
+// =================== Stockage (analyse façon TreeSize) ===================
+const CATCOL = {video: "#ff6b9d", game: "#4cc2ff", image: "#5fd38d", audio: "#ffd36b", archive: "#ffa94d", document: "#b38cff", dev: "#2ee6c3", other: "#5d6478"};
+let stHealth = null, stHealthBusy = false;
+let stTmp = null, stTmpOpen = new Set(), stTmpTimer = null, stDrives = [], stRoot = null, stPath = [], stSum = null, stNode = null, stStatus = {}, stTimer = null, stCat = null;
+const stJ = async (u) => (await fetch(u, {cache: "no-store"})).json();
+const joinPath = (root, parts) => root.replace(/[\\/]+$/, "") + (parts.length ? "\\" + parts.join("\\") : "\\");
+async function stOpen() {
+  stJ("/api/health").then(h => { stHealth = h; stRender(); }).catch(() => {});
+  if (!stTmp) stTmpLoad();
+  const d = await stJ("/api/storage/drives");
+  stDrives = d.drives || []; stStatus = d.status || {};
+  if (stStatus.running) { stRoot = stStatus.root; stPoll(); }
+  if (!stRoot && stDrives.length) stRoot = (stDrives.find(x => x.scanned) || stDrives[0]).root;
+  stRender();
+  await stLoad();
+}
+async function stTmpLoad(refresh) {
+  clearTimeout(stTmpTimer);
+  try { stTmp = await stJ("/api/temp" + (refresh ? "?refresh=1" : "")); } catch (e) {}
+  if (stTmp && stTmp.busy) stTmpTimer = setTimeout(() => stTmpLoad(), 1500);
+  stRender();
+}
+function stTmpView() {
+  const D = stTmp, busy = !D || D.busy;
+  const head = `<div class="card st-head"><div class="st-bar"><span class="big">🧹 ${esc(T("tmp_t"))}</span>
+      <span class="muted" style="font-size:13px">${D && D.date ? `<b style="color:var(--text);font-size:15px">${fmtBytes(D.total, 1)}</b> ${esc(T("tmp_total"))}` : ""}</span>
+      ${busy ? `<div class="spinner" style="width:16px;height:16px;margin:0;border-width:2px"></div><span class="muted" style="font-size:12.5px">${esc(T("tmp_busy"))}</span>` : ""}
+      <span style="flex:1"></span><button class="btn sm" id="tmp-win">${esc(T("tmp_win"))}</button><button class="btn sm" id="tmp-ref" ${busy ? "disabled" : ""}>${esc(T("tmp_refresh"))}</button></div>
+      <div class="muted" style="font-size:12.5px">${esc(T("tmp_note"))}</div></div>`;
+  if (!D || !D.groups.length) return head;
+  const max = Math.max(1, ...D.groups.map(g => g.size));
+  const rows = D.groups.filter(g => g.items.length).map(g => { const open = stTmpOpen.has(g.id), many = g.items.length > 1 || g.id === "recycle";
+    const sub = open ? g.items.map(i => `<div class="st-row tmp-sub"><div class="n dim" title="${esc(i.path)}">${esc(i.path === "shell:RecycleBinFolder" ? T("tmp_recycle") : i.path)}</div>
+        <div></div><div class="r">${fmtBytes(i.size, i.size >= 1073741824 ? 1 : 0)}</div><div></div><div class="r m">${i.files.toLocaleString(lang)}</div>
+        <div><button class="detbtn" data-ofold="${esc(i.path)}" data-tip="${esc(T("st_open"))}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button></div></div>`).join("") : "";
+    return `<div class="st-row dir" data-tmp="${g.id}" data-tip="${esc(T("tmpt_" + g.id))}"><div class="n">${g.items.length ? (open ? "▾ " : "▸ ") : "· "}${esc(T("tmp_" + g.id))}</div>
+        <div class="bar"><i style="width:${(g.size / max * 100).toFixed(1)}%;background:var(--disk)"></i></div>
+        <div class="r">${fmtBytes(g.size, g.size >= 1073741824 ? 1 : 0)}</div><div></div>
+        <div class="r m">${g.items.reduce((a, i) => a + i.files, 0).toLocaleString(lang)}</div><div></div></div>${sub}`; }).join("");
+  return head + `<div class="card"><div class="st-row head"><div>${esc(T("st_name"))}</div><div></div><div class="r">${esc(T("st_size"))}</div><div></div><div class="r">${esc(T("st_nfiles"))}</div><div></div></div>${rows}</div>`;
+}
+async function stLoad() {
+  stSum = stNode = null;
+  if (stRoot === "__temp") return stTmpLoad();
+  const drv = stDrives.find(x => x.root === stRoot);
+  if (drv && drv.scanned) {
+    stSum = await stJ("/api/storage/summary?root=" + encodeURIComponent(stRoot));
+    await stGo(stPath = []);
+  } else stRender();
+}
+async function stGo(path) {
+  stPath = path;
+  stNode = await stJ(`/api/storage/node?root=${encodeURIComponent(stRoot)}&path=${encodeURIComponent(JSON.stringify(path))}`);
+  stRender();
+}
+// santé d'un lecteur (C:, D:…) : on retrouve son disque physique via la fiche Composants
+function stDiskOf(root) {
+  const L = root.replace(/[:\\/]+$/, "").toUpperCase();
+  return ((specs && specs.disks) || []).find(d => (d.letters || []).some(x => x.toUpperCase() === L));
+}
+function stDriveHealth(root) {
+  const disk = stDiskOf(root), x = disk && stHealth && (stHealth.disks || {})[String(disk.id)];
+  if (!x) return "";
+  const v = healthVerdict(x), isHdd = x.media === 3;
+  const st = {0: [T("health0"), "var(--ok)"], 1: [T("health1"), "var(--warn)"], 2: [T("health2"), "var(--bad)"]}[x.health] || ["?", "var(--muted)"];
+  const bits = [x.temp ? x.temp + " °C" : null, !isHdd && x.wear != null ? (100 - x.wear) + " % " + T("h_life_s") : null,
+                x.hours != null ? x.hours.toLocaleString(lang) + " h" : null].filter(Boolean);
+  return `<small data-tip="${esc(v[1])}"><span style="color:${st[1]}">● ${esc(st[0])}</span>${bits.length ? " · " + esc(bits.join(" · ")) : ""}</small>`;
+}
+function stHealthBtn() {
+  const any = stHealth && Object.keys(stHealth.disks || {}).length;
+  const date = any && stHealth.date ? new Date(stHealth.date * 1000).toLocaleString(lang === "fr" ? "fr-FR" : "en-GB", {dateStyle: "short", timeStyle: "short"}) : "";
+  const tip = stHealthBusy ? T("h_wait_admin") : date ? T("h_title_all") + " : " + T("h_read").toLowerCase() + " " + date : T("h_need_admin");
+  return `<button class="btn sm" id="st-hread" ${stHealthBusy ? "disabled" : ""} data-tip="${esc(tip)}">${stHealthBusy ? `<span class="spinner" style="width:12px;height:12px;margin:0 6px 0 0;border-width:2px;display:inline-block;vertical-align:-2px"></span>` : ""}${esc(T(any ? "h_reread" : "h_admin"))}</button>`;
+}
+async function stScan() {
+  await stJ("/api/storage/scan?root=" + encodeURIComponent(stRoot));
+  stStatus = {running: true, root: stRoot, files: 0, bytes: 0, started: Date.now() / 1000};
+  stRender(); stPoll();
+}
+function stPoll() {
+  clearTimeout(stTimer);
+  stTimer = setTimeout(async () => {
+    stStatus = await stJ("/api/storage/status");
+    if (stStatus.running) { stRenderProgress(); stPoll(); }
+    else { const d = await stJ("/api/storage/drives"); stDrives = d.drives || []; await stLoad(); }
+  }, 700);
+}
+const fmtDur = s => s >= 60 ? Math.floor(s / 60) + " min " + String(Math.floor(s % 60)).padStart(2, "0") + " s" : Math.max(1, Math.round(s)) + " s";
+const openBtn = p => `<button class="detbtn" data-open="${esc(p)}" data-tip="${esc(T("st_open"))}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button>`;
+function stRenderProgress() {
+  const el = document.getElementById("st-prog"); if (!el) return stRender();
+  const s = stStatus;
+  setHTML(el, `<div><b style="color:var(--text)">${(s.files || 0).toLocaleString(lang)}</b> ${esc(T("st_files"))} · <b style="color:var(--text)">${fmtBytes(s.bytes || 0, 1)}</b>
+    · ${fmtDur(Date.now() / 1000 - (s.started || Date.now() / 1000))} ${esc(T("st_elapsed"))}</div><div class="p">${esc(s.path || "")}</div>`);
+}
+function stRender() {
+  const el = document.getElementById("st-body");
+  const running = stStatus.running && stStatus.root === stRoot;
+  const hOf = root => { const k = stDiskOf(root); return k && stHealth && (stHealth.disks || {})[String(k.id)]; };
+  const hCol = x => ({"verdict-ok": "var(--ok)", "verdict-warn": "var(--warn)", "verdict-bad": "var(--bad)"})[healthVerdict(x)[0]];
+  const drives = stDrives.map(d => { const x = hOf(d.root);
+    return `<button class="st-drive ${d.root === stRoot ? "on" : ""}" data-root="${esc(d.root)}">
+      <div class="top"><b>${esc(d.root.replace(/\\$/, ""))}</b><small>${esc(d.fs)}</small><span style="flex:1"></span>
+        ${x ? `<span class="hd" style="background:${hCol(x)}" data-tip="${esc(T("h_title") + " : " + healthVerdict(x)[1])}"></span>` : ""}</div>
+      <div class="bar"><i style="width:${(d.used / d.total * 100).toFixed(1)}%;background:var(--disk)"></i></div>
+      <small>${fmtBytes(d.total - d.used)} ${esc(T("free"))} / ${fmtBytes(d.total)}</small></button>`; }).join("");
+  const tmpBtn = `<button class="st-drive ${stRoot === "__temp" ? "on" : ""}" data-root="__temp"><div class="top"><b>🧹 ${esc(T("tmp_t"))}</b></div>
+      <small>${stTmp && stTmp.date ? fmtBytes(stTmp.total, 1) : "–"}</small></button>`;
+  const drv = stDrives.find(x => x.root === stRoot);
+  const L = (stRoot || "").replace(/\\$/, "");
+  const hx = hOf(stRoot || "");
+  let acts = stHealthBtn();
+  if (running) acts += `<button class="btn sm" id="st-stop">${esc(T("st_stop"))}</button>`;
+  else if (drv) acts += `<button class="btn sm" id="st-go">${esc(T(drv.scanned ? "st_rescan" : "st_scan").replace("{d}", L))}</button>`;
+  const scanned = drv && drv.scanned ? esc(T("st_scanned")) + " " + new Date(drv.scanned * 1000).toLocaleString(lang === "fr" ? "fr-FR" : "en-GB", {dateStyle: "short", timeStyle: "short"}) : esc(T("st_never"));
+  const msg = running ? "" : stStatus.stopped && stStatus.root === stRoot ? T("st_stopped") : stStatus.error ? T("st_err") : drv && !drv.scanned ? T("st_pick") : "";
+  const head = drv ? `<div class="card st-head"><div class="st-bar"><span class="big">${esc(L)}</span>
+      <div class="st-use"><div class="bar"><i style="width:${(drv.used / drv.total * 100).toFixed(1)}%;background:var(--disk)"></i></div>
+        <span>${fmtBytes(drv.used)} / ${fmtBytes(drv.total)} · ${scanned}</span></div>
+      <span style="flex:1"></span>${acts}</div>
+      ${running ? `<div class="st-bar"><div class="spinner" style="width:16px;height:16px;margin:0;border-width:2px"></div><div class="st-prog" id="st-prog"></div></div>` : ""}
+      ${msg ? `<div class="muted" style="font-size:12.5px">${esc(msg)}</div>` : ""}
+      ${hx ? `<div class="st-health">${healthRows(hx).replace(/<dt([^>]*)>(.*?)<\/dt><dd>(.*?)<\/dd>/g, "<div$1><small>$2</small><b>$3</b></div>")}<span class="${healthVerdict(hx)[0]}">${esc(healthVerdict(hx)[1])}</span></div>` : ""}</div>` : "";
+  let main = "";
+  if (stSum && stNode && stNode.children && !running) {
+    const N = stNode, tot = Math.max(1, N.size);
+    const crumbs = [`<button data-crumb="-1">${esc(stRoot.replace(/\\$/, ""))}</button>`]
+      .concat(stPath.map((p, i) => `<span>›</span><button data-crumb="${i}">${esc(p)}</button>`)).join("");
+    const row = (name, size, files, dir, open, cls, full) => `<div class="st-row ${dir && open ? "dir" : ""}" ${dir && open ? `data-dir="${esc(name)}"` : ""} ${dir && !open ? `data-tip="${esc(T("st_small"))}"` : ""}>
+        <div class="n ${cls || ""}">${dir ? "📁 " : ""}${esc(name)}</div>
+        <div class="bar"><i style="width:${(size / tot * 100).toFixed(1)}%;background:var(--disk)"></i></div>
+        <div class="r">${fmtBytes(size, size >= 1073741824 ? 1 : 0)}</div><div class="r m">${Math.round(size / tot * 100)} %</div>
+        <div class="r m">${files != null ? files.toLocaleString(lang) : ""}</div><div>${full ? openBtn(full) : ""}</div></div>`;
+    const base = joinPath(stRoot, stPath);
+    const rows = N.children.map(c => row(c.name, c.size, c.files, true, c.open, "", base.replace(/\\$/, "") + "\\" + c.name))
+      .concat(N.direct > 0 ? [row(T("st_direct"), N.direct, null, false, false, "dim", null)] : [])
+      .concat(N.more ? [row(`… ${N.more.count} ${T("st_more")}`, N.more.size, null, false, false, "dim", null)] : []);
+    const cats = Object.entries(stSum.cats).filter(([, v]) => v.size > 0).sort((a, b) => b[1].size - a[1].size);
+    const ctot = Math.max(1, cats.reduce((a, [, v]) => a + v.size, 0));
+    const catsHTML = `<div class="catbar">${cats.map(([k, v]) => `<i style="width:${(v.size / ctot * 100).toFixed(2)}%;background:${CATCOL[k]}"></i>`).join("")}</div>` +
+      cats.map(([k, v]) => `<div class="catrow ${stCat === k ? "on" : ""}" data-cat="${k}"><span class="dot" style="background:${CATCOL[k]}"></span>
+        <span>${esc(T("cat_" + k))} <small class="muted">${v.count.toLocaleString(lang)}</small></span><b class="r" style="text-align:right">${fmtBytes(v.size, 1)}</b>
+        <span class="muted" style="text-align:right">${Math.round(v.size / ctot * 100)} %</span></div>`).join("");
+    const files = (stCat ? stSum.cats[stCat].top : stSum.big).slice(0, 50).map(([size, p]) => {
+      const i = Math.max(p.lastIndexOf("\\"), p.lastIndexOf("/")); return `<div class="file"><div class="n" title="${esc(p)}">${esc(p.slice(i + 1))}<small>${esc(p.slice(0, i))}</small></div>
+        <b style="text-align:right;font-variant-numeric:tabular-nums">${fmtBytes(size, 1)}</b>${openBtn(p)}</div>`; }).join("");
+    const denied = Math.max(0, stSum.used - stSum.total);
+    main = `<div class="st-grid">
+      <div class="card w7 tall"><div class="crumbs">${crumbs}</div>
+        <div class="st-row head"><div>${esc(T("st_name"))}</div><div></div><div class="r">${esc(T("st_size"))}</div><div class="r">${esc(T("st_share"))}</div><div class="r">${esc(T("st_nfiles"))}</div><div></div></div>
+        <div class="st-list">${rows.join("")}</div>
+        <div class="muted" style="font-size:12px">${esc(T("st_scanned"))} ${new Date(stSum.date * 1000).toLocaleString(lang === "fr" ? "fr-FR" : "en-GB")} · ${esc(T("st_info"))} ${fmtDur(stSum.duration)}${denied > 1073741824 ? ` · ${esc(T("st_denied"))} : ${fmtBytes(denied, 1)}` : ""}</div></div>
+      <div class="card w5"><h2 style="margin:0;font-size:15px">${esc(T("st_types"))}</h2>${catsHTML}</div>
+      <div class="card w5 st-big"><div style="display:flex;align-items:center;gap:8px"><h2 style="margin:0;font-size:15px;flex:1">${esc(stCat ? T("cat_" + stCat) : T("st_big"))}</h2>
+        ${stCat ? `<button class="btn sm" id="st-allcat">${esc(T("st_back"))}</button>` : ""}</div><div class="st-list" style="max-height:420px">${files}</div></div>
+    </div>`;
+  }
+  el.innerHTML = `<div class="st-wrap"><div class="st-drives">${drives}${tmpBtn}</div><div class="st-main">${stRoot === "__temp" ? stTmpView() : head + main}</div></div>`;
+  el.querySelectorAll("[data-tmp]").forEach(r => r.onclick = () => { const id = r.dataset.tmp; stTmpOpen.has(id) ? stTmpOpen.delete(id) : stTmpOpen.add(id); stRender(); });
+  el.querySelectorAll("[data-ofold]").forEach(b => b.onclick = e => { e.stopPropagation(); fetch("/api/storage/openfolder?path=" + encodeURIComponent(b.dataset.ofold)); });
+  const tr = document.getElementById("tmp-ref"); if (tr) tr.onclick = () => stTmpLoad(true);
+  const tw = document.getElementById("tmp-win"); if (tw) tw.onclick = () => fetch("/api/storage/openfolder?path=ms-settings%3Astoragesense");
+  const hb = document.getElementById("st-hread");
+  if (hb) hb.onclick = async () => {
+    stHealthBusy = true; stRender();
+    try { stHealth = await stJ("/api/health?admin=1"); } catch (e) {}
+    stHealthBusy = false; stRender();
+  };
+  if (running) stRenderProgress();
+  el.querySelectorAll("[data-root]").forEach(b => b.onclick = () => { if (stRoot !== b.dataset.root) { stRoot = b.dataset.root; stCat = null; stLoad(); } });
+  const go = document.getElementById("st-go"); if (go) go.onclick = stScan;
+  const stop = document.getElementById("st-stop"); if (stop) stop.onclick = () => fetch("/api/storage/stop");
+  const all = document.getElementById("st-allcat"); if (all) all.onclick = () => { stCat = null; stRender(); };
+  el.querySelectorAll("[data-dir]").forEach(r => r.onclick = e => { if (!e.target.closest("[data-open]")) stGo(stPath.concat(r.dataset.dir)); });
+  el.querySelectorAll("[data-crumb]").forEach(b => b.onclick = () => stGo(stPath.slice(0, +b.dataset.crumb + 1)));
+  el.querySelectorAll("[data-cat]").forEach(r => r.onclick = () => { stCat = stCat === r.dataset.cat ? null : r.dataset.cat; stRender(); });
+  el.querySelectorAll("[data-open]").forEach(b => b.onclick = e => { e.stopPropagation(); fetch("/api/storage/open?path=" + encodeURIComponent(b.dataset.open)); });
+}
+
+// =================== Langue & onglets ===================
+function applyLang() {
+  document.documentElement.lang = lang;
+  document.querySelectorAll("[data-i]").forEach(n => n.textContent = T(n.dataset.i));
+  document.querySelectorAll("[data-ti]").forEach(n => n.title = T(n.dataset.ti));
+  document.querySelectorAll(".section-title").forEach(s => s.dataset.tip = T("tip_sec"));
+  document.querySelectorAll(".section-title .grip").forEach(s => s.dataset.tip = T("drag"));
+  document.querySelectorAll("[data-tipk]").forEach(n => n.dataset.tip = T("tip_" + n.dataset.tipk));
+  applyBig();
+  for (const id of Object.keys(cards)) { cards[id].el.remove(); delete cards[id]; }
+  redrawAll(); renderSpecs(); renderCustom();
+  if (document.getElementById("storage").classList.contains("on")) stRender();
+  if (document.getElementById("gaming").classList.contains("on")) { renderGames(); renderLib(); }
+  const hEl = document.getElementById("an-hist"); if (hEl) { hEl.innerHTML = ""; renderHistory(); }
+  if (detKind) openDetails(detKind + (detGpu ? ":" + detGpu : ""), document.querySelector(`.card[data-id="${CSS.escape(detCard?.dataset.id || "")}"]`));
+}
+// =================== Mises à jour (seulement sur demande) ===================
+let upState = null;
+const upPop = document.getElementById("up-pop");
+function renderUp() {
+  const S = upState || {};
+  let body = "";
+  if (S.phase === "checking") body = `<div class="muted" style="display:flex;gap:8px;align-items:center"><span class="spinner" style="width:14px;height:14px;margin:0;border-width:2px"></span>${esc(T("up_checking"))}</div>`;
+  else if (S.phase === "installing") body = `<div style="display:flex;gap:8px;align-items:center"><span class="spinner" style="width:14px;height:14px;margin:0;border-width:2px"></span>${esc(T(S.done ? "up_restart" : "up_installing"))}</div>`;
+  else if (S.error) body = `<div style="color:var(--warn)">${esc(T(S.error === "norepo" ? "up_norepo" : S.error === "net" ? "up_net" : "up_err"))}</div>`;
+  else if (S.newer) body = `<div><b style="color:var(--ok)">${esc(T("up_avail"))} v${esc(S.latest)}</b></div>${S.notes ? `<div class="notes">${esc(S.notes)}</div>` : ""}
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" id="up-inst">${esc(T("up_install"))}</button></div>
+      <div class="muted" style="font-size:12px">${esc(T("up_inst_note"))}</div>`;
+  else if (S.latest) body = `<div style="color:var(--ok)">✓ ${esc(T("up_ok"))}</div>`;
+  setHTML(upPop, `<h4 style="margin:0">${esc(T("up_t"))}</h4><div>${esc(T("up_cur"))} <b>v{{VERSION}}</b></div>${body}
+    ${S.phase ? "" : `<div><button class="btn sm" id="up-check">${esc(T("up_check"))}</button></div>`}
+    <div class="muted" style="font-size:12px">${esc(T("up_privacy"))}</div>`);
+  const c = document.getElementById("up-check"); if (c) c.onclick = upCheck;
+  const i = document.getElementById("up-inst"); if (i) i.onclick = upInstall;
+}
+async function upCheck() {
+  upState = {phase: "checking"}; renderUp();
+  try { upState = await stJ("/api/update/check"); } catch (e) { upState = {error: "net"}; }
+  renderUp();
+}
+async function upInstall() {
+  const keep = upState; upState = {phase: "installing"}; renderUp();
+  try { await stJ("/api/update/install"); } catch (e) {}
+  const poll = async () => {
+    let st = null; try { st = await stJ("/api/update/status"); } catch (e) { upState = {phase: "installing", done: true}; renderUp(); return; }
+    if (st.error) { upState = {...keep, error: "err"}; renderUp(); return; }
+    upState = {phase: "installing", done: st.done}; renderUp();
+    setTimeout(poll, 1000);
+  };
+  setTimeout(poll, 800);
+}
+document.getElementById("ver-btn").onclick = e => { e.stopPropagation(); upPop.classList.toggle("on"); if (upPop.classList.contains("on")) renderUp(); };
+upPop.addEventListener("click", e => e.stopPropagation());
+document.addEventListener("click", () => upPop.classList.remove("on"));
+function privacyHTML() {
+  const li = k => `<ul>${T(k).map(x => `<li>${x}</li>`).join("")}</ul>`;   // textes fixes de l'appli (pas de données externes)
+  const badge = (k, icon) => `<div class="pv-badge"><span>${icon}</span>${esc(T(k))}</div>`;
+  return `<div class="card prv" id="privacy"><h2>🛡 ${esc(T("tab_privacy"))} · ${esc(T("pv_t"))}</h2><p>${esc(T("pv_intro"))}</p>
+    <div class="pv-badges">${badge("pv_b1", "🌐")}${badge("pv_b2", "🚫")}${badge("pv_b3", "👤")}${badge("pv_b4", "🗑")}</div>
+    <div class="prv-cols"><div><h3>${esc(T("pv_read_t"))}</h3>${li("pv_read")}<h3>${esc(T("pv_net_t"))}</h3>${li("pv_net")}</div>
+      <div><h3>${esc(T("pv_store_t"))}</h3>${li("pv_store")}<p class="muted">${esc(T("pv_store_note"))}</p>
+        <div><button class="btn sm" id="pv-open">${esc(T("pv_open"))}</button></div>
+        <h3>${esc(T("pv_never_t"))}</h3>${li("pv_never")}</div></div></div>`;
+}
+document.getElementById("pv-btn").onclick = e => {      // icône à côté de la version : va à la section Vie privée des Paramètres
+  e.stopPropagation();
+  document.querySelector('#tabs button[data-tab="custom"]').click();
+  setTimeout(() => { const p = document.getElementById("privacy"); if (!p) return;
+    p.scrollIntoView({behavior: "smooth", block: "start"}); p.classList.remove("flash"); p.offsetWidth; p.classList.add("flash"); }, 350);
+};
+function moveTabInd(anim = true) {
+  const b = document.querySelector("#tabs button.on"), ind = document.getElementById("tab-ind"); if (!b || !ind) return;
+  if (!anim) ind.style.transition = "none";
+  ind.style.left = b.offsetLeft + "px"; ind.style.width = b.offsetWidth + "px";
+  if (!anim) { ind.offsetWidth; ind.style.transition = ""; }
+}
+new ResizeObserver(() => moveTabInd(false)).observe(document.getElementById("tabs"));
+document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("#tabs button").forEach(x => x.classList.toggle("on", x === b));
+  moveTabInd();
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.id === b.dataset.tab));
+  if (b.dataset.tab === "perf") redrawAll();
+  if (b.dataset.tab === "storage") stOpen();
+  if (b.dataset.tab === "analysis") renderAnalysis(true);
+  if (b.dataset.tab === "gaming") { loadGames(); glApps = []; loadLib(); stJ("/api/games/apps").then(a => { glApps = a.apps || []; renderLib(); }).catch(() => {}); }
+  if (b.dataset.tab === "custom") fetch("/api/settings", {cache: "no-store"}).then(r => r.json()).then(st => {
+    widgetOn = !!st.widget; widgetStyle = st.widget_style === "bars" ? "bars" : "compact"; autostart = !!st.autostart; renderCustom();
+  }).catch(() => {});
+});
+let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { redrawAll(); drawHistory(); }, 150); });
+
+// Boucle : 1 s quand la fenêtre est visible, 20 s quand elle est réduite (l'appli se met en veille).
+let timer = null;
+function schedule() {
+  clearTimeout(timer);
+  timer = setTimeout(async () => { await tick(); schedule(); }, document.hidden ? 20000 : 1000);
+}
+// Fenêtre réduite : après 3 s, on demande à Windows de reprendre la RAM inutilisée.
+let trimTimer = null;
+document.addEventListener("visibilitychange", () => {
+  clearTimeout(trimTimer);
+  if (document.hidden) trimTimer = setTimeout(() => fetch("/api/trim", {cache: "no-store"}).catch(() => {}), 3000);
+  else tick();
+  schedule();
+});
+
+(async () => {
+  await loadSettings();
+  document.documentElement.dataset.theme = theme;
+  readColors();
+  applyBig();
+  applyOrder(sectionsEl);
+  applyCollapsed();
+  applyLang();
+  await tick();
+  schedule();
+})();
+</script>
+</body>
+</html>

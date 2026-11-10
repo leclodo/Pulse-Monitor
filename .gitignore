@@ -1,0 +1,12 @@
+# Données personnelles de Pulse Monitor : jamais publiées sur GitHub
+settings.json
+stats.json
+games.json
+games_lib.json
+pulse_monitor.log
+history/
+scans/
+backup/
+__pycache__/
+*.tmp
+*.new

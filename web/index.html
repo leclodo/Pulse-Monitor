@@ -351,7 +351,7 @@
   .hist-axis > div { position: relative; height: 16px; font-size: 11px; color: var(--dim); }
   .hist-axis span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
   .hist-tip { position: fixed; z-index: 40; pointer-events: none; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px;
-    padding: 7px 10px; font-size: 12.5px; line-height: 1.5; box-shadow: 0 6px 20px #0005; display: none; max-width: 340px; }
+    padding: 7px 10px; font-size: 12.5px; line-height: 1.5; box-shadow: 0 6px 20px #0005; display: none; max-width: 340px; width: max-content; }
   .hist-tip b { font-variant-numeric: tabular-nums; }
   /* santé des disques (panneau Détails) */
   .d-extra { padding: 0 16px; }
@@ -1857,9 +1857,7 @@ function histTip(e) {
     if (P.length && t > P[0].t && t < P[P.length - 1].t) {
       histTipEl.innerHTML = `<span class="muted">${esc(T("gap_off"))}</span>`;
       histTipEl.style.display = "block";
-      const r = histTipEl.getBoundingClientRect();
-      histTipEl.style.left = Math.min(innerWidth - r.width - 8, e.clientX + 14) + "px";
-      histTipEl.style.top = Math.max(8, e.clientY - r.height - 12) + "px";
+      placeHistTip(e);
     } else histTipEl.style.display = "none";
     return;
   }
@@ -1870,8 +1868,14 @@ function histTip(e) {
     GPU <b>${Math.round(p.g)} %</b> <span class="muted">(max ${Math.round(p.G)} %)</span>${p.T ? ` · <b style="color:${tempCol(p.T)}">${Math.round(p.T)} °C</b>` : ""}<br>
     RAM <b>${Math.round(p.r)} %</b> · VRAM <b>${Math.round(p.v)} %</b>${progs ? `<div style="margin-top:4px;border-top:1px solid var(--line);padding-top:4px"><span class="muted">${esc(T("hist_progs"))}</span><br>${progs}</div>` : ""}`;
   histTipEl.style.display = "block";
+  placeHistTip(e);
+}
+function placeHistTip(e) {
+  // mesure à gauche de l'écran (largeur naturelle), puis à droite du curseur… ou à sa gauche s'il n'y a pas la place
+  histTipEl.style.left = "0px";
   const r = histTipEl.getBoundingClientRect();
-  histTipEl.style.left = Math.min(innerWidth - r.width - 8, e.clientX + 14) + "px";
+  const x = e.clientX + 14 + r.width > innerWidth - 8 ? e.clientX - 14 - r.width : e.clientX + 14;
+  histTipEl.style.left = Math.max(8, x) + "px";
   histTipEl.style.top = Math.max(8, e.clientY - r.height - 12) + "px";
 }
 

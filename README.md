@@ -1,6 +1,6 @@
 # Pulse Monitor
 
-Version actuelle : **v0.6.1** (numéro dans `APP_VERSION` en haut de `pulse_monitor.py`).
+Version actuelle : **v0.6.3** (numéro dans `APP_VERSION` en haut de `pulse_monitor.py`).
 
 Tableau de bord simple et léger des performances du PC (façon Gestionnaire des tâches), fiche des composants et conseils en direct pour réduire les charges.
 
@@ -45,7 +45,7 @@ Sans le .bat : `python pulse_monitor.py`
 - **Fermer la fenêtre (✕)** : l'appli reste près de l'horloge avec une petite icône (~30 Mo, la fenêtre est entièrement libérée). Clic = rouvrir, clic droit = Quitter. Désactivable dans Paramètres.
 - **Paramètres → Démarrage et fermeture** : lancer Pulse Monitor avec Windows (en fond, sans ouvrir la fenêtre).
 - **Widget de bureau** (Paramètres ou clic droit sur l'icône) : petite fenêtre semi-transparente avec CPU, GPU + température, VRAM, RAM. Sur une ligne, style compact (textes) ou barres. 📌 = épinglé au-dessus de tout avec clics à travers (Ctrl maintenu pour le déplacer / désépingler). Nécessite tkinter (inclus avec Python pour Windows).
-- **Mises à jour** : clic sur le numéro de version → « Vérifier les mises à jour ». Seule connexion Internet de l'appli (GitHub), uniquement sur demande. Installer garde tes données et copie l'ancienne version dans `backup/`.
+- **Mises à jour** : clic sur le numéro de version → « Vérifier les mises à jour ». Seule connexion Internet de l'appli (GitHub) : sur demande, ou une fois par jour si l'option est activée dans les Paramètres (désactivée par défaut). Installer garde tes données et copie l'ancienne version dans `backup/`.
 - **Vie privée** : icône 🛡 à côté de la version (section en bas des Paramètres).
 - Relancer le .bat alors que l'appli tourne déjà rouvre simplement la fenêtre.
 - Fenêtre réduite → l'appli se met en veille, arrête presque toutes les mesures et rend sa RAM inutilisée à Windows.

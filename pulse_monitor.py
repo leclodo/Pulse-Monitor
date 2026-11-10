@@ -24,7 +24,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import psutil
 
 APP_NAME = "Pulse Monitor"
-APP_VERSION = "0.6.1"
+APP_VERSION = "0.6.3"
 IS_WIN = os.name == "nt"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(BASE_DIR, "web")
@@ -1112,6 +1112,11 @@ class Insights:
                 add("bg_cpu", "info", "cpu",
                     "Tu n'utilises pas le PC, mais %s utilise %d %% du processeur en arrière-plan. Si ce n'est pas normal (mise à jour, antivirus…), ferme-le ou désactive son lancement au démarrage." % (t[0]["name"], t[0]["cpu"]),
                     "You're not using the PC, but %s is using %d%% of the CPU in the background. If that's unexpected (updates, antivirus…), close it or stop it from starting with Windows." % (t[0]["name"], t[0]["cpu"]))
+        # --- mise à jour disponible (vérification automatique ou manuelle) ---
+        if UPDATE_AVAIL[0]:
+            add("update:" + UPDATE_AVAIL[0], "info", "update",
+                "Nouvelle version de Pulse Monitor disponible : v%s. Clique sur le numéro de version en haut à gauche pour l'installer." % UPDATE_AVAIL[0],
+                "New Pulse Monitor version available: v%s. Click the version number at the top left to install it." % UPDATE_AVAIL[0])
         # --- fin d'une session de jeu ---
         if GAMES[0]:
             for g in GAMES[0].recent_ended():
@@ -1316,6 +1321,7 @@ class Sampler(threading.Thread):
                     "available": vm.available, "swap_used": sw.used, "swap_total": sw.total},
             "gpus": gpus, "disks": disks, "net": nets,
             "app": self.selfuse.sample(),
+            "update": UPDATE_AVAIL[0],
             "specs_ready": bool(specs.get("ready")),
         }
 
@@ -1584,6 +1590,22 @@ def update_check():
 
 
 UPDATE_STATE = {"busy": False, "error": None, "done": False}
+UPDATE_AVAIL = [None]   # version plus récente trouvée par la vérification automatique
+
+
+def auto_update_loop():
+    """Option (désactivée par défaut) : une vérification par jour, rien d'autre n'est envoyé."""
+    while True:
+        try:
+            st = load_settings()
+            if st.get("auto_update") and time.time() - float(st.get("update_last") or 0) >= 86400:
+                info = update_check()
+                if not info.get("error"):
+                    update_settings(update_last=time.time())
+                    UPDATE_AVAIL[0] = info.get("latest") if info.get("newer") else None
+        except Exception:
+            log.exception("Vérification automatique des mises à jour")
+        time.sleep(1800)
 
 
 def update_install():
@@ -2855,6 +2877,16 @@ def make_handler(sampler, details):
                 act = path[len("/api/update/"):]
                 if act == "check":
                     data = update_check()
+                    if not data.get("error"):
+                        UPDATE_AVAIL[0] = data.get("latest") if data.get("newer") else None
+                elif act == "repo":              # ouvre la page GitHub de l'appli dans le navigateur (seule adresse autorisée)
+                    data = {"ok": bool(UPDATE_REPO)}
+                    if UPDATE_REPO:
+                        webbrowser.open("https://github.com/" + UPDATE_REPO)
+                elif act == "auto":
+                    on = self._q().get("on") == "1"
+                    update_settings(auto_update=on, **({} if on else {"update_last": 0}))
+                    data = {"auto_update": on}
                 elif act == "install":
                     update_install()
                     data = dict(UPDATE_STATE)
@@ -3603,6 +3635,7 @@ def main():
     GAMES_ON[0] = load_settings().get("games", True) is not False
     GAMES[0] = GameTracker(sampler)
     History(sampler, kmt).start()
+    threading.Thread(target=auto_update_loop, daemon=True).start()
     widget = DesktopWidget(sampler, kmt)
     WIDGET_HOOK[0] = widget.apply_settings
     HOTKEY[0] = Hotkey(lambda: widget.set_visible(not WIDGET_ON[0]))

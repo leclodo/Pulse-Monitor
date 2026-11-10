@@ -304,6 +304,8 @@
   .gm-del.sure { color: var(--bad); opacity: 1; font-weight: 600; }
   button.ver { cursor: pointer; font-family: inherit; } button.ver:hover { color: var(--text); border-color: color-mix(in srgb, var(--cpu) 50%, var(--line)); }
   .ver-wrap { position: relative; display: inline-flex; }
+  button.ver.has-up { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 55%, var(--line)); position: relative; }
+  button.ver.has-up::after { content: ""; position: absolute; top: -3px; right: -3px; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
   .up-pop { left: 0; right: auto; width: 330px; font-weight: 400; font-size: 13px; display: none; }
   .up-pop.on { display: grid; gap: 10px; }
   .up-pop .notes { white-space: pre-wrap; max-height: 200px; overflow-y: auto; background: var(--panel2); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; color: var(--muted); }
@@ -313,6 +315,7 @@
   .prv { grid-column: 1 / -1; gap: 10px; scroll-margin-top: 72px; }
   .prv h3 { margin: 6px 0 0; font-size: 14px; } .prv p { margin: 0; font-size: 13px; line-height: 1.6; }
   .prv ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 13px; line-height: 1.5; }
+  .gh-link { color: var(--cpu); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
   .prv code { font-size: 12px; background: var(--panel2); padding: 1px 5px; border-radius: 4px; }
   .prv-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 28px; }
   .prv-cols > div { display: grid; gap: 8px; align-content: start; }
@@ -463,7 +466,7 @@ const I18N = {
     pv_store_note: "Tout est dans le dossier de Pulse Monitor. Tu peux supprimer ces fichiers quand tu veux : l'appli repart de zéro.",
     pv_open: "Ouvrir le dossier des données",
     pv_net_t: "Connexions",
-    pv_net: ["L'appli ne se connecte à Internet que si tu cliques sur « Vérifier les mises à jour » (clic sur le numéro de version) : elle demande alors à GitHub quelle est la dernière version, et la télécharge seulement si tu cliques sur « Installer ». Aucune information sur toi ou ton PC n'est envoyée.", "La fenêtre parle à l'appli par un petit serveur interne, accessible <b>uniquement depuis ton PC</b> (adresse 127.0.0.1). Les sites web ne peuvent pas l'utiliser.", "Seul le fichier <code>.bat</code> se connecte une fois, au premier lancement, au dépôt officiel de Python (PyPI) pour installer les bibliothèques nécessaires."],
+    pv_net: ["L'appli ne se connecte à Internet que pour vérifier les mises à jour, auprès de <a href=\"#\" class=\"gh-link\" data-gh>GitHub</a> uniquement : quand tu cliques sur « Vérifier les mises à jour » (numéro de version), ou une fois par jour si tu as activé la vérification automatique dans les Paramètres (désactivée par défaut). Elle télécharge une nouvelle version seulement si tu cliques sur « Installer ». Aucune information sur toi ou ton PC n'est envoyée.", "La fenêtre parle à l'appli par un petit serveur interne, accessible <b>uniquement depuis ton PC</b> (adresse 127.0.0.1). Les sites web ne peuvent pas l'utiliser.", "Seul le fichier <code>.bat</code> se connecte une fois, au premier lancement, au dépôt officiel de Python (PyPI) pour installer les bibliothèques nécessaires."],
     pv_never_t: "Ce que l'appli ne fait jamais",
     pv_never: ["Lire le contenu de tes fichiers, de tes pages web ou de tes messages", "Supprimer ou modifier tes fichiers (elle ouvre seulement l'Explorateur)", "Enregistrer ce que tu tapes : le raccourci du widget n'écoute que la combinaison choisie, et la touche Ctrl n'est surveillée que pour déplacer le widget épinglé", "Faire des captures d'écran ou accéder à ta webcam ou ton micro"],
     up_tip: "Version de l'appli · cliquer pour vérifier les mises à jour", up_t: "Mises à jour", up_cur: "Version installée :", up_check: "Vérifier les mises à jour",
@@ -471,7 +474,9 @@ const I18N = {
     up_inst_note: "Tes réglages, ton historique et tes sessions sont gardés. L'ancienne version est copiée dans le dossier backup.",
     up_installing: "Téléchargement et installation…", up_restart: "Installé ! Redémarrage de Pulse Monitor…",
     up_norepo: "Les mises à jour ne sont pas encore configurées.", up_norel: "Rien trouvé sur GitHub : vérifie que le dépôt est public et que pulse_monitor.py a bien été envoyé (push).", up_rate: "GitHub limite les vérifications : réessaie dans une heure.", up_net: "Impossible de joindre GitHub. Vérifie ta connexion Internet.", up_err: "La mise à jour a échoué (voir pulse_monitor.log).",
-    up_privacy: "Seule connexion Internet de l'appli, et seulement quand tu cliques. Rien n'est envoyé.",
+    up_privacy: "Seule connexion Internet de l'appli : quand tu cliques, ou une fois par jour si l'option est activée. Rien n'est envoyé.",
+    au_opt: "Vérifier les mises à jour chaque jour", au_tip: "Une fois par jour, l'appli demande à GitHub s'il existe une nouvelle version et te prévient dans la cloche. Rien n'est installé sans ton accord, rien n'est envoyé.",
+    cat_update: "Mise à jour",
     tab_perf: "Performances", tab_comp: "Composants", tab_custom: "Paramètres",
     procs: "Processus", uptime: "Allumé depuis", app_use: "Cette appli", settings: "Paramètres", language: "Langue",
     sec_main: "Vue d'ensemble", sec_disks: "Stockage", sec_net: "Réseau",
@@ -671,7 +676,7 @@ const I18N = {
     pv_store_note: "Everything is in the Pulse Monitor folder. You can delete these files anytime: the app starts from scratch.",
     pv_open: "Open the data folder",
     pv_net_t: "Connections",
-    pv_net: ["The app only connects to the Internet if you click \"Check for updates\" (click the version number): it then asks GitHub for the latest version, and downloads it only if you click \"Install\". No information about you or your PC is sent.", "The window talks to the app through a small internal server, reachable <b>only from your PC</b> (address 127.0.0.1). Websites can't use it.", "Only the <code>.bat</code> file connects once, on first launch, to the official Python repository (PyPI) to install the required libraries."],
+    pv_net: ["The app only connects to the Internet to check for updates, with <a href=\"#\" class=\"gh-link\" data-gh>GitHub</a> only: when you click \"Check for updates\" (version number), or once a day if you turned on automatic checking in Settings (off by default). It downloads a new version only if you click \"Install\". No information about you or your PC is sent.", "The window talks to the app through a small internal server, reachable <b>only from your PC</b> (address 127.0.0.1). Websites can't use it.", "Only the <code>.bat</code> file connects once, on first launch, to the official Python repository (PyPI) to install the required libraries."],
     pv_never_t: "What the app never does",
     pv_never: ["Read the contents of your files, web pages or messages", "Delete or change your files (it only opens Explorer)", "Record what you type: the widget shortcut only listens for the chosen combination, and the Ctrl key is only watched to move the pinned widget", "Take screenshots or access your webcam or microphone"],
     up_tip: "App version · click to check for updates", up_t: "Updates", up_cur: "Installed version:", up_check: "Check for updates",
@@ -679,7 +684,9 @@ const I18N = {
     up_inst_note: "Your settings, history and sessions are kept. The old version is copied to the backup folder.",
     up_installing: "Downloading and installing…", up_restart: "Installed! Restarting Pulse Monitor…",
     up_norepo: "Updates aren't set up yet.", up_norel: "Nothing found on GitHub: check that the repository is public and that pulse_monitor.py has been pushed.", up_rate: "GitHub is limiting checks: try again in an hour.", up_net: "Can't reach GitHub. Check your Internet connection.", up_err: "The update failed (see pulse_monitor.log).",
-    up_privacy: "The app's only Internet connection, and only when you click. Nothing is sent.",
+    up_privacy: "The app's only Internet connection: when you click, or once a day if the option is on. Nothing is sent.",
+    au_opt: "Check for updates daily", au_tip: "Once a day, the app asks GitHub whether a new version exists and lets you know in the bell. Nothing is installed without your OK, nothing is sent.",
+    cat_update: "Update",
     tab_perf: "Performance", tab_comp: "Components", tab_custom: "Settings",
     procs: "Processes", uptime: "Uptime", app_use: "This app", settings: "Settings", language: "Language",
     sec_main: "Overview", sec_disks: "Storage", sec_net: "Network",
@@ -865,7 +872,7 @@ const I18N = {
     s_cores: "cores", s_slots: "slots used", d: "d", h: "h", min: "min",
   },
 };
-let lang = "fr";
+let lang = "fr", autoUpdate = false;
 const T = k => (I18N[lang][k] ?? I18N.fr[k] ?? k);
 const THEMES = ["dark", "light", "oled", "midnight", "terminal"];
 
@@ -887,7 +894,7 @@ async function loadSettings() {
     dismissed = s.dismissed && typeof s.dismissed === "object" ? s.dismissed : {};
     histOn = s.history !== false;
     widgetOn = !!s.widget; hotkey = s.hotkey && s.hotkey.vk ? s.hotkey : null; widgetStyle = s.widget_style === "bars" ? "bars" : "compact";
-    autostart = !!s.autostart;
+    autostart = !!s.autostart; autoUpdate = !!s.auto_update;
   } catch (e) {}
 }
 let saveTimer = null;
@@ -1253,6 +1260,7 @@ function renderLive(d) {
   setText(document.getElementById("h-procs"), String(d.cpu.procs ?? "–"));
   setText(document.getElementById("h-uptime"), fmtUptime(d.cpu.uptime));
   renderApp(d.app, d.ram && d.ram.total);
+  document.getElementById("ver-btn").classList.toggle("has-up", !!d.update);
   if (!noPush) { liveAlerts = d.alerts || []; liveInsight = d.insight || null; }
   if (typeof d.widget_on === "boolean" && d.widget_on !== widgetOn && Date.now() > wgLock) {   // fermé avec sa croix, le raccourci ou l'icône
     widgetOn = d.widget_on;
@@ -1475,7 +1483,8 @@ function renderCustom() {
     ${hiddenHTML()}
     <div class="card c-order"><h2>${esc(T("close_t"))}</h2>
       <label class="check" data-tip="${esc(T("as_tip"))}"><input type="checkbox" id="as-cb" ${autostart ? "checked" : ""}><span>${esc(T("autostart_opt"))}</span></label>
-      <label class="check" data-tip="${esc(T("tray_hint"))}"><input type="checkbox" id="tray-cb" ${trayMode ? "checked" : ""}><span>${esc(T("tray_opt"))}</span></label></div>
+      <label class="check" data-tip="${esc(T("tray_hint"))}"><input type="checkbox" id="tray-cb" ${trayMode ? "checked" : ""}><span>${esc(T("tray_opt"))}</span></label>
+      <label class="check" data-tip="${esc(T("au_tip"))}"><input type="checkbox" id="au-cb" ${autoUpdate ? "checked" : ""}><span>${esc(T("au_opt"))}</span></label></div>
     <div class="card c-order"><h2>${esc(T("widget_t"))}</h2>
       <label class="check"><input type="checkbox" id="wg-cb" ${widgetOn ? "checked" : ""}><span>${esc(T("widget_opt"))}</span></label>
       <div style="display:flex;align-items:center;gap:10px"><span class="muted" style="font-size:12.5px">${esc(T("widget_style"))}</span>
@@ -1492,6 +1501,7 @@ function renderCustom() {
   el.querySelectorAll("[data-ws]").forEach(b => b.onclick = () => {
     widgetStyle = b.dataset.ws; widgetPatch.widget_style = widgetStyle; saveSettings(); renderCustom();
   });
+  document.getElementById("au-cb").onchange = e => { autoUpdate = e.target.checked; fetch("/api/update/auto?on=" + (autoUpdate ? 1 : 0)).catch(() => {}); };
   document.getElementById("as-cb").onchange = e => { autostart = e.target.checked; widgetPatch.autostart = autostart; saveSettings(); };
   document.getElementById("tray-cb").onchange = e => { trayMode = e.target.checked; saveSettings(); };
   el.querySelectorAll("[data-unhide]").forEach(b => b.onclick = () => unhide([b.dataset.unhide]));
@@ -2312,6 +2322,7 @@ async function upInstall() {
 document.getElementById("ver-btn").onclick = e => { e.stopPropagation(); upPop.classList.toggle("on"); if (upPop.classList.contains("on")) renderUp(); };
 upPop.addEventListener("click", e => e.stopPropagation());
 document.addEventListener("click", () => upPop.classList.remove("on"));
+document.addEventListener("click", e => { const g = e.target.closest("[data-gh]"); if (g) { e.preventDefault(); fetch("/api/update/repo").catch(() => {}); } });
 function privacyHTML() {
   const li = k => `<ul>${T(k).map(x => `<li>${x}</li>`).join("")}</ul>`;   // textes fixes de l'appli (pas de données externes)
   const badge = (k, icon) => `<div class="pv-badge"><span>${icon}</span>${esc(T(k))}</div>`;

@@ -24,7 +24,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import psutil
 
 APP_NAME = "Pulse Monitor"
-APP_VERSION = "0.5.7"  # +0.0.1 à chaque mise à jour
+APP_VERSION = "0.5.8"  # +0.0.1 à chaque mise à jour
 IS_WIN = os.name == "nt"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(BASE_DIR, "web")
@@ -1557,19 +1557,30 @@ def _gh(url, timeout=15):
 
 
 def update_check():
+    """Version du code publié sur GitHub (branche principale) : un simple « push » suffit, pas besoin de release."""
     if not UPDATE_REPO:
         return {"error": "norepo", "current": APP_VERSION}
     try:
-        with _gh("https://api.github.com/repos/%s/releases/latest" % UPDATE_REPO) as r:
-            d = json.loads(r.read().decode("utf-8"))
+        with _gh("https://raw.githubusercontent.com/%s/HEAD/pulse_monitor.py" % UPDATE_REPO) as r:
+            head = r.read(6000).decode("utf-8", "ignore")
+        m = re.search(r'APP_VERSION\s*=\s*"([^"]+)"', head)
+        if not m:
+            raise ValueError("APP_VERSION introuvable")
+        latest = m.group(1)
     except Exception as e:
         log.warning("Vérification des mises à jour : %s", e)
         code = getattr(e, "code", None)            # erreur HTTP : GitHub a bien répondu
         err = "norelease" if code == 404 else "rate" if code in (403, 429) else "net"
         return {"error": err, "current": APP_VERSION}
-    tag = d.get("tag_name") or ""
-    return {"current": APP_VERSION, "latest": tag.lstrip("vV"), "newer": _vtuple(tag) > _vtuple(APP_VERSION),
-            "notes": (d.get("body") or "")[:4000], "url": d.get("html_url"), "zip": d.get("zipball_url"), "date": d.get("published_at")}
+    notes = ""
+    try:                                           # message du dernier envoi (facultatif)
+        with _gh("https://api.github.com/repos/%s/commits?per_page=1" % UPDATE_REPO) as r:
+            c = json.loads(r.read().decode("utf-8"))
+        notes = (c[0]["commit"]["message"] if c else "")[:4000]
+    except Exception:
+        pass
+    return {"current": APP_VERSION, "latest": latest, "newer": _vtuple(latest) > _vtuple(APP_VERSION), "notes": notes,
+            "zip": "https://api.github.com/repos/%s/zipball" % UPDATE_REPO}
 
 
 UPDATE_STATE = {"busy": False, "error": None, "done": False}

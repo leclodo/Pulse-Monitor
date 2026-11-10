@@ -1,6 +1,6 @@
 # Pulse Monitor
 
-Version actuelle : **v0.5.8** (numéro dans `APP_VERSION` en haut de `pulse_monitor.py`).
+Version actuelle : **v0.6.0** (numéro dans `APP_VERSION` en haut de `pulse_monitor.py`).
 
 Tableau de bord simple et léger des performances du PC (façon Gestionnaire des tâches), fiche des composants et conseils en direct pour réduire les charges.
 

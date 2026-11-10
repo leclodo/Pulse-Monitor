@@ -24,7 +24,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import psutil
 
 APP_NAME = "Pulse Monitor"
-APP_VERSION = "0.5.8"  # +0.0.1 à chaque mise à jour
+APP_VERSION = "0.6.0"  # +0.0.1 à chaque mise à jour
 IS_WIN = os.name == "nt"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(BASE_DIR, "web")
@@ -2630,13 +2630,36 @@ class Hotkey(threading.Thread):
 _settings_lock = threading.RLock()
 
 
+_WIN_LANG = []
+
+
+def windows_lang():
+    """« fr » si Windows est en français, sinon « en » (lu une seule fois)."""
+    if not _WIN_LANG:
+        lang = "en"
+        try:
+            if IS_WIN:
+                lid = ctypes.windll.kernel32.GetUserDefaultUILanguage()
+                lang = "fr" if (lid & 0x3FF) == 0x0C else "en"      # 0x0C = français (France, Belgique, Canada, Suisse…)
+            else:
+                import locale
+                lang = "fr" if (locale.getlocale()[0] or "").lower().startswith("fr") else "en"
+        except Exception:
+            pass
+        _WIN_LANG.append(lang)
+    return _WIN_LANG[0]
+
+
 def load_settings():
     try:
         with open(SETTINGS_FILE, encoding="utf-8") as f:
             d = json.load(f)
-            return d if isinstance(d, dict) else {}
+            d = d if isinstance(d, dict) else {}
     except Exception:
-        return {}
+        d = {}
+    if d.get("lang") not in ("fr", "en"):      # pas encore choisie : langue de Windows
+        d["lang"] = windows_lang()
+    return d
 
 
 def save_settings(d):
@@ -2700,7 +2723,7 @@ def clean_settings(d):
     manual = d.get("manual") if isinstance(d.get("manual"), dict) else {}
     hidden = d.get("hidden") if isinstance(d.get("hidden"), dict) else {}
     return {
-        "lang": d.get("lang") if d.get("lang") in ("fr", "en") else "fr",
+        "lang": d.get("lang") if d.get("lang") in ("fr", "en") else windows_lang(),
         "theme": d.get("theme") if d.get("theme") in THEMES else "dark",
         "collapsed": ids(d.get("collapsed")),
         "order": {str(k)[:40]: ids(v, 100) for k, v in list(order.items())[:20]},

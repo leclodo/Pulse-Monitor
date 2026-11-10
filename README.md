@@ -1,79 +1,84 @@
 <p align="center"><img src="docs/logo.png" width="128" alt="Pulse Monitor"></p>
 
-# Pulse Monitor
+<h1 align="center">Pulse Monitor</h1>
 
-Version actuelle : **v0.6.15** (numéro dans `APP_VERSION` en haut de `pulse_monitor.py`).
+<p align="center"><b>English</b> · <a href="README.fr.md">Français</a></p>
 
-Tableau de bord simple et léger des performances du PC (façon Gestionnaire des tâches), fiche des composants et conseils en direct pour réduire les charges.
+A simple, lightweight dashboard for Windows: real-time PC performance (like Task Manager), a hardware sheet with what you need to know when upgrading parts, storage analysis, disk health and gaming session reports. 100% local, no telemetry.
 
-## Aperçu
+Current version: **v0.6.15**
 
-![Performances](docs/performances.png)
+## Download
 
-| Composants | Stockage |
+From the [Releases](https://github.com/leclodo/Pulse-Monitor/releases/latest) page:
+- **`Pulse-Monitor-vX-Setup.exe`**: installer (Start menu, desktop shortcut, uninstall from Windows Settings). Data is stored in `%LOCALAPPDATA%\Pulse Monitor`.
+- **`Pulse-Monitor-vX-portable.zip`**: no installation, unzip and run `Pulse Monitor.exe`. Data stays in the folder.
+
+## Screenshots
+
+![Performance](docs/performances.png)
+
+| Components | Storage |
 |---|---|
-| ![Composants](docs/composants.png) | ![Stockage](docs/stockage.png) |
-| **Analyse** | **Gaming** |
-| ![Analyse](docs/analyse.png) | ![Gaming](docs/gaming.png) |
+| ![Components](docs/composants.png) | ![Storage](docs/stockage.png) |
+| **Analysis** | **Gaming** |
+| ![Analysis](docs/analyse.png) | ![Gaming](docs/gaming.png) |
 
-## Lancer
+## What it shows
 
-Double-clic sur **`Lancer Pulse Monitor.bat`**. Au premier lancement, il installe `psutil`, `pywebview`, `pystray` et `Pillow` (une fois pour toutes).
+**Performance** (updated every second)
+- CPU: usage, real clock speed, per-core load
+- Memory: used / available, page file
+- Graphics cards: usage, temperature, video memory
+- Disks: activity, read / write, free space per drive
+- Network: download / upload
 
-Sans le .bat : `python pulse_monitor.py`
+**Components**
+- CPU, motherboard + BIOS, RAM sticks (slots, speed, part number), graphics cards, disks (HDD/SSD, SATA/NVMe, health), Windows, network, displays
+- **Fill in**: power supply, case, cooling, M.2/SATA ports (pre-filled lists)
+- "Copy my specs summary" button to ask for advice on a forum
 
-### Créer l'installeur et la version portable
+**Storage** (TreeSize-like)
+- Folders sorted by size, breakdown by file type, largest files, "Show in Explorer"
+- **Disk health**: status, temperature, remaining life (SSD), power-on hours, errors (read with administrator rights, on demand)
+- **Temporary files**: Windows temp files, updates, browser / app / shader caches, thumbnails, crash reports, Recycle Bin. Nothing is deleted.
 
-Double-clic sur **`Creer l'exe.bat`**. Il installe les outils nécessaires (PyInstaller, et Inno Setup si besoin), puis crée dans le dossier `release` :
-- `Pulse-Monitor-vX-Setup.exe` : installeur (menu Démarrer, raccourci Bureau, désinstallation). Les données vont dans `%LOCALAPPDATA%\Pulse Monitor`.
-- `Pulse-Monitor-vX-portable.zip` : sans installation, les données restent dans le dossier.
+**Analysis**
+- **1 h / 6 h / 12 h / 24 h / 7 days** history: CPU, GPU + temperature, RAM, VRAM (hover = values + program responsible)
+- Which component holds you back the most (after 10 min of heavy usage)
 
-Ajoute les deux fichiers à une *release* GitHub. Les versions .exe ne se mettent pas à jour toutes seules : « Installer » ouvre la page de téléchargement de la dernière version.
+**Gaming**
+- Games recognized within 10 to 30 s (Steam, Epic, GOG, Battle.net, Riot… or full screen with the graphics card under load)
+- Report for each session: duration, GPU / CPU (average / max), temperature, RAM / VRAM, what limited, and charts
+- Find installed games, add any program manually, pause / resume tracking
 
-## Ce qu'il affiche
+## Usage
 
-**Performances** (mis à jour chaque seconde, 60 s d'historique)
-- Processeur : utilisation, fréquence réelle, charge par cœur
-- Mémoire : utilisée / disponible, fichier d'échange
-- Cartes graphiques : utilisation, température, mémoire vidéo
-- Disques : activité, lecture / écriture, espace libre par lecteur
-- Réseau : réception / envoi
+- **Bell 🔔**: live tips (saturated component, program responsible, startup programs…). ✕ to dismiss a tip.
+- **Click a card title** (Performance): programs using that resource. **Ctrl + click**: hide the card (restore it in Settings).
+- **Cards: Collapsed / Small / Large** buttons at the top of Performance; **⋮⋮** handle to reorder by drag and drop.
+- **Settings**: FR / EN language (Windows language by default), 5 themes, start with Windows, keep in tray when closed, daily update check.
+- **Close the window (✕)**: the app stays near the clock with a small icon (~30 MB). Click = reopen, right-click = Quit.
+- **Desktop widget**: CPU, GPU + temperature, VRAM, RAM on one line (compact or bars). 📌 = pinned on top with click-through (hold Ctrl to move it). Configurable keyboard shortcut.
+- **Updates**: click the version number → "Check for updates".
+- Hover any value for a short explanation.
 
-**Composants**
-- Processeur, carte mère + BIOS, barrettes de RAM (emplacements, vitesse, référence), cartes graphiques, disques (HDD/SSD, SATA/NVMe), Windows, réseau, écrans
-- Bouton « Copier le résumé de ma config » pour demander conseil sur un forum
+## Privacy
 
-## Utilisation
+Everything stays on your PC: no account, no ads, no telemetry, nothing is sold or shared. The only Internet connection is the update check with GitHub, when you ask for it (or once a day if you turn the option on, off by default). Details in the app: 🛡 icon next to the version.
 
-- Onglet **Paramètres** : langue FR / EN, thèmes (Sombre, Clair, Noir OLED, Bleu nuit, Terminal) et ordre des catégories.
-- Poignée **⋮⋮** (au survol d'un titre) : glisser-déposer pour réorganiser cartes et catégories.
-- Clique sur le titre d'une carte ou d'une section pour la replier / déplier. Langue et catégories repliées sont retenues (`settings.json`).
-- « Cette appli » (en haut) montre le CPU et la RAM utilisés par Pulse Monitor ; survole pour le détail par processus.
-- Onglet Composants → **Infos à compléter** : alimentation, boîtier, refroidissement, ports M.2/SATA (listes pré-remplies). Ajouté au résumé copié.
-- **Cloche 🔔** (en haut) : conseils en direct (CPU/RAM/VRAM/température/disque saturés, programme en cause, programmes au démarrage…). Point rouge qui pulse = quelque chose ne va pas. ✕ pour masquer un conseil (celui du démarrage revient si le nombre de programmes change). 
-- Boutons **Cartes : Repliées / Petites / Grandes** en haut de Performances.
-- Onglet **Stockage** (façon TreeSize) : analyse un disque, dossiers triés par taille (clic pour descendre), répartition par type de fichier, plus gros fichiers, bouton « Ouvrir dans l'Explorateur ». Résultats gardés dans `scans/`.
-- Onglet **Analyse** : **historique 1 h / 6 h / 12 h / 24 h / 7 jours** (CPU, GPU + température, RAM, VRAM ; survol = valeurs + programme en cause ; 1 point/min dans `history/`, gardé 8 jours) et quel composant te limite.
-- **Santé des disques** : dans l'onglet Stockage (bandeau du disque choisi) et dans ≡ Détails d'un disque → état, température, durée de vie restante (SSD), heures, erreurs. Lecture via les droits administrateur (bouton, à la demande ; résultat gardé).
-- **Sessions de jeu** (onglet Gaming) : un jeu est reconnu en 10 à 30 s (dossier Steam/Epic/Battle.net… ou plein écran avec le GPU chargé). À la fin : résumé dans la cloche + ligne dans le tableau (durée, GPU/CPU moyenne/max, température, RAM/VRAM max, ce qui limitait). Gardé dans `games.json` (40 dernières). Désactivable.
-- **Fichiers temporaires** (onglet Stockage, sous les disques) : taille des fichiers temporaires Windows, mises à jour, caches des navigateurs/applis/shaders, miniatures, rapports de plantage, corbeille. Rien n'est supprimé : bouton pour ouvrir chaque dossier et le nettoyage de Windows.
-- Widget : raccourci clavier configurable (Paramètres) pour l'afficher / le masquer.
-- Bouton **≡ Détails** sur les cartes Processeur, Mémoire, Carte graphique et Disque : liste des programmes qui utilisent la ressource (calculé seulement quand le panneau est ouvert).
-- Survole une donnée pour une explication courte.
-- **Ctrl + clic** sur une carte de Performances pour la masquer ; à réafficher dans Paramètres → Cartes masquées.
-- Carte repliée : même largeur, moins haute, avec les infos principales et un mini-graphique.
-- **Fermer la fenêtre (✕)** : l'appli reste près de l'horloge avec une petite icône (~30 Mo, la fenêtre est entièrement libérée). Clic = rouvrir, clic droit = Quitter. Désactivable dans Paramètres.
-- **Paramètres → Démarrage et fermeture** : lancer Pulse Monitor avec Windows (en fond, sans ouvrir la fenêtre).
-- **Widget de bureau** (Paramètres ou clic droit sur l'icône) : petite fenêtre semi-transparente avec CPU, GPU + température, VRAM, RAM. Sur une ligne, style compact (textes) ou barres. 📌 = épinglé au-dessus de tout avec clics à travers (Ctrl maintenu pour le déplacer / désépingler). Nécessite tkinter (inclus avec Python pour Windows).
-- **Mises à jour** : clic sur le numéro de version → « Vérifier les mises à jour ». Seule connexion Internet de l'appli (GitHub) : sur demande, ou une fois par jour si l'option est activée dans les Paramètres (désactivée par défaut). Installer garde tes données et copie l'ancienne version dans `backup/`.
-- **Vie privée** : icône 🛡 à côté de la version (section en bas des Paramètres).
-- Relancer le .bat alors que l'appli tourne déjà rouvre simplement la fenêtre.
-- Fenêtre réduite → l'appli se met en veille, arrête presque toutes les mesures et rend sa RAM inutilisée à Windows.
-- La fenêtre (WebView2) tourne en mode allégé : sans accélération GPU, un seul processus d'affichage.
+## Lightweight
 
-## Limites
+The window is fully closed when you close it, measurements slow down when it's minimized or on a tab other than Performance, and WebView2 runs in lean mode (single render process, no GPU acceleration).
 
-- Température du processeur : non disponible sans pilote spécial (comme dans le Gestionnaire des tâches).
-- Alimentation, boîtier, ventirad et ports M.2/SATA : pas détectables par logiciel → à saisir dans « Infos à compléter ».
-- Si la fenêtre s'affiche mal (page blanche), lance `python pulse_monitor.py --full-gpu` et préviens-moi.
-- En cas de souci, voir `pulse_monitor.log`.
+## From source
+
+- **Run**: double-click **`Lancer Pulse Monitor.bat`** (installs `psutil`, `pywebview`, `pystray` and `Pillow` on first launch), or `python pulse_monitor.py`.
+- **Build the installer and the portable version**: double-click **`Creer l'exe.bat`**. It installs PyInstaller (and Inno Setup if needed) and creates both files in the `release` folder.
+
+## Limitations
+
+- CPU temperature: not available without a special driver (same as Task Manager).
+- Power supply, case, cooler and M.2/SATA ports can't be detected by software → fill them in under "Fill in".
+- If the window displays badly (blank page): run with `--full-gpu`.
+- If something goes wrong, see `pulse_monitor.log` (in the data folder: Settings → Privacy → "Open the data folder").

@@ -24,7 +24,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import psutil
 
 APP_NAME = "Pulse Monitor"
-APP_VERSION = "0.6.30"
+APP_VERSION = "0.7.7"
 IS_WIN = os.name == "nt"
 FROZEN = bool(getattr(sys, "frozen", False))      # version .exe (PyInstaller)
 # données (réglages, historique…) : à côté du .exe ou du script ; fichiers de l'appli (page, icônes) : dans le paquet
@@ -1834,6 +1834,9 @@ TEMPSCAN = TempScan()
 # --------------------------------------------------------------------------
 # Historique : 1 point par minute, gardé 8 jours (fichiers par jour dans history/)
 # --------------------------------------------------------------------------
+HIST_LIVE = [None]   # l'historique en cours (pour la minute pas encore enregistrée)
+
+
 class History(threading.Thread):
     STEP = 5          # une mesure légère toutes les 5 s, résumée chaque minute
     KEEP_DAYS = 8
@@ -1844,6 +1847,9 @@ class History(threading.Thread):
         self.prev = None
         self.acc = []
         self.minute = None
+        self.psnap = None      # relevé des programmes de la minute précédente (pour leur CPU moyen sur la minute)
+        self.ncpu = psutil.cpu_count() or 1
+        HIST_LIVE[0] = self
         os.makedirs(HIST_DIR, exist_ok=True)
 
     def _measure(self):
@@ -1896,6 +1902,42 @@ class History(threading.Thread):
             log.exception("Historique : programmes")
         return p
 
+    def _top3(self, luid):
+        """Les 10 programmes qui ont le plus utilisé le CPU (moyenne sur la minute), la RAM et le GPU.
+        Un seul relevé des programmes par minute : ~quelques dizaines de ms de CPU."""
+        now, cur = ProcDetails._snap()
+        prev, self.psnap = self.psnap, (now, cur)
+        dt = now - prev[0] if prev else 0
+        gpu = self.s.counters.gpu_by_pid(luid) if luid else {}
+        groups = {}
+        for pid, (name, cpu, ram, _rd, _wr) in cur.items():
+            low = name.lower()
+            key = low[:-4] if low.endswith(".exe") else low
+            if key in IGNORED:
+                continue
+            g = groups.setdefault(key, [name[:-4] if low.endswith(".exe") else name, 0.0, 0, 0.0])
+            g[2] += ram or 0
+            old = prev[1].get(pid) if prev else None
+            if old and old[1] is not None and cpu is not None and 20 < dt < 180:
+                g[1] += max(0.0, (cpu - old[1]) / dt / self.ncpu * 100)
+            g[3] += gpu.get(pid, 0.0)
+        items = list(groups.values())
+        top = lambda i, nd, minv: [[x[0], round(min(100.0, x[i]), nd) if i != 2 else round(x[i] / 1048576)]
+                                   for x in sorted(items, key=lambda x: x[i], reverse=True)[:10] if x[i] > minv]
+        d = {"c": top(1, 1, 0.05), "r": top(2, 0, 0), "g": top(3, 1, 0.05)}
+        return {k: v for k, v in d.items() if v}
+
+    def live_point(self):
+        """La minute en cours (pas encore écrite) : la courbe va jusqu'au bord droit du graphique."""
+        a = list(self.acc)
+        if not a or not HIST_ON[0]:
+            return None
+        avg = lambda k: round(sum(x[k] for x in a) / len(a), 1)
+        mx = lambda k: round(max(x[k] for x in a), 1)
+        temps = [x["T"] for x in a if x["T"]]
+        return {"t": int(time.time()), "c": avg("c"), "C": mx("c"), "g": avg("g"), "G": mx("g"),
+                "T": round(max(temps), 1) if temps else None, "r": avg("r"), "v": mx("v")}
+
     def _flush(self, minute):
         a = self.acc
         self.acc = []
@@ -1909,6 +1951,12 @@ class History(threading.Thread):
         p = self._top_names(pt["C"], pt["G"], pt["r"], a[-1]["luid"])
         if p:
             pt["p"] = p
+        try:
+            d = self._top3(a[-1]["luid"])
+            if d:
+                pt["d"] = d
+        except Exception:
+            log.exception("Historique : détail des programmes")
         day = time.strftime("%Y-%m-%d", time.localtime(minute * 60))
         try:
             with open(os.path.join(HIST_DIR, day + ".jsonl"), "a", encoding="utf-8") as f:
@@ -2495,6 +2543,25 @@ def game_summary_text(g):
             "Session ended: %s, %s. GPU %d%% average, CPU %d%%%s. Verdict: %s. Details in the Gaming tab." % (g["name"], _dur(g["dur"], "en"), g["gpu"], g["cpu"], tf.replace(" · max", " · max"), ve))
 
 
+def history_at(t):
+    """Le point de l'historique le plus proche de l'instant t (± 90 s), avec le détail des programmes."""
+    best, bd = None, 91
+    for day in {time.strftime("%Y-%m-%d", time.localtime(t + o)) for o in (-90, 0, 90)}:
+        try:
+            with open(os.path.join(HIST_DIR, day + ".jsonl"), encoding="utf-8") as fh:
+                for line in fh:
+                    try:
+                        pt = json.loads(line)
+                    except ValueError:
+                        continue
+                    dd = abs(pt.get("t", 0) - t)
+                    if dd < bd:
+                        best, bd = pt, dd
+        except OSError:
+            pass
+    return best
+
+
 def read_history(hours):
     """Points de l'historique ; regroupés par 10 min au-delà de 24 h."""
     since = time.time() - hours * 3600
@@ -2536,6 +2603,8 @@ def read_history(hours):
                     progs.setdefault(kk, vv)
             if progs:
                 agg["p"] = progs
+            if peak.get("d"):
+                agg["d"] = peak["d"]
             out.append(agg)
             bucket = []
         if pt:
@@ -2799,6 +2868,7 @@ def clean_settings(d):
         "tray": d.get("tray") is not False,
         "bg": d.get("bg") is not False,
         "history": d.get("history") is not False,
+        "hist_range": d.get("hist_range") if d.get("hist_range") in (1, 6, 12, 24, 168) else 24,
         "bell_off": [c for c in (d.get("bell_off") if isinstance(d.get("bell_off"), list) else []) if c in ("cpu", "ram", "gpu", "disk", "startup", "play", "update")],
         "dismissed": {str(k)[:60]: v for k, v in list((d.get("dismissed") if isinstance(d.get("dismissed"), dict) else {}).items())[:50]
                       if isinstance(v, (int, float))},
@@ -2864,12 +2934,21 @@ def make_handler(sampler, details):
                 elif act == "openfolder":
                     data = {"ok": open_folder(q.get("path", ""))}
                 return self._send(200, json.dumps(data).encode(), "application/json")
+            if path == "/api/history/at":
+                try:
+                    t = int(float(self._q().get("t", 0)))
+                except ValueError:
+                    t = 0
+                return self._send(200, json.dumps({"point": history_at(t) if t else None}).encode(), "application/json")
             if path == "/api/history":
                 try:
                     hours = max(1, min(24 * 8, int(self._q().get("hours", 24))))
                 except ValueError:
                     hours = 24
                 pts, step = read_history(hours)
+                live = HIST_LIVE[0].live_point() if HIST_LIVE[0] and step == 60 else None
+                if live and (not pts or live["t"] > pts[-1]["t"]):
+                    pts.append(live)
                 return self._send(200, json.dumps({"points": pts, "step": step, "on": HIST_ON[0]}).encode(), "application/json")
             if path.startswith("/api/games/"):
                 q, act = self._q(), path[len("/api/games/"):]

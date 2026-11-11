@@ -6,7 +6,7 @@
 
 A simple, lightweight dashboard for Windows: real-time PC performance (like Task Manager), a hardware sheet with what you need to know when upgrading parts, storage analysis, disk health and gaming session reports. 100% local, no telemetry.
 
-Current version: **v0.6.30**
+Current version: **v0.7.7**
 
 ## Download
 
@@ -44,7 +44,7 @@ From the [Releases](https://github.com/leclodo/Pulse-Monitor/releases/latest) pa
 - **Temporary files**: Windows temp files, updates, browser / app / shader caches, thumbnails, crash reports, Recycle Bin. Nothing is deleted.
 
 **Analysis**
-- **1 h / 6 h / 12 h / 24 h / 7 days** history: CPU, GPU + temperature, RAM, VRAM (hover = values + program responsible)
+- **1 h / 6 h / 12 h / 24 h / 7 days** history: CPU, GPU + temperature, RAM, VRAM (hover = values, click = the most demanding programs for CPU, RAM and GPU)
 - Which component holds you back the most (after 10 min of heavy usage)
 
 **Gaming**

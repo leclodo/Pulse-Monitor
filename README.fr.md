@@ -6,7 +6,7 @@
 
 Tableau de bord simple et léger pour Windows : performances du PC en temps réel (façon Gestionnaire des tâches), fiche des composants utile pour changer des pièces, analyse du stockage, santé des disques et rapports de sessions de jeu. 100 % local, aucune télémétrie.
 
-Version actuelle : **v0.6.30**
+Version actuelle : **v0.7.7**
 
 ## Télécharger
 
@@ -44,7 +44,7 @@ Dans les [Releases](https://github.com/leclodo/Pulse-Monitor/releases/latest) :
 - **Fichiers temporaires** : fichiers temporaires Windows, mises à jour, caches des navigateurs / applis / shaders, miniatures, rapports de plantage, corbeille. Rien n'est supprimé.
 
 **Analyse**
-- Historique **1 h / 6 h / 12 h / 24 h / 7 jours** : CPU, GPU + température, RAM, VRAM (survol = valeurs + programme en cause)
+- Historique **1 h / 6 h / 12 h / 24 h / 7 jours** : CPU, GPU + température, RAM, VRAM (survol = valeurs, clic = les programmes les plus gourmands en CPU, RAM et GPU)
 - Quel composant te limite le plus (après 10 min d'usage intensif)
 
 **Gaming**

@@ -24,7 +24,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import psutil
 
 APP_NAME = "Pulse Monitor"
-APP_VERSION = "0.6.15"
+APP_VERSION = "0.6.16"
 IS_WIN = os.name == "nt"
 FROZEN = bool(getattr(sys, "frozen", False))      # version .exe (PyInstaller)
 # données (réglages, historique…) : à côté du .exe ou du script ; fichiers de l'appli (page, icônes) : dans le paquet
@@ -3325,6 +3325,7 @@ class DesktopWidget:
         if not isinstance(x, int) or not isinstance(y, int):
             x, y = root.winfo_screenwidth() - 260, 70
         root.geometry("+%d+%d" % (x, y))
+        self._home = (x, y)                    # position des chiffres au démarrage
         self.font = ("Segoe UI", 9)
         self.bold = ("Segoe UI Semibold", 9)
         self.outer = tk.Frame(root, bg=self.BG, padx=10, pady=6)
@@ -3364,7 +3365,8 @@ class DesktopWidget:
             nx, ny = max(L, min(x, R - w)), max(T, min(y, B - h))
             if (nx, ny) != (root.winfo_x(), root.winfo_y()):
                 root.geometry("+%d+%d" % (nx, ny))
-                update_settings(widget_x=nx, widget_y=ny)
+                update_settings(widget_x=nx + getattr(self, "_side_w", 0), widget_y=ny)
+                self._home = (nx + getattr(self, "_side_w", 0), ny)
         except Exception:
             log.exception("Widget : placement")
 
@@ -3376,23 +3378,16 @@ class DesktopWidget:
         return b
 
     def _build_header(self):
+        """Boutons à GAUCHE des chiffres (plus de ligne « PULSE » au-dessus) : ✕  📌  ◫ quand le widget est libre,
+        seulement 📌 (avec la poignée ✥) quand il est épinglé et que Ctrl est maintenu. Le widget glisse vers la gauche
+        de la largeur des boutons : les chiffres ne bougent jamais."""
         tk = self.tk
-        self.header = tk.Frame(self.outer, bg=self.BG)
-        self.header.pack(fill="x")
-        tk.Label(self.header, text="PULSE", bg=self.BG, fg=self.MUTED, font=("Segoe UI Semibold", 7)).pack(side="left")
-        self.close_btn = self._label_btn(self.header, "✕", lambda: self.set_visible(False))
-        self.close_btn.pack(side="right")
-        self.pin_btn = self._label_btn(self.header, "📌", lambda: self.set_pinned(not self.is_pinned))
-        self.pin_btn.pack(side="right")
-        self.style_btn = self._label_btn(self.header, "◫", self._toggle_style)
-        self.style_btn.pack(side="right")
-        # épinglé + Ctrl : poignée et punaise à GAUCHE (le widget glisse d'autant vers la gauche : les chiffres ne bougent pas)
         self.side = tk.Frame(self.outer, bg=self.BG)
-        tk.Label(self.side, text="✥", bg=self.BG, fg=self.MUTED, font=("Segoe UI Symbol", 10), cursor="fleur").pack(side="left")
-        self.side_pin = self._label_btn(self.side, "📌", lambda: self.set_pinned(not self.is_pinned))
-        self.side_pin.configure(fg=self.COLORS["cpu"])
-        self.side_pin.pack(side="left", padx=(2, 6))
-        self._side_on = False
+        self.grip = tk.Label(self.side, text="✥", bg=self.BG, fg=self.MUTED, font=("Segoe UI Symbol", 10), cursor="fleur")
+        self.close_btn = self._label_btn(self.side, "✕", lambda: self.set_visible(False))
+        self.pin_btn = self._label_btn(self.side, "📌", lambda: self.set_pinned(not self.is_pinned))
+        self.style_btn = self._label_btn(self.side, "◫", self._toggle_style)
+        self._side_w = 0
 
     def _toggle_style(self):
         i = self.STYLES.index(self.style) if self.style in self.STYLES else 0
@@ -3482,25 +3477,28 @@ class DesktopWidget:
         if not self.root:
             return
         self.pin_btn.configure(fg=self.COLORS["cpu"] if self.is_pinned else self.MUTED)
-        side = self.is_pinned and self.ctrl_down
-        if side != self._side_on:
-            self._side_on = side
-            if side:
-                self.side.pack(side="left", fill="y", before=self.body)
-                self.root.update_idletasks()
-                self._side_w = self.side.winfo_reqwidth()
-                self.root.geometry("+%d+%d" % (self.root.winfo_x() - self._side_w, self.root.winfo_y()))
-            else:
-                self.side.pack_forget()
-                self.root.geometry("+%d+%d" % (self.root.winfo_x() + getattr(self, "_side_w", 0), self.root.winfo_y()))
+        for w in (self.grip, self.close_btn, self.pin_btn, self.style_btn):
+            w.pack_forget()
         if self.is_pinned:
-            self.header.pack_forget()                 # épinglé : seulement les chiffres (+ poignée à gauche avec Ctrl)
+            show = [self.grip, self.pin_btn] if self.ctrl_down else []
         else:
-            self.header.pack(fill="x", before=self.body)
-            if self.is_pinned:
-                self.close_btn.pack_forget()          # épinglé : pas de croix
-            else:
-                self.close_btn.pack(side="right", before=self.pin_btn)
+            show = [self.close_btn, self.pin_btn, self.style_btn]
+        for w in show:
+            w.pack(side="left", padx=(0, 2))
+        if show:
+            self.side.pack(side="left", fill="y", before=self.body)
+        else:
+            self.side.pack_forget()
+        self.root.update_idletasks()
+        new_w = (self.side.winfo_reqwidth() + 4) if show else 0
+        if new_w != self._side_w:                     # on compense : les chiffres restent au même endroit
+            if self.root.winfo_ismapped():
+                x, y = self.root.winfo_x(), self.root.winfo_y()
+            else:                                     # fenêtre pas encore affichée : position de départ
+                x, y = self._home[0] - self._side_w, self._home[1]
+            self.root.geometry("+%d+%d" % (x - (new_w - self._side_w), y))
+            self._home = (x + self._side_w, y)
+            self._side_w = new_w
 
     def _watch_ctrl(self):
         if self.visible and self.is_pinned and IS_WIN:
@@ -3521,7 +3519,8 @@ class DesktopWidget:
         self.root.geometry("+%d+%d" % (e.x_root - self._dx, e.y_root - self._dy))
 
     def _drag_end(self, e):
-        x = self.root.winfo_x() + (getattr(self, "_side_w", 0) if self._side_on else 0)   # position sans la poignée
+        x = self.root.winfo_x() + self._side_w          # position des chiffres (sans les boutons de gauche)
+        self._home = (x, self.root.winfo_y())
         update_settings(widget_x=x, widget_y=self.root.winfo_y())
 
     # ---------- mesures ----------

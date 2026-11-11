@@ -24,7 +24,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import psutil
 
 APP_NAME = "Pulse Monitor"
-APP_VERSION = "0.6.16"
+APP_VERSION = "0.6.30"
 IS_WIN = os.name == "nt"
 FROZEN = bool(getattr(sys, "frozen", False))      # version .exe (PyInstaller)
 # données (réglages, historique…) : à côté du .exe ou du script ; fichiers de l'appli (page, icônes) : dans le paquet
@@ -2799,6 +2799,7 @@ def clean_settings(d):
         "tray": d.get("tray") is not False,
         "bg": d.get("bg") is not False,
         "history": d.get("history") is not False,
+        "bell_off": [c for c in (d.get("bell_off") if isinstance(d.get("bell_off"), list) else []) if c in ("cpu", "ram", "gpu", "disk", "startup", "play", "update")],
         "dismissed": {str(k)[:60]: v for k, v in list((d.get("dismissed") if isinstance(d.get("dismissed"), dict) else {}).items())[:50]
                       if isinstance(v, (int, float))},
         # widget : seulement si la page les envoie (le widget gère aussi sa position / épinglage lui-même)
@@ -3266,6 +3267,7 @@ class DesktopWidget:
     STYLES = ("compact", "bars")
     BAR_W = 56
     WARN, BAD = "#ffb547", "#ff5d6c"
+    KEY = "#010203"   # couleur rendue invisible (et traversée par les clics) par Windows
 
     def __init__(self, sampler, kmt):
         self.s, self.kmt = sampler, kmt
@@ -3319,20 +3321,24 @@ class DesktopWidget:
         root = self.root = tk.Tk()
         root.withdraw()
         root.overrideredirect(True)            # sans bordure ni bouton dans la barre des tâches
-        root.configure(bg=self.BG)
+        root.configure(bg=self.KEY)
         root.attributes("-alpha", 0.86)
-        x, y = st.get("widget_x"), st.get("widget_y")
-        if not isinstance(x, int) or not isinstance(y, int):
-            x, y = root.winfo_screenwidth() - 260, 70
-        root.geometry("+%d+%d" % (x, y))
-        self._home = (x, y)                    # position des chiffres au démarrage
+        if IS_WIN:
+            root.attributes("-transparentcolor", self.KEY)
         self.font = ("Segoe UI", 9)
         self.bold = ("Segoe UI Semibold", 9)
-        self.outer = tk.Frame(root, bg=self.BG, padx=10, pady=6)
-        self.outer.pack(fill="both", expand=True)
+        # Fenêtre de taille FIXE : [zone des boutons | chiffres]. La zone des boutons est toujours là ;
+        # vide, elle est de la couleur invisible. Afficher/masquer les boutons ne redimensionne et ne déplace
+        # donc jamais la fenêtre (plus de clignotement ni d'élargissement).
         self._build_header()
+        self.outer = tk.Frame(root, bg=self.BG, padx=0, pady=6)
+        self.outer.pack(side="left", fill="both", expand=True)
         self.body = tk.Frame(self.outer, bg=self.BG)
         self.body.pack(fill="both", expand=True)
+        x, y = st.get("widget_x"), st.get("widget_y")         # position des chiffres
+        if not isinstance(x, int) or not isinstance(y, int):
+            x, y = root.winfo_screenwidth() - 260, 70
+        root.geometry("+%d+%d" % (x - self.side_w, y))
         self._build_body()
         root.bind("<ButtonPress-1>", self._drag_start)
         root.bind("<B1-Motion>", self._drag_move)
@@ -3342,52 +3348,138 @@ class DesktopWidget:
         root.after(200, self._watch_ctrl)
         root.mainloop()
 
-    def _fit(self):
-        """Garde le widget entier à l'écran (le style barres est plus large : sinon la RAM sortait de l'écran)."""
-        try:
-            root = self.root
-            root.update_idletasks()
-            w, h = root.winfo_reqwidth(), root.winfo_reqheight()
-            x, y = root.winfo_x(), root.winfo_y()
-            L, T, R, B = 0, 0, root.winfo_screenwidth(), root.winfo_screenheight()
-            try:                                   # zone de travail de l'écran où se trouve le widget
-                import ctypes
+    def _work_area(self, px, py):
+        """Zone de travail (sans la barre des tâches) de l'écran qui contient ce point."""
+        L, T, R, B = 0, 0, self.root.winfo_screenwidth(), self.root.winfo_screenheight()
+        if IS_WIN:
+            try:
                 from ctypes import wintypes
+
                 class MI(ctypes.Structure):
                     _fields_ = [("cbSize", wintypes.DWORD), ("rcMonitor", wintypes.RECT), ("rcWork", wintypes.RECT), ("dwFlags", wintypes.DWORD)]
                 u = ctypes.windll.user32
-                mon = u.MonitorFromPoint(wintypes.POINT(x + min(w, 40), y + 10), 2)
+                mon = u.MonitorFromPoint(wintypes.POINT(int(px), int(py)), 2)
                 mi = MI(); mi.cbSize = ctypes.sizeof(MI)
                 if u.GetMonitorInfoW(mon, ctypes.byref(mi)):
                     L, T, R, B = mi.rcWork.left, mi.rcWork.top, mi.rcWork.right, mi.rcWork.bottom
             except Exception:
                 pass
+        return L, T, R, B
+
+    def _fit(self):
+        """Garde le widget entier à l'écran (le style barres est plus large : sinon la RAM sortait de l'écran)."""
+        try:
+            root = self.root
+            root.update_idletasks()
+            sw = self.side_w
+            w, h = root.winfo_reqwidth() - sw, root.winfo_reqheight()    # partie visible : les chiffres
+            x, y = root.winfo_x() + sw, root.winfo_y()
+            L, T, R, B = self._work_area(x + min(w, 40), y + 10)
             nx, ny = max(L, min(x, R - w)), max(T, min(y, B - h))
-            if (nx, ny) != (root.winfo_x(), root.winfo_y()):
-                root.geometry("+%d+%d" % (nx, ny))
-                update_settings(widget_x=nx + getattr(self, "_side_w", 0), widget_y=ny)
-                self._home = (nx + getattr(self, "_side_w", 0), ny)
+            if (nx, ny) != (x, y):
+                root.geometry("+%d+%d" % (nx - sw, ny))
+                update_settings(widget_x=nx, widget_y=ny)
         except Exception:
             log.exception("Widget : placement")
 
-    def _label_btn(self, parent, text, cb, tip_color=None):
-        b = self.tk.Label(parent, text=text, bg=self.BG, fg=self.MUTED, font=("Segoe UI Symbol", 9), cursor="hand2", padx=3)
-        b.bind("<ButtonRelease-1>", lambda e: (cb(), "break")[1])
-        b.bind("<Enter>", lambda e: b.configure(fg=self.FG))
-        b.bind("<Leave>", lambda e: b.configure(fg=self.COLORS["cpu"] if (b is self.pin_btn and self.is_pinned) else self.MUTED))
+    # icônes : chacune centrée dans une case de taille fixe (les symboles n'ont pas tous la même ligne de base)
+    ICON_BOX = 20
+    ICONS = {"close": ("✕", 0, 0), "pin": ("📌", 0, 0), "snap": ("🧲", -2, 0), "style": ("◫", -1, 4)}   # (symbole, décalage vertical px, px en plus)
+    TIPS = {
+        "fr": {"close": "Masquer le widget", "pin": "Épingler au-dessus de tout (clics à travers)", "unpin": "Désépingler",
+               "snap": "Aimanter aux bords de l'écran : activé", "nosnap": "Aimanter aux bords de l'écran : désactivé",
+               "style": "Changer l'apparence (compact / barres)"},
+        "en": {"close": "Hide the widget", "pin": "Pin on top of everything (click-through)", "unpin": "Unpin",
+               "snap": "Snap to screen edges: on", "nosnap": "Snap to screen edges: off",
+               "style": "Change the look (compact / bars)"},
+    }
+
+    def _paint(self, b, color):
+        b.lbl.configure(fg=color)
+
+    def _tip_text(self, kind):
+        t = self.TIPS.get(self.lang, self.TIPS["en"])
+        if kind == "pin":
+            return t["unpin"] if self.is_pinned else t["pin"]
+        if kind == "snap":
+            return t["snap"] if self.snap else t["nosnap"]
+        return t[kind]
+
+    def _show_tip(self, b, kind):
+        self._hide_tip()
+        tk = self.tk
+        tw = self._tip = tk.Toplevel(self.root)
+        tw.overrideredirect(True)
+        tw.attributes("-topmost", True)
+        tk.Label(tw, text=self._tip_text(kind), bg="#1b2130", fg=self.FG, font=self.font, padx=6, pady=2,
+                 highlightthickness=1, highlightbackground="#333b4d").pack()
+        tw.update_idletasks()
+        x = b.winfo_rootx() + b.winfo_width() // 2 - tw.winfo_reqwidth() // 2
+        y = b.winfo_rooty() - tw.winfo_reqheight() - 6
+        if y < 0:
+            y = b.winfo_rooty() + b.winfo_height() + 6
+        tw.geometry("+%d+%d" % (max(0, x), y))
+
+    def _hide_tip(self):
+        if getattr(self, "_tip_job", None):
+            self.root.after_cancel(self._tip_job)
+            self._tip_job = None
+        if getattr(self, "_tip", None):
+            self._tip.destroy()
+            self._tip = None
+
+    def _icon_btn(self, parent, kind, cb):
+        tk, n = self.tk, self.ICON_BOX
+        text, dy, grow = self.ICONS[kind]
+        px = round(9 * self.root.winfo_fpixels("1i") / 72) + grow       # 9 pt en pixels, + agrandissement
+        b = tk.Frame(parent, bg=self.BG, width=n, height=n, cursor="hand2")
+        b.pack_propagate(False)
+        b.lbl = tk.Label(b, text=text, bg=self.BG, fg=self.MUTED, font=("Segoe UI Symbol", -px), bd=0, padx=0, pady=0, cursor="hand2")
+        b.lbl.place(relx=0.5, rely=0.5, y=dy, anchor="center")
+        rest = lambda: self.COLORS["cpu"] if ((kind == "pin" and self.is_pinned) or (kind == "snap" and self.snap)) else self.MUTED
+
+        def enter(e):
+            self._paint(b, self.FG)
+            self._hide_tip()
+            self._tip_job = self.root.after(450, lambda: self._show_tip(b, kind))
+
+        def leave(e):
+            if e.widget is b and b.winfo_containing(e.x_root, e.y_root) in (b, b.lbl):
+                return
+            self._paint(b, rest())
+            self._hide_tip()
+
+        def click(e):
+            self._hide_tip()
+            cb()
+            return "break"
+        for w in (b, b.lbl):
+            w.bind("<Enter>", enter)
+            w.bind("<Leave>", leave)
+            w.bind("<ButtonRelease-1>", click)
         return b
 
     def _build_header(self):
-        """Boutons à GAUCHE des chiffres (plus de ligne « PULSE » au-dessus) : ✕  📌  ◫ quand le widget est libre,
-        seulement 📌 (avec la poignée ✥) quand il est épinglé et que Ctrl est maintenu. Le widget glisse vers la gauche
-        de la largeur des boutons : les chiffres ne bougent jamais."""
+        """Boutons à GAUCHE des chiffres : ✕ 📌 🧲 ◫ quand le widget est libre, 📌 🧲 ◫ quand il est épinglé
+        et que Ctrl est maintenu. Ils sont dans une zone de largeur fixe : les chiffres ne bougent jamais."""
         tk = self.tk
-        self.side = tk.Frame(self.outer, bg=self.BG)
-        self.grip = tk.Label(self.side, text="✥", bg=self.BG, fg=self.MUTED, font=("Segoe UI Symbol", 10), cursor="fleur")
-        self.close_btn = self._label_btn(self.side, "✕", lambda: self.set_visible(False))
-        self.pin_btn = self._label_btn(self.side, "📌", lambda: self.set_pinned(not self.is_pinned))
-        self.style_btn = self._label_btn(self.side, "◫", self._toggle_style)
-        self._side_w = 0
+        self.side = tk.Frame(self.root, bg=self.KEY)          # zone fixe, invisible là où il n'y a rien
+        self.pad = tk.Frame(self.side, bg=self.BG, width=10)  # marge gauche du cadre, toujours visible
+        self.pad.pack(side="right", fill="y")
+        self.strip = tk.Frame(self.side, bg=self.BG, padx=4)  # fond juste derrière les boutons affichés
+        self.close_btn = self._icon_btn(self.strip, "close", lambda: self.set_visible(False))
+        self.pin_btn = self._icon_btn(self.strip, "pin", lambda: self.set_pinned(not self.is_pinned))
+        self.style_btn = self._icon_btn(self.strip, "style", self._toggle_style)
+        self.snap_btn = self._icon_btn(self.strip, "snap", self._toggle_snap)
+        self.snap = load_settings().get("widget_snap", True) is not False
+        self.root.update_idletasks()
+        sets = ([self.close_btn, self.pin_btn, self.snap_btn, self.style_btn], [self.pin_btn, self.snap_btn, self.style_btn])
+        # marge gauche du cadre (10 px) toujours visible : elle fait partie de la zone des boutons
+        self.side_w = max(sum(self.ICON_BOX + 2 for w in ws) for ws in sets) + 8 + 10
+        self.side.configure(width=self.side_w)
+        self.side.pack_propagate(False)
+        self.side.pack(side="left", fill="y")
+        self._shown = None
 
     def _toggle_style(self):
         i = self.STYLES.index(self.style) if self.style in self.STYLES else 0
@@ -3417,8 +3509,8 @@ class DesktopWidget:
             cell["val"].pack(side="left")
             self.cells[k] = cell
         # session de jeu en cours : petit texte vert au bout de la ligne (visible même épinglé)
-        self.game_lbl = tk.Label(row, text="", bg=self.BG, fg="#5fd38d", font=self.bold)
-        self.game_lbl.pack(side="left", padx=(10, 0))
+        self.game_lbl = tk.Label(row, text="", bg=self.BG, fg="#5fd38d", font=self.bold)   # affiché seulement en jeu
+        tk.Frame(row, bg=self.BG, width=10).pack(side="right")                             # marge droite du cadre
         self._apply_pin_look()
 
     # ---------- commandes (depuis les autres threads) ----------
@@ -3468,7 +3560,21 @@ class DesktopWidget:
         except Exception:
             log.exception("Widget : clic à travers")
 
+    def _set_desktop_owner(self, on):
+        """Libre : rattaché au Bureau, il reste visible quand on clique sur « Afficher le Bureau » (Win+D)."""
+        if not IS_WIN:
+            return
+        try:
+            u32 = ctypes.windll.user32
+            setp = getattr(u32, "SetWindowLongPtrW", u32.SetWindowLongW)
+            setp.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p]
+            owner = u32.FindWindowW("Progman", None) if on else 0
+            setp(ctypes.c_void_p(self._hwnd()), -8, ctypes.c_void_p(owner or 0))     # GWLP_HWNDPARENT = propriétaire
+        except Exception:
+            log.exception("Widget : rattachement au Bureau")
+
     def _apply_pin(self):
+        self._set_desktop_owner(not self.is_pinned)
         self.root.attributes("-topmost", self.is_pinned)
         self._set_clickthrough(self.is_pinned and not self.ctrl_down)
         self._apply_pin_look()
@@ -3476,51 +3582,63 @@ class DesktopWidget:
     def _apply_pin_look(self):
         if not self.root:
             return
-        self.pin_btn.configure(fg=self.COLORS["cpu"] if self.is_pinned else self.MUTED)
-        for w in (self.grip, self.close_btn, self.pin_btn, self.style_btn):
-            w.pack_forget()
+        self._paint(self.pin_btn, self.COLORS["cpu"] if self.is_pinned else self.MUTED)
+        self._paint(self.snap_btn, self.COLORS["cpu"] if self.snap else self.MUTED)
         if self.is_pinned:
-            show = [self.grip, self.pin_btn] if self.ctrl_down else []
+            show = (self.pin_btn, self.snap_btn, self.style_btn) if self.ctrl_down else ()
         else:
-            show = [self.close_btn, self.pin_btn, self.style_btn]
-        for w in show:
-            w.pack(side="left", padx=(0, 2))
+            show = (self.close_btn, self.pin_btn, self.snap_btn, self.style_btn)
+        if show == self._shown:
+            return
+        self._shown = show
+        self._hide_tip()
+        for w in (self.close_btn, self.pin_btn, self.snap_btn, self.style_btn):
+            w.pack_forget()
+        for w in reversed(show):                      # collés aux chiffres, dans l'ordre de gauche à droite
+            w.pack(side="right", padx=(2, 0))
         if show:
-            self.side.pack(side="left", fill="y", before=self.body)
+            self.strip.pack(side="right", fill="y")
         else:
-            self.side.pack_forget()
-        self.root.update_idletasks()
-        new_w = (self.side.winfo_reqwidth() + 4) if show else 0
-        if new_w != self._side_w:                     # on compense : les chiffres restent au même endroit
-            if self.root.winfo_ismapped():
-                x, y = self.root.winfo_x(), self.root.winfo_y()
-            else:                                     # fenêtre pas encore affichée : position de départ
-                x, y = self._home[0] - self._side_w, self._home[1]
-            self.root.geometry("+%d+%d" % (x - (new_w - self._side_w), y))
-            self._home = (x + self._side_w, y)
-            self._side_w = new_w
+            self.strip.pack_forget()
 
     def _watch_ctrl(self):
         if self.visible and self.is_pinned and IS_WIN:
             down = bool(ctypes.windll.user32.GetAsyncKeyState(0x11) & 0x8000)   # VK_CONTROL
-            if down != self.ctrl_down:
-                self.ctrl_down = down
-                self._apply_pin()
+            if down != self.ctrl_down:          # Ctrl : on ne change que les clics à travers et les boutons
+                self.ctrl_down = down           # (pas le « toujours au-dessus », qui faisait clignoter le widget)
+                self._set_clickthrough(not down)
+                self._apply_pin_look()
         elif self.ctrl_down:
             self.ctrl_down = False
-            self._apply_pin()
+            self._set_clickthrough(self.is_pinned)
+            self._apply_pin_look()
         self.root.after(200, self._watch_ctrl)
 
     # ---------- déplacement à la souris ----------
     def _drag_start(self, e):
         self._dx, self._dy = e.x_root - self.root.winfo_x(), e.y_root - self.root.winfo_y()
 
+    SNAP = 18   # px : distance à laquelle le widget se colle au bord de l'écran
+
     def _drag_move(self, e):
-        self.root.geometry("+%d+%d" % (e.x_root - self._dx, e.y_root - self._dy))
+        x, y = e.x_root - self._dx, e.y_root - self._dy
+        if self.snap:                                  # aimanté : se colle aux bords de l'écran (zone sans la barre des tâches)
+            sw = self.side_w                           # les bords comptent à partir des chiffres
+            w, h = self.root.winfo_width(), self.root.winfo_height()
+            L, T, R, B = self._work_area(e.x_root, e.y_root)
+            if abs(x + sw - L) < self.SNAP: x = L - sw
+            elif abs(x + w - R) < self.SNAP: x = R - w
+            if abs(y - T) < self.SNAP: y = T
+            elif abs(y + h - B) < self.SNAP: y = B - h
+        self.root.geometry("+%d+%d" % (x, y))
+
+    def _toggle_snap(self):
+        self.snap = not self.snap
+        update_settings(widget_snap=self.snap)
+        self._apply_pin_look()
 
     def _drag_end(self, e):
-        x = self.root.winfo_x() + self._side_w          # position des chiffres (sans les boutons de gauche)
-        self._home = (x, self.root.winfo_y())
+        x = self.root.winfo_x() + self.side_w           # position des chiffres (sans la zone des boutons)
         update_settings(widget_x=x, widget_y=self.root.winfo_y())
 
     # ---------- mesures ----------
@@ -3578,6 +3696,10 @@ class DesktopWidget:
                     gt = "● Gaming"
                 if self.game_lbl.cget("text") != gt:
                     self.game_lbl.configure(text=gt)
+                    if gt:
+                        self.game_lbl.pack(side="left", padx=(10, 0))
+                    else:
+                        self.game_lbl.pack_forget()
                 for k, cell in self.cells.items():
                     pct, txt = vals[k]
                     hot = (pct is not None and pct >= 90) or (k == "gpu" and m["temp"] and m["temp"] >= 85)

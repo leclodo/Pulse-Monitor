@@ -6,7 +6,7 @@
 
 Tableau de bord simple et léger pour Windows : performances du PC en temps réel (façon Gestionnaire des tâches), fiche des composants utile pour changer des pièces, analyse du stockage, santé des disques et rapports de sessions de jeu. 100 % local, aucune télémétrie.
 
-Version actuelle : **v0.6.16**
+Version actuelle : **v0.6.30**
 
 ## Télécharger
 
@@ -59,7 +59,7 @@ Dans les [Releases](https://github.com/leclodo/Pulse-Monitor/releases/latest) :
 - Boutons **Cartes : Repliées / Petites / Grandes** en haut de Performances ; poignée **⋮⋮** pour réorganiser par glisser-déposer.
 - **Paramètres** : langue FR / EN (celle de Windows par défaut), 5 thèmes, lancement avec Windows, garder en fond à la fermeture, vérification quotidienne des mises à jour.
 - **Fermer la fenêtre (✕)** : l'appli reste près de l'horloge avec une petite icône (~30 Mo). Clic = rouvrir, clic droit = Quitter.
-- **Widget de bureau** : CPU, GPU + température, VRAM, RAM sur une ligne (compact ou barres). 📌 = épinglé au-dessus de tout avec clics à travers (maintenir Ctrl pour le déplacer). Raccourci clavier configurable.
+- **Widget de bureau** : CPU, GPU + température, VRAM, RAM sur une ligne (compact ou barres). 📌 = épinglé au-dessus de tout avec clics à travers (maintenir Ctrl pour le déplacer), 🧲 = aimanté aux bords de l'écran. Raccourci clavier configurable.
 - **Mises à jour** : clic sur le numéro de version → « Vérifier les mises à jour ».
 - Survole une donnée pour une explication courte.
 

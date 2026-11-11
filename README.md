@@ -6,7 +6,7 @@
 
 A simple, lightweight dashboard for Windows: real-time PC performance (like Task Manager), a hardware sheet with what you need to know when upgrading parts, storage analysis, disk health and gaming session reports. 100% local, no telemetry.
 
-Current version: **v0.6.16**
+Current version: **v0.6.30**
 
 ## Download
 
@@ -59,7 +59,7 @@ From the [Releases](https://github.com/leclodo/Pulse-Monitor/releases/latest) pa
 - **Cards: Collapsed / Small / Large** buttons at the top of Performance; **⋮⋮** handle to reorder by drag and drop.
 - **Settings**: FR / EN language (Windows language by default), 5 themes, start with Windows, keep in tray when closed, daily update check.
 - **Close the window (✕)**: the app stays near the clock with a small icon (~30 MB). Click = reopen, right-click = Quit.
-- **Desktop widget**: CPU, GPU + temperature, VRAM, RAM on one line (compact or bars). 📌 = pinned on top with click-through (hold Ctrl to move it). Configurable keyboard shortcut.
+- **Desktop widget**: CPU, GPU + temperature, VRAM, RAM on one line (compact or bars). 📌 = pinned on top with click-through (hold Ctrl to move it), 🧲 snaps to screen edges. Configurable keyboard shortcut.
 - **Updates**: click the version number → "Check for updates".
 - Hover any value for a short explanation.
 

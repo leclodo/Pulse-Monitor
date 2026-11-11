@@ -160,9 +160,9 @@
   .shares { display: grid; grid-template-columns: 74px 1fr 42px; gap: 6px 10px; align-items: center; font-size: 12.5px; margin: 8px 0; }
   .verdict { font-weight: 600; font-size: 13px; margin: 6px 0 4px; }
   .linkbtn { background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; font: inherit; font-size: 12px; padding: 0; }
-  .detbtn { border: 0; background: none; color: var(--dim); width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center;
-    cursor: pointer; flex: none; padding: 0; font: inherit; }
-  .detbtn:hover, .detbtn.on { background: var(--panel2); color: var(--text); }
+  .detbtn { border: 1px solid color-mix(in srgb, var(--cpu) 25%, var(--line)); background: var(--panel2); color: var(--muted); width: 24px; height: 24px;
+    border-radius: 6px; display: grid; place-items: center; cursor: pointer; flex: none; padding: 0; font: inherit; }
+  .detbtn:hover, .detbtn.on { background: color-mix(in srgb, var(--cpu) 18%, var(--panel2)); border-color: color-mix(in srgb, var(--cpu) 60%, var(--line)); color: var(--text); }
   .drawer { position: fixed; right: 0; bottom: 0; top: 57px; width: 440px; max-width: 94vw; z-index: 15; background: var(--panel);
     border-left: 1px solid var(--line); box-shadow: -12px 0 30px #0005; transform: translateX(105%); transition: transform .22s ease;
     display: flex; flex-direction: column; }
@@ -222,9 +222,13 @@
   td.empty { color: var(--dim); font-style: italic; }
   .pill { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 5px; background: var(--panel2); }
   .toolbar { display: flex; margin-bottom: 10px; gap: 8px; align-items: center; flex-wrap: wrap; }
-  .btn { border: 1px solid var(--line); background: var(--panel); color: var(--text); font: inherit; font-weight: 600; font-size: 13px;
-    padding: 6px 12px; border-radius: 8px; cursor: pointer; }
-  .btn:hover { background: var(--panel2); }
+  /* boutons bien visibles : fond un peu plus clair que les cartes + bordure teintée de la couleur d'accent */
+  .btn { border: 1px solid color-mix(in srgb, var(--cpu) 35%, var(--line)); background: color-mix(in srgb, var(--cpu) 8%, var(--panel2));
+    color: var(--text); font: inherit; font-weight: 600; font-size: 13px; padding: 6px 12px; border-radius: 8px; cursor: pointer;
+    box-shadow: 0 1px 0 #0003; transition: background .15s, border-color .15s; }
+  .btn:hover { background: color-mix(in srgb, var(--cpu) 18%, var(--panel2)); border-color: color-mix(in srgb, var(--cpu) 65%, var(--line)); }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: .55; cursor: default; }
   .btn.sm { padding: 3px 9px; font-size: 12px; }
   .btn .bi { vertical-align: -2px; margin-right: 6px; }
   .muted { color: var(--muted); }
@@ -296,13 +300,19 @@
   .hist { gap: 8px; }
   .gm { gap: 10px; }
   .gm table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  .gm th { text-align: left; color: var(--dim); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; padding: 0 10px 6px 0; white-space: nowrap; }
-  .gm td { padding: 7px 10px 7px 0; border-top: 1px solid var(--line); white-space: nowrap; font-variant-numeric: tabular-nums; }
-  .gm td.n { font-weight: 600; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+  .gm th { text-align: left; color: var(--dim); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; padding: 0 8px 6px 0; vertical-align: bottom; }
+  .gm td { padding: 7px 8px 7px 0; border-top: 1px solid var(--line); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .gm td.n { font-weight: 600; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
   .gm .tw { overflow-x: auto; }
-  .gm-del { border: 0; background: none; color: var(--dim); cursor: pointer; font: inherit; font-size: 12px; padding: 2px 7px; border-radius: 6px; opacity: .6; }
-  .gm tr.gm-r:hover .gm-del { opacity: 1; } .gm-del:hover { color: var(--bad); background: var(--panel); }
-  .gm-del.sure { color: var(--bad); opacity: 1; font-weight: 600; }
+  .gm-del { border: 1px solid var(--line); background: var(--panel2); color: var(--muted); cursor: pointer; font: inherit; font-size: 12px; padding: 2px 7px; border-radius: 6px; }
+  .gm-del:hover { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 50%, var(--line)); }
+  .gm-del.sure { color: #fff; background: var(--bad); opacity: 1; }
+  .gm-del .bi { margin: 0; }
+  .gm td.gm-dcol { width: 34px; text-align: right; padding-right: 0; }
+  .btn-danger { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 45%, var(--line)); }
+  .btn-danger:hover { background: color-mix(in srgb, var(--bad) 14%, var(--panel)); }
+  .btn-danger.sure { background: var(--bad); color: #fff; border-color: var(--bad); }
+  .bell-types { display: grid; gap: 6px; }
   button.ver { cursor: pointer; font-family: inherit; } button.ver:hover { color: var(--text); border-color: color-mix(in srgb, var(--cpu) 50%, var(--line)); }
   .ver-wrap { position: relative; display: inline-flex; }
   button.ver.has-up { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 55%, var(--line)); position: relative; }
@@ -376,6 +386,12 @@
   .custom > .c-order, .custom > .c-hidden { grid-column: span 3; }
   @media (max-width: 900px) { .custom > .card { grid-column: 1 / -1 !important; } }
   .custom h2 { margin: 0; font-size: 15px; }
+  .custom h2.sh2 { display: flex; align-items: center; gap: 8px; } .custom h2.sh2 svg { color: var(--muted); flex: none; }
+  /* cartes à la hauteur de leur contenu, rangées sur 2 colonnes sans trou */
+  .custom { align-items: start; }
+  .c-flow { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+  .c-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  @media (max-width: 900px) { .c-flow { grid-template-columns: 1fr; } }
   .themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
   .theme { border: 2px solid var(--line); border-radius: 11px; padding: 8px; cursor: pointer; background: var(--panel2); text-align: left; font: inherit; color: var(--text); }
   .theme.on { border-color: var(--cpu); }
@@ -485,6 +501,11 @@ const I18N = {
     up_privacy: "Seule connexion Internet de l'appli : quand tu cliques, ou une fois par jour si l'option est activée. Rien n'est envoyé.",
     au_opt: "Vérifier les mises à jour chaque jour", au_tip: "Une fois par jour, l'appli demande à GitHub s'il existe une nouvelle version et te prévient dans la cloche. Rien n'est installé sans ton accord, rien n'est envoyé.",
     cat_update: "Mise à jour",
+    bell_types_t: "Notifications de la cloche", bt_cpu: "Processeur saturé", bt_ram: "Mémoire presque pleine", bt_gpu: "Carte graphique (mémoire vidéo, température)",
+    bt_disk: "Disque saturé ou presque plein", bt_startup: "Trop de programmes au démarrage", bt_play: "Résumé de fin de session de jeu", bt_update: "Nouvelle version disponible",
+    bt_tip_cpu: "Prévient quand le processeur (ou un de ses cœurs) reste à fond, avec le programme en cause.", bt_tip_ram: "Prévient quand la RAM est presque pleine ou que Windows utilise beaucoup le fichier d'échange.",
+    bt_tip_gpu: "Prévient quand la mémoire vidéo est saturée ou que la carte graphique chauffe trop.", bt_tip_disk: "Prévient quand un disque est très sollicité ou presque plein.",
+    bt_tip_startup: "Conseille de réduire les programmes lancés avec Windows.", bt_tip_play: "Affiche le bilan de chaque session de jeu terminée.", bt_tip_update: "Prévient quand une nouvelle version de Pulse Monitor est trouvée.",
     tab_perf: "Performances", tab_comp: "Composants", tab_custom: "Paramètres",
     procs: "Processus", uptime: "Allumé depuis", app_use: "Cette appli", settings: "Paramètres", language: "Langue",
     sec_main: "Vue d'ensemble", sec_disks: "Stockage", sec_net: "Réseau",
@@ -632,7 +653,7 @@ const I18N = {
     widget_t: "Widget de bureau", widget_opt: "Afficher le widget (CPU, GPU, température, VRAM, RAM)", widget_style: "Style :",
     ws_compact: "Compact", ws_bars: "Barres",
     widget_hint: "Déplace-le à la souris. 📌 l'épingle au-dessus de tout : les clics passent alors à travers et la croix disparaît — maintiens Ctrl pour le déplacer ou le désépingler. Aussi dans le menu de l'icône (clic droit). Coût : ~5-10 Mo.",
-    bell_tip: "Conseils en direct", now_t: "En ce moment", all_good: "✓ Tout va bien",
+    bell_tip: "Conseils en direct", now_t: "Notifications", all_good: "✓ Tout va bien",
     usage_t: "Quel composant te limite ?", usage_since: "Analysé depuis le", usage_load: "de charge analysées",
     usage_reset: "Réinitialiser l'analyse", usage_off: "Analyse en arrière-plan désactivée (Paramètres) : seuls les moments où la fenêtre est ouverte comptent.",
     sh_gpu: "Carte gr.", sh_cpu: "Processeur", sh_ram: "RAM", sh_vram: "Mém. vidéo",
@@ -695,6 +716,11 @@ const I18N = {
     up_privacy: "The app's only Internet connection: when you click, or once a day if the option is on. Nothing is sent.",
     au_opt: "Check for updates daily", au_tip: "Once a day, the app asks GitHub whether a new version exists and lets you know in the bell. Nothing is installed without your OK, nothing is sent.",
     cat_update: "Update",
+    bell_types_t: "Bell notifications", bt_cpu: "CPU maxed out", bt_ram: "Memory almost full", bt_gpu: "Graphics card (video memory, temperature)",
+    bt_disk: "Disk busy or almost full", bt_startup: "Too many startup programs", bt_play: "End of gaming session summary", bt_update: "New version available",
+    bt_tip_cpu: "Warns when the CPU (or one of its cores) stays maxed out, with the program responsible.", bt_tip_ram: "Warns when RAM is almost full or Windows uses the page file a lot.",
+    bt_tip_gpu: "Warns when video memory is saturated or the graphics card runs too hot.", bt_tip_disk: "Warns when a disk is very busy or almost full.",
+    bt_tip_startup: "Suggests reducing programs launched with Windows.", bt_tip_play: "Shows the summary of each finished gaming session.", bt_tip_update: "Warns when a new version of Pulse Monitor is found.",
     tab_perf: "Performance", tab_comp: "Components", tab_custom: "Settings",
     procs: "Processes", uptime: "Uptime", app_use: "This app", settings: "Settings", language: "Language",
     sec_main: "Overview", sec_disks: "Storage", sec_net: "Network",
@@ -842,7 +868,7 @@ const I18N = {
     widget_t: "Desktop widget", widget_opt: "Show the widget (CPU, GPU, temperature, VRAM, RAM)", widget_style: "Style:",
     ws_compact: "Compact", ws_bars: "Bars",
     widget_hint: "Drag it with the mouse. 📌 pins it above everything: clicks then go through it and the close button disappears — hold Ctrl to move or unpin it. Also in the icon menu (right-click). Cost: ~5-10 MB.",
-    bell_tip: "Live tips", now_t: "Right now", all_good: "✓ All good",
+    bell_tip: "Live tips", now_t: "Notifications", all_good: "✓ All good",
     usage_t: "Which component holds you back?", usage_since: "Analyzed since", usage_load: "of load analyzed",
     usage_reset: "Reset analysis", usage_off: "Background analysis is off (Settings): only time with the window open counts.",
     sh_gpu: "Graphics", sh_cpu: "CPU", sh_ram: "RAM", sh_vram: "VRAM",
@@ -885,6 +911,20 @@ const T = k => (I18N[lang][k] ?? I18N.fr[k] ?? k);
 const THEMES = ["dark", "light", "oled", "midnight", "terminal"];
 
 // =================== Réglages ===================
+// petites icônes (une seule couleur, celle du texte) pour les titres des Paramètres
+const SICO = {
+  lang: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/>',
+  theme: '<path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.8 1.6-1.6 0-.9-.6-1.3-.6-2.1 0-.9.7-1.6 1.6-1.6H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="14.5" cy="7" r="1"/>',
+  order: '<path d="M8 6h12M8 12h12M8 18h12"/><path d="M3 9l1.5-3L6 9M3 15l1.5 3L6 15"/>',
+  hidden: '<path d="M3 3l18 18"/><path d="M10.6 6.1A9.8 9.8 0 0 1 12 6c5 0 8.5 4 9.5 6-.4.8-1.2 2-2.3 3.2M6.3 7.6C4.4 8.9 3.1 10.7 2.5 12c1 2 4.5 6 9.5 6 1.6 0 3-.4 4.3-1"/><path d="M9.9 10a3 3 0 0 0 4.1 4.2"/>',
+  power: '<path d="M12 3v8"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/>',
+  bell: '<path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+  widget: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 15l3-4 3 2.5 4-5"/>',
+  shield: '<path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/><path d="m9 12 2 2 4-4"/>',
+};
+const sh2 = (ico, text) => `<h2 class="sh2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${SICO[ico]}</svg>${text}</h2>`;
+let bellOff = new Set();
+const BELL_CATS = ["cpu", "ram", "gpu", "disk", "startup", "play", "update"];
 let collapsed = new Set(), order = {}, theme = "dark", manual = {}, hidden = {}, bigMode = false, trayMode = true, bgMode = true, dismissed = {}, widgetOn = false, widgetStyle = "compact", widgetPatch = {}, autostart = false, histOn = true, hotkey = null, wgLock = 0;
 async function loadSettings() {
   try {
@@ -900,6 +940,7 @@ async function loadSettings() {
     trayMode = s.tray !== false;
     bgMode = s.bg !== false;
     dismissed = s.dismissed && typeof s.dismissed === "object" ? s.dismissed : {};
+    bellOff = new Set(Array.isArray(s.bell_off) ? s.bell_off : []);
     histOn = s.history !== false;
     widgetOn = !!s.widget; hotkey = s.hotkey && s.hotkey.vk ? s.hotkey : null; widgetStyle = s.widget_style === "bars" ? "bars" : "compact";
     autostart = !!s.autostart; autoUpdate = !!s.auto_update;
@@ -910,7 +951,7 @@ function saveSettings() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     // le widget n'est envoyé que si on vient de le changer ici (il peut aussi changer depuis l'icône ou sa croix)
-    const body = {lang, theme, collapsed: [...collapsed], order, manual, hidden, big: bigMode, tray: trayMode, bg: bgMode, dismissed, ...widgetPatch,
+    const body = {lang, theme, collapsed: [...collapsed], order, manual, hidden, big: bigMode, tray: trayMode, bg: bgMode, dismissed, bell_off: [...bellOff], ...widgetPatch,
                   history: histPatch != null ? histPatch : histOn};
     if (histPatch != null) { histOn = histPatch; histPatch = null; }
     widgetPatch = {};
@@ -1492,18 +1533,21 @@ function renderCustom() {
       <button class="btn sm" data-mv="${id}" data-dir="-1" ${i === 0 ? "disabled" : ""} title="${esc(T("up_btn"))}">↑</button>
       <button class="btn sm" data-mv="${id}" data-dir="1" ${i === secs.length - 1 ? "disabled" : ""} title="${esc(T("down_btn"))}">↓</button></div>`).join("");
   el.innerHTML = `
-    <div class="card c-lang"><h2>${esc(T("language"))}</h2>
+    <div class="c-flow">
+    <div class="card c-lang">${sh2("lang", esc(T("language")))}
       <div class="seg" id="langs" style="width:fit-content"><button data-lang="fr" class="${lang === "fr" ? "on" : ""}">Français</button><button data-lang="en" class="${lang === "en" ? "on" : ""}">English</button></div></div>
-    <div class="card c-theme"><h2>${esc(T("themes"))}</h2><div class="themes">${themeTiles}</div></div>
-    <div class="card c-order"><h2>${esc(T("order"))}</h2><div class="orderlist">${rows}</div>
+    <div class="card c-theme">${sh2("theme", esc(T("themes")))}<div class="themes">${themeTiles}</div></div>
+    <div class="card c-order">${sh2("order", esc(T("order")))}<div class="orderlist">${rows}</div>
       <p class="muted" style="margin:0;font-size:12.5px">${esc(T("order_hint"))}</p>
       <div><button class="btn" id="reset">${esc(T("reset"))}</button></div></div>
     ${hiddenHTML()}
-    <div class="card c-order"><h2>${esc(T("close_t"))}</h2>
+    <div class="card c-order">${sh2("power", esc(T("close_t")))}
       <label class="check" data-tip="${esc(T("as_tip"))}"><input type="checkbox" id="as-cb" ${autostart ? "checked" : ""}><span>${esc(T("autostart_opt"))}</span></label>
       <label class="check" data-tip="${esc(T("tray_hint"))}"><input type="checkbox" id="tray-cb" ${trayMode ? "checked" : ""}><span>${esc(T("tray_opt"))}</span></label>
       <label class="check" data-tip="${esc(T("au_tip"))}"><input type="checkbox" id="au-cb" ${autoUpdate ? "checked" : ""}><span>${esc(T("au_opt"))}</span></label></div>
-    <div class="card c-order"><h2>${esc(T("widget_t"))}</h2>
+    <div class="card c-order">${sh2("bell", esc(T("bell_types_t")))}
+      <div class="bell-types">${BELL_CATS.map(c => `<label class="check" data-tip="${esc(T("bt_tip_" + c))}"><input type="checkbox" data-bt="${c}" ${bellOff.has(c) ? "" : "checked"}><span>${esc(T("bt_" + c))}</span></label>`).join("")}</div></div>
+    <div class="card c-order">${sh2("widget", esc(T("widget_t")))}
       <label class="check"><input type="checkbox" id="wg-cb" ${widgetOn ? "checked" : ""}><span>${esc(T("widget_opt"))}</span></label>
       <div style="display:flex;align-items:center;gap:10px"><span class="muted" style="font-size:12.5px">${esc(T("widget_style"))}</span>
         <div class="seg small" id="wg-style"><button data-ws="compact" class="${widgetStyle === "compact" ? "on" : ""}">${esc(T("ws_compact"))}</button><button data-ws="bars" class="${widgetStyle === "bars" ? "on" : ""}">${esc(T("ws_bars"))}</button></div></div>
@@ -1512,13 +1556,16 @@ function renderCustom() {
         <button class="btn sm" id="hk-set">${esc(T("hk_set"))}</button>${hotkey ? `<button class="btn sm" id="hk-clear">${esc(T("hk_clear"))}</button>` : ""}
         <span class="muted" id="hk-msg" style="font-size:12px"></span></div>
       <p class="muted" style="margin:0;font-size:12.5px">${esc(T("widget_hint"))}</p></div>
+    </div>
     ${privacyHTML()}`;
+  flowCols(el.querySelector(".c-flow"));
   document.getElementById("pv-open").onclick = () => fetch("/api/storage/openfolder?path=__data");
   document.getElementById("wg-cb").onchange = e => { widgetOn = e.target.checked; wgLock = Date.now() + 4000; widgetPatch.widget = widgetOn; saveSettings(); };
   setupHotkeyUI();
   el.querySelectorAll("[data-ws]").forEach(b => b.onclick = () => {
     widgetStyle = b.dataset.ws; widgetPatch.widget_style = widgetStyle; saveSettings(); renderCustom();
   });
+  document.querySelectorAll("[data-bt]").forEach(cb => cb.onchange = () => { cb.checked ? bellOff.delete(cb.dataset.bt) : bellOff.add(cb.dataset.bt); saveSettings(); renderBell(); });
   document.getElementById("au-cb").onchange = e => { autoUpdate = e.target.checked; fetch("/api/update/auto?on=" + (autoUpdate ? 1 : 0)).catch(() => {}); };
   document.getElementById("as-cb").onchange = e => { autostart = e.target.checked; widgetPatch.autostart = autostart; saveSettings(); };
   document.getElementById("tray-cb").onchange = e => { trayMode = e.target.checked; saveSettings(); };
@@ -1687,7 +1734,7 @@ function renderBell() {
   const key = a => a.id + "|" + a.level;
   const activeIds = new Set(liveAlerts.map(a => a.id));
   for (const id of [...dismissedNow]) if (!activeIds.has(id)) dismissedNow.delete(id);
-  const shown = liveAlerts.filter(a => !isDismissed(a));
+  const shown = liveAlerts.filter(a => !isDismissed(a) && !bellOff.has(a.cat));
   const active = new Set(shown.map(key));
   for (const k of [...seenAlerts]) if (!active.has(k)) seenAlerts.delete(k);   // une alerte qui revient refera clignoter
   if (bellPop.classList.contains("on")) shown.forEach(a => seenAlerts.add(key(a)));
@@ -1752,10 +1799,19 @@ function unhide(ids) {
   ids.forEach(id => { delete hidden[id]; document.querySelectorAll(`.card[data-id="${CSS.escape(id)}"]`).forEach(n => n.classList.remove("hid")); });
   saveSettings(); renderCustom(); redrawAll();
 }
+// range les cartes sur 2 colonnes : chaque carte va dans la colonne la plus courte
+function flowCols(f) {
+  const cards = [...f.children], one = innerWidth <= 900;
+  f.innerHTML = '<div class="c-col"></div>' + (one ? "" : '<div class="c-col"></div>');
+  const cols = [...f.children];
+  for (const c of cards) (one || cols[0].offsetHeight <= cols[1].offsetHeight ? cols[0] : cols[1]).appendChild(c);
+}
+let flowOne = innerWidth <= 900;
+addEventListener("resize", () => { const o = innerWidth <= 900; if (o !== flowOne) { flowOne = o; if (document.querySelector(".c-flow")) renderCustom(); } });
 function hiddenHTML() {
   const ids = Object.keys(hidden);
   const rows = ids.map(id => `<div class="orow"><span>${esc(hidden[id])}</span><button class="btn sm" data-unhide="${esc(id)}">${esc(T("show"))}</button></div>`).join("");
-  return `<div class="card c-hidden"><h2>${esc(T("hidden_t"))}</h2>
+  return `<div class="card c-hidden">${sh2("hidden", esc(T("hidden_t")))}
     ${ids.length ? `<div class="orderlist">${rows}</div><div><button class="btn" id="unhide-all">${esc(T("show_all"))}</button></div>` : `<p class="muted" style="margin:0">${esc(T("hidden_none"))}</p>`}
     <p class="muted" style="margin:0;font-size:12.5px">${esc(T("hidden_hint"))}</p></div>`;
 }
@@ -2002,6 +2058,23 @@ async function loadGames(q) {
   try { gmData = await stJ("/api/games" + (q || "")); } catch (e) {}
   renderGames();
 }
+// confirmation en 2 clics : le bouton revient à son état normal si on clique ailleurs (ou après 4 s)
+let armed = null;
+function disarm() {
+  if (!armed) return;
+  const b = armed; armed = null;
+  delete b.dataset.ok; b.classList.remove("sure");
+  if (b._html != null) { b.innerHTML = b._html; b._html = null; }
+  if (b._tip != null) { b.dataset.tip = b._tip; b._tip = null; }
+}
+function armConfirm(b, text) {
+  disarm();
+  b.dataset.ok = 1; b.classList.add("sure"); armed = b;
+  if (text) { b._html = b.innerHTML; const sp = b.querySelector("span"); if (sp) sp.textContent = text; else b.textContent = text; }
+  else { b._tip = b.dataset.tip || ""; b.dataset.tip = T("gm_del_sure"); }
+  clearTimeout(armConfirm.t); armConfirm.t = setTimeout(disarm, 4000);
+}
+document.addEventListener("click", e => { if (armed && !armed.contains(e.target)) disarm(); }, true);
 function renderGames() {
   const el = document.getElementById("an-games"), D = gmData;
   if (!D) return;
@@ -2019,26 +2092,26 @@ function renderGames() {
       <td>${g.temp_max != null ? `<span style="${tc(g.temp)}">${g.temp}</span> / <span style="${tc(g.temp_max)}">${g.temp_max} °C</span>` : "–"}</td>
       <td>${g.ram_max} %</td><td>${g.vram_max} %</td>
       <td data-tip="${esc(T("gm_vt_" + v))}"><span style="color:${vcol(v)}">●</span> ${esc(T("gm_v_" + v))}</td>
-      <td style="text-align:right;padding-right:0"><button class="gm-del" data-gdel="${g.start}" data-tip="${esc(T("gm_del"))}">✕</button></td></tr>${det}`; }).join("");
-  const am = ` <span style="text-transform:none;letter-spacing:0">(${esc(T("gm_avgmax"))})</span>`;
+      <td class="gm-dcol"><button class="gm-del" data-gdel="${g.start}" data-tip="${esc(T("gm_del"))}"><svg class="bi" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button></td></tr>${det}`; }).join("");
+  const am = `<span style="display:block;text-transform:none;letter-spacing:0;font-weight:400">${esc(T("gm_avgmax"))}</span>`;
   const cur = (D.current || []).map(c => `<div class="gm-live"><span><span style="color:var(--ok);font-weight:600">● ${esc(T("gm_now"))}</span> ${esc(c.name)} · ${fmtD(c.dur)}</span>
       <button class="btn sm" data-gstop="${esc(c.key)}" data-tip="${esc(T("gm_stop_tip"))}">⏸ ${esc(T("gm_stop"))}</button></div>`).join("")
     + (D.paused || []).map(c => `<div class="gm-live"><span><span class="muted" style="font-weight:600">⏸ ${esc(T("gm_paused"))}</span> ${esc(c.name)}</span>
       <button class="btn sm" data-gres="${esc(c.key)}" data-tip="${esc(T("gm_resume_tip"))}">▶ ${esc(T("gm_resume"))}</button></div>`).join("");
   setHTML(el, `<div class="hist-head"><h2 style="margin:0;font-size:16px">${esc(T("gm_t"))}</h2><span style="flex:1"></span>
-      ${D.sessions.length ? `<button class="btn sm" id="gm-clear">${esc(T("gm_clear"))}</button>` : ""}
+      ${D.sessions.length ? `<button class="btn sm btn-danger" id="gm-clear"><svg class="bi" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span>${esc(T("gm_clear"))}</span></button>` : ""}
       <label class="check" style="font-weight:400;font-size:12.5px"><input type="checkbox" id="gm-cb" ${D.on ? "checked" : ""}><span>${esc(T("gm_opt"))}</span></label></div>
     ${cur}
     ${D.sessions.length ? `<div class="tw"><table><tr><th>${esc(T("gm_game"))}</th><th>${esc(T("gm_date"))}</th><th>${esc(T("gm_dur"))}</th>
       <th>GPU${am}</th><th>CPU${am}</th><th>${esc(T("gm_temp"))}${am}</th><th>RAM max</th><th>VRAM max</th><th>${esc(T("gm_verdict"))}</th><th></th></tr>${rows}</table></div>`
       : `<div class="muted" style="font-size:13px">${esc(T("gm_empty"))}</div>`}`);
   const cb = document.getElementById("gm-cb"); if (cb) cb.onchange = e => loadGames("?on=" + (e.target.checked ? 1 : 0));
-  const cl = document.getElementById("gm-clear"); if (cl) cl.onclick = () => { if (cl.dataset.ok) return loadGames("?clear=1"); cl.dataset.ok = 1; cl.textContent = T("gm_sure"); };
+  const cl = document.getElementById("gm-clear"); if (cl) cl.onclick = e => { e.stopPropagation(); if (cl.dataset.ok) return loadGames("?clear=1"); armConfirm(cl, T("gm_sure")); };
   el.querySelectorAll("[data-gstop]").forEach(sb => sb.onclick = async () => { sb.disabled = true;
     try { const d = await stJ("/api/games/stop?key=" + encodeURIComponent(sb.dataset.gstop)); gmData = d; gmT = Date.now(); if (d.stopped) { gmOpen = d.stopped; delete gmTl[d.stopped]; loadTl(d.stopped); } } catch (e) {}
     renderGames(); });
   el.querySelectorAll("[data-gdel]").forEach(b => b.onclick = async e => { e.stopPropagation();
-    if (!b.dataset.ok) { b.dataset.ok = 1; b.classList.add("sure"); b.textContent = T("gm_del_sure"); return; }
+    if (!b.dataset.ok) { armConfirm(b, null); return; }
     const st = +b.dataset.gdel; if (gmOpen === st) gmOpen = null;
     try { gmData = await stJ("/api/games/delete?start=" + st); gmT = Date.now(); } catch (e) {}
     renderGames(); });
@@ -2345,7 +2418,7 @@ document.addEventListener("click", e => { const g = e.target.closest("[data-gh]"
 function privacyHTML() {
   const li = k => `<ul>${T(k).map(x => `<li>${x}</li>`).join("")}</ul>`;   // textes fixes de l'appli (pas de données externes)
   const badge = (k, icon) => `<div class="pv-badge"><span>${icon}</span>${esc(T(k))}</div>`;
-  return `<div class="card prv" id="privacy"><h2>🛡 ${esc(T("tab_privacy"))} · ${esc(T("pv_t"))}</h2><p>${esc(T("pv_intro"))}</p>
+  return `<div class="card prv" id="privacy">${sh2("shield", esc(T("tab_privacy")) + " · " + esc(T("pv_t")))}<p>${esc(T("pv_intro"))}</p>
     <div class="pv-badges">${badge("pv_b1", "🌐")}${badge("pv_b2", "🚫")}${badge("pv_b3", "👤")}${badge("pv_b4", "🗑")}</div>
     <div class="prv-cols"><div><h3>${esc(T("pv_read_t"))}</h3>${li("pv_read")}<h3>${esc(T("pv_net_t"))}</h3>${li("pv_net")}</div>
       <div><h3>${esc(T("pv_store_t"))}</h3>${li("pv_store")}<p class="muted">${esc(T("pv_store_note"))}</p>

@@ -2489,11 +2489,13 @@ function setupHotkeyUI() {
       if (["Control", "Alt", "Shift", "Meta"].includes(e.key)) return;
       document.removeEventListener("keydown", onKey, true); kbd.classList.remove("listen");
       if (e.key === "Escape") { renderCustom(); return; }
-      const vk = VK(e.code), fkey = /^F\d/.test(e.code);
+      // lettres : la lettre réellement tapée (AZERTY, QWERTZ…), pas la position de la touche sur un clavier QWERTY
+      const letter = /^[a-z]$/i.test(e.key) ? e.key.toUpperCase() : null;
+      const vk = letter ? letter.charCodeAt(0) : VK(e.code), fkey = /^F\d/.test(e.code);
       const mods = (e.altKey ? 1 : 0) | (e.ctrlKey ? 2 : 0) | (e.shiftKey ? 4 : 0) | (e.metaKey ? 8 : 0);
       if (!vk || (!(mods & 11) && !fkey)) { kbd.textContent = hotkey ? hotkey.label : T("hk_none"); setText(msg, T("hk_need")); return; }
       const label = [e.ctrlKey && "Ctrl", e.altKey && "Alt", e.shiftKey && "Shift", e.metaKey && "Win",
-                     e.code.replace(/^Key|^Digit/, "")].filter(Boolean).join(" + ");
+                     letter || e.code.replace(/^Key|^Digit/, "")].filter(Boolean).join(" + ");
       const r = await (await fetch(`/api/hotkey?mods=${mods}&vk=${vk}&label=${encodeURIComponent(label)}`)).json();
       if (r.ok) { hotkey = {mods, vk, label}; renderCustom(); }
       else { kbd.textContent = hotkey ? hotkey.label : T("hk_none"); setText(msg, T("hk_taken")); }

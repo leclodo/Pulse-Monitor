@@ -372,6 +372,8 @@
   .hist-tip { position: fixed; z-index: 40; pointer-events: none; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px;
     padding: 7px 10px; font-size: 12.5px; line-height: 1.5; box-shadow: 0 6px 20px #0005; display: none; max-width: 340px; width: max-content; }
   .hist-tip b { font-variant-numeric: tabular-nums; }
+  .tleg { display: flex; align-items: center; gap: 5px; cursor: help; }
+  .tleg .sw { flex: none; display: inline-block; margin-right: 5px; vertical-align: middle; width: 14px !important; min-width: 14px; height: 3px !important; padding: 0 !important; border-radius: 2px; border-radius: 2px; background: linear-gradient(90deg, #5fd38d, #ffb547, #ff5d6c); }
   .hist-nav { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--dim); }
   .hist-nav .btn.sm { padding: 3px 8px; }
   .hist-nav #hist-when { min-width: 60px; text-align: center; font-variant-numeric: tabular-nums; }
@@ -614,7 +616,7 @@ const I18N = {
     hidden_alerts: "conseil(s) masqué(s)",
     hist_t: "Historique", hist_7d: "7 jours", hist_opt: "Enregistrer l'historique (même fenêtre fermée)",
     hist_empty: "Pas encore de données : l'historique se remplit d'un point par minute (gardé 8 jours).",
-    hist_sub_cpu: "moyenne · max", hist_sub_gpu: "moyenne · max · °C", hist_sub_ram: "utilisée", hist_sub_vram: "max",
+    hist_sub_cpu: "moyenne · max", hist_sub_gpu: "moyenne · max", temp_line: "température", temp_line_tip: "Ligne verte / orange / rouge : température de la carte graphique (échelle 20–100 °C). Vert = OK, orange = chaud, rouge = inquiétant.", hist_sub_ram: "utilisée", hist_sub_vram: "max",
     hist_progs: "Programmes en cause :", hist_10min: "moyenne sur 10 min",
     gap_off_short: "éteint", hist_prev: "Plus tôt (tu peux aussi faire glisser un graphique)", hist_next: "Plus tard", hist_now: "Maintenant", hist_live: "en direct", hist_now_l: "maintenant",
     hist_compact: "Compacter les périodes éteintes", hist_compact_tip: "Les coupures de plus de 30 min (PC éteint, appli fermée) deviennent une bande étroite : les graphiques montrent le temps d'utilisation.",
@@ -840,7 +842,7 @@ const I18N = {
     hidden_alerts: "tip(s) hidden",
     hist_t: "History", hist_7d: "7 days", hist_opt: "Record history (even with the window closed)",
     hist_empty: "No data yet: history fills up with one point per minute (kept 8 days).",
-    hist_sub_cpu: "average · max", hist_sub_gpu: "average · max · °C", hist_sub_ram: "used", hist_sub_vram: "max",
+    hist_sub_cpu: "average · max", hist_sub_gpu: "average · max", temp_line: "temperature", temp_line_tip: "Green / orange / red line: graphics card temperature (20–100 °C scale). Green = OK, orange = hot, red = worrying.", hist_sub_ram: "used", hist_sub_vram: "max",
     hist_progs: "Programs involved:", hist_10min: "10-min average",
     gap_off_short: "off", hist_prev: "Earlier (you can also drag a chart)", hist_next: "Later", hist_now: "Now", hist_live: "live", hist_now_l: "now",
     hist_compact: "Compact switched-off periods", hist_compact_tip: "Gaps longer than 30 min (PC off, app closed) become a narrow band: the charts show usage time.",
@@ -1937,7 +1939,7 @@ function renderHistory() {
     el.innerHTML = head + `<div class="muted" style="font-size:13px;padding:8px 0">${esc(T("hist_empty"))}</div>`;
   } else {
     el.innerHTML = head + HSERIES.map(s => `<div class="hist-row"><div class="lab" style="color:${s.col()}">${s.lab}
-        <small>${esc(T("hist_sub_" + s.k))}</small></div><canvas data-hs="${s.k}"></canvas></div>`).join("") +
+        <small>${esc(T("hist_sub_" + s.k))}</small>${s.temp ? tempLeg() : ""}</div><canvas data-hs="${s.k}"></canvas></div>`).join("") +
       `<div class="hist-axis"><div></div><div id="hist-axis"></div></div>`;
     drawHistory();
     el.querySelectorAll("canvas").forEach(c => {
@@ -2071,6 +2073,12 @@ function histPointAt(frac) {
     if (b - a > gap && t > a && t < b) return Math.abs(m.X(best.t) - x) <= 4 ? best : null;
   }
   return best;
+}
+// nom coloré comme son graphique (infobulles)
+const tipL = (k, lab) => `<span style="color:var(--${k});font-weight:600">${lab}</span>`;
+// légende de la ligne de température (dans les graphiques GPU)
+function tempLeg(extra) {
+  return `<small class="tleg" data-tip="${esc(T("temp_line_tip"))}"><span class="sw"></span>${esc(T("temp_line"))}${extra ? " · " + esc(extra) : ""}</small>`;
 }
 function fmtGap(s) { const h = s / 3600; return h >= 48 ? Math.round(h / 24) + (lang === "fr" ? " j" : " d") : h >= 1 ? Math.round(h) + " h" : Math.round(s / 60) + " min"; }
 // glisser un graphique de l'historique vers la droite = remonter dans le temps (les données suivent la souris)
@@ -2219,9 +2227,9 @@ function histTip(e) {
   const when = new Date(p.t * 1000).toLocaleString(lang === "fr" ? "fr-FR" : "en-GB", {weekday: "short", hour: "2-digit", minute: "2-digit"});
   const progs = p.p ? Object.entries(p.p).map(([k, v]) => `${k.toUpperCase()} → <b>${esc(v)}</b>`).join("<br>") : "";
   histTipEl.innerHTML = `<div class="muted">${esc(when)}${histData.step > 60 ? " (" + T("hist_10min") + ")" : ""}</div>
-    CPU <b>${Math.round(p.c)} %</b> <span class="muted">(max ${Math.round(p.C)} %)</span><br>
-    GPU <b>${Math.round(p.g)} %</b> <span class="muted">(max ${Math.round(p.G)} %)</span>${p.T ? ` · <b style="color:${tempCol(p.T)}">${Math.round(p.T)} °C</b>` : ""}<br>
-    RAM <b>${Math.round(p.r)} %</b> · VRAM <b>${Math.round(p.v)} %</b>${p.d || p.hd ? `<div class="muted" style="font-size:11.5px;margin-top:3px">${esc(T("hd_hint"))}</div>` : ""}${progs ? `<div style="margin-top:4px;border-top:1px solid var(--line);padding-top:4px"><span class="muted">${esc(T("hist_progs"))}</span><br>${progs}</div>` : ""}`;
+    ${tipL("cpu", "CPU")} <b>${Math.round(p.c)} %</b> <span class="muted">(max ${Math.round(p.C)} %)</span><br>
+    ${tipL("gpu", "GPU")} <b>${Math.round(p.g)} %</b> <span class="muted">(max ${Math.round(p.G)} %)</span>${p.T ? ` · <b style="color:${tempCol(p.T)}">${Math.round(p.T)} °C</b>` : ""}<br>
+    ${tipL("vram", "VRAM")} <b>${Math.round(p.v)} %</b><br>${tipL("ram", "RAM")} <b>${Math.round(p.r)} %</b>${p.d || p.hd ? `<div class="muted" style="font-size:11.5px;margin-top:3px">${esc(T("hd_hint"))}</div>` : ""}${progs ? `<div style="margin-top:4px;border-top:1px solid var(--line);padding-top:4px"><span class="muted">${esc(T("hist_progs"))}</span><br>${progs}</div>` : ""}`;
   histTipEl.style.display = "block";
   placeHistTip(e);
 }
@@ -2363,7 +2371,7 @@ function renderGames() {
   const loc = lang === "fr" ? "fr-FR" : "en-GB";
   const rows = D.sessions.map(g => { const v = gmVerdict(g), op = gmOpen === g.start;
     const det = op ? `<tr class="gm-det"><td colspan="11">${g.has_tl ? `<div class="gm-charts">${GSER.filter(x => !x.only || x.only(g)).map(x => `<div class="hist-row"><div class="lab" style="color:${x.col()}">${x.lab}
-        <small>${esc(x.sub(g))}</small>${x.sub2 && x.sub2(g) ? `<small>${esc(x.sub2(g))}</small>` : ""}</div><canvas data-gc="${x.k}"></canvas></div>`).join("")}
+        <small>${esc(x.sub(g))}</small>${x.t && g.temp_max ? tempLeg("max " + g.temp_max + " °C") : x.sub2 && x.sub2(g) ? `<small>${esc(x.sub2(g))}</small>` : ""}</div><canvas data-gc="${x.k}"></canvas></div>`).join("")}
         <div class="hist-axis"><div></div><div id="gm-axis"></div></div></div>`
       : `<div class="muted" style="font-size:12.5px;padding:6px 0">${esc(T("gm_no_tl"))}</div>`}</td></tr>` : "";
     return `<tr class="gm-r ${op ? "on" : ""}" data-gs="${g.start}" data-tip="${esc(T(op ? "gm_hide" : "gm_show"))}"><td class="n" title="${esc(g.name)}">${op ? "▾" : "▸"} ${esc(g.name)}</td>
@@ -2439,9 +2447,9 @@ function gmTip(e) {
   const when = new Date((g.start + p[0]) * 1000).toLocaleTimeString(lang === "fr" ? "fr-FR" : "en-GB", {hour: "2-digit", minute: "2-digit"});
   const R = v => v == null ? "–" : Math.round(v) + " %";
   histTipEl.innerHTML = `<div class="muted">${esc(when)}</div>
-    CPU <b>${R(p[1])}</b> <span class="muted">(max ${R(p[2])})</span><br>
-    GPU <b>${R(p[3])}</b> <span class="muted">(max ${R(p[4])})</span>${p[5] ? ` · <b style="color:${tempCol(p[5])}">${Math.round(p[5])} °C</b>` : ""}<br>
-    RAM <b>${R(p[6])}</b> · VRAM <b>${R(p[7])}</b>${p[8] ? `<br>FPS <b>${Math.round(p[8])}</b> <span class="muted">(${esc(T("gm_fps_low"))} ${p[9] ? Math.round(p[9]) : "–"})</span>` : ""}<div class="muted" style="font-size:11.5px;margin-top:3px">${esc(T("hd_hint"))}</div>`;
+    ${tipL("cpu", "CPU")} <b>${R(p[1])}</b> <span class="muted">(max ${R(p[2])})</span><br>
+    ${tipL("gpu", "GPU")} <b>${R(p[3])}</b> <span class="muted">(max ${R(p[4])})</span>${p[5] ? ` · <b style="color:${tempCol(p[5])}">${Math.round(p[5])} °C</b>` : ""}<br>
+    ${tipL("vram", "VRAM")} <b>${R(p[7])}</b><br>${tipL("ram", "RAM")} <b>${R(p[6])}</b>${p[8] ? `<br><span style="color:#5fd38d;font-weight:600">FPS</span> <b>${Math.round(p[8])}</b> <span class="muted">(${esc(T("gm_fps_low"))} ${p[9] ? Math.round(p[9]) : "–"})</span>` : ""}<div class="muted" style="font-size:11.5px;margin-top:3px">${esc(T("hd_hint"))}</div>`;
   histTipEl.style.display = "block";
   placeHistTip(e);
 }

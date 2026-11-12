@@ -6,7 +6,7 @@
 
 Tableau de bord simple et léger pour Windows : performances du PC en temps réel (façon Gestionnaire des tâches), fiche des composants utile pour changer des pièces, analyse du stockage, santé des disques et rapports de sessions de jeu. 100 % local, aucune télémétrie.
 
-Version actuelle : **v0.7.26**
+Version actuelle : **v0.7.29**
 
 ## Télécharger
 

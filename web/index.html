@@ -65,6 +65,7 @@
     opacity: 0; transition: opacity .3s; }
   #tabs button.neon:hover { color: #fff; text-shadow: 0 0 6px #ffffffaa; box-shadow: 0 0 10px #3ee8ff99, 0 0 20px #ff4fd866; }
   #tabs button.neon:hover::before { opacity: 1; }
+  [data-theme="light"] #tabs button.neon:hover { color: #1d1f2b; text-shadow: none; box-shadow: 0 0 10px #00a8c855, 0 0 18px #d6338466; }
   #tabs button.neon::after { content: ""; position: absolute; top: -20%; bottom: -20%; width: 40%; left: -60%; pointer-events: none;
     background: linear-gradient(100deg, transparent, #ffffff55, transparent); transform: skewX(-20deg); opacity: 0; transition: opacity .3s; }
   #tabs button.neon:hover::after { opacity: 1; animation: sweep 1.3s ease-in-out infinite; }
@@ -2265,7 +2266,9 @@ function drawSession() {
     const line = (idx, color, width, fill, yf) => {
       const pts = tl.filter(p => p[idx] != null).map(p => [X(Math.max(0, p[0] - 30)), (yf || Y)(p[idx])]);
       if (!pts.length) return;
-      if (pts.length === 1) pts.unshift([0, pts[0][1]]);
+      // chaque point = la moyenne d'une minute, placé au milieu de sa minute : on prolonge jusqu'aux deux bords
+      if (pts[0][0] > 0) pts.unshift([0, pts[0][1]]);
+      if (pts[pts.length - 1][0] < w) pts.push([w, pts[pts.length - 1][1]]);
       if (fill) { const gr = ctx.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, color + "55"); gr.addColorStop(1, color + "05");
         ctx.beginPath(); ctx.moveTo(pts[0][0], h); pts.forEach(q => ctx.lineTo(q[0], q[1])); ctx.lineTo(pts[pts.length - 1][0], h); ctx.closePath(); ctx.fillStyle = gr; ctx.fill(); }
       ctx.beginPath(); pts.forEach((q, i) => i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1])); ctx.strokeStyle = color; ctx.lineWidth = width;
@@ -2277,7 +2280,10 @@ function drawSession() {
       const pts = tl.filter(p => p[5] != null);
       const XT = t => X(Math.max(0, t - 30));
       for (let i = 1; i < pts.length; i++) { ctx.beginPath(); ctx.moveTo(XT(pts[i - 1][0]), yT(pts[i - 1][5])); ctx.lineTo(XT(pts[i][0]), yT(pts[i][5]));
-        { const tc = tempCol(Math.max(pts[i - 1][5], pts[i][5])); ctx.strokeStyle = tc; ctx.stroke(); } } }
+        { const tc = tempCol(Math.max(pts[i - 1][5], pts[i][5])); ctx.strokeStyle = tc; ctx.stroke(); } }
+      if (pts.length) for (const [xa, xb, q] of [[0, XT(pts[0][0]), pts[0]], [XT(pts[pts.length - 1][0]), w, pts[pts.length - 1]]]) {
+        if (xb <= xa) continue;               // prolongée jusqu'aux bords, comme les autres courbes
+        ctx.beginPath(); ctx.moveTo(xa, yT(q[5])); ctx.lineTo(xb, yT(q[5])); ctx.strokeStyle = tempCol(q[5]); ctx.stroke(); } }
     if (gmCursor != null) { const x = Math.round(gmCursor * w) + .5; ctx.strokeStyle = "#ffffff55"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
   });
   const ax = document.getElementById("gm-axis");
@@ -2356,18 +2362,20 @@ function renderGames() {
   const tc = v => v == null ? "" : `color:${v >= 85 ? "var(--bad)" : v >= 75 ? "var(--warn)" : "var(--ok)"}`;
   const loc = lang === "fr" ? "fr-FR" : "en-GB";
   const rows = D.sessions.map(g => { const v = gmVerdict(g), op = gmOpen === g.start;
-    const det = op ? `<tr class="gm-det"><td colspan="10">${g.has_tl ? `<div class="gm-charts">${GSER.filter(x => !x.only || x.only(g)).map(x => `<div class="hist-row"><div class="lab" style="color:${x.col()}">${x.lab}
+    const det = op ? `<tr class="gm-det"><td colspan="11">${g.has_tl ? `<div class="gm-charts">${GSER.filter(x => !x.only || x.only(g)).map(x => `<div class="hist-row"><div class="lab" style="color:${x.col()}">${x.lab}
         <small>${esc(x.sub(g))}</small>${x.sub2 && x.sub2(g) ? `<small>${esc(x.sub2(g))}</small>` : ""}</div><canvas data-gc="${x.k}"></canvas></div>`).join("")}
         <div class="hist-axis"><div></div><div id="gm-axis"></div></div></div>`
       : `<div class="muted" style="font-size:12.5px;padding:6px 0">${esc(T("gm_no_tl"))}</div>`}</td></tr>` : "";
     return `<tr class="gm-r ${op ? "on" : ""}" data-gs="${g.start}" data-tip="${esc(T(op ? "gm_hide" : "gm_show"))}"><td class="n" title="${esc(g.name)}">${op ? "▾" : "▸"} ${esc(g.name)}</td>
       <td>${esc(new Date(g.start * 1000).toLocaleString(loc, {weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"}))}</td>
-      <td>${fmtD(g.dur)}</td><td>${g.gpu} / <span class="muted">${g.gpu_max} %</span></td><td>${g.cpu} / <span class="muted">${g.cpu_max} %</span></td>
+      <td>${fmtD(g.dur)}</td><td>${g.cpu} / <span class="muted">${g.cpu_max} %</span></td><td>${g.gpu} / <span class="muted">${g.gpu_max} %</span></td>
       <td>${g.temp_max != null ? `<span style="${tc(g.temp)}">${g.temp}</span> / <span style="${tc(g.temp_max)}">${g.temp_max} °C</span>` : "–"}</td>
-      <td>${g.ram_max} %</td><td>${g.vram_max} %</td>
+      <td>${g.vram_max} %</td><td>${g.ram_max} %</td>
+      <td>${g.fps ? `<span style="color:#5fd38d">${g.fps}</span> / <span class="muted">${g.fps_low ?? "–"}</span>` : "–"}</td>
       <td data-tip="${esc(T("gm_vt_" + v))}"><span style="color:${vcol(v)}">●</span> ${esc(T("gm_v_" + v))}</td>
       <td class="gm-dcol"><button class="gm-del" data-gdel="${g.start}" data-tip="${esc(T("gm_del"))}"><svg class="bi" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button></td></tr>${det}`; }).join("");
   const am = `<span style="display:block;text-transform:none;letter-spacing:0;font-weight:400">${esc(T("gm_avgmax"))}</span>`;
+  const fl = `<span style="display:block;text-transform:none;letter-spacing:0;font-weight:400">${esc(T("gm_avg"))} / ${esc(T("gm_fps_low"))}</span>`;
   const F = D.fps || {state: "unsupported"};
   const fpsNote = !F.on ? "" : F.state === "no_rights" ? `<div class="gm-live" style="flex-wrap:wrap;margin-bottom:8px"><span class="muted" style="flex:1;min-width:260px">${esc(T(F.granted ? "gm_fps_relog" : (gmFpsFail ? "gm_fps_fail" : "gm_fps_need")))}</span>
       ${F.granted ? "" : `<button class="btn sm" id="gm-fps-ok" ${gmGranting ? "disabled" : ""}>🛡 ${esc(gmGranting ? "…" : T("gm_fps_btn"))}</button>`}</div>`
@@ -2383,7 +2391,7 @@ function renderGames() {
     ${fpsNote}
     ${cur}
     ${D.sessions.length ? `<div class="tw"><table><tr><th>${esc(T("gm_game"))}</th><th>${esc(T("gm_date"))}</th><th>${esc(T("gm_dur"))}</th>
-      <th>GPU${am}</th><th>CPU${am}</th><th>${esc(T("gm_temp"))}${am}</th><th>RAM max</th><th>VRAM max</th><th>${esc(T("gm_verdict"))}</th><th></th></tr>${rows}</table></div>`
+      <th>CPU${am}</th><th>GPU${am}</th><th>${esc(T("gm_temp"))}${am}</th><th>VRAM max</th><th>RAM max</th><th>FPS${fl}</th><th>${esc(T("gm_verdict"))}</th><th></th></tr>${rows}</table></div>`
       : `<div class="muted" style="font-size:13px">${esc(T("gm_empty"))}</div>`}`);
   const cb = document.getElementById("gm-cb"); if (cb) cb.onchange = e => loadGames("?on=" + (e.target.checked ? 1 : 0));
   const fc = document.getElementById("gm-fps"); if (fc) fc.onchange = e => loadGames("?fps=" + (e.target.checked ? 1 : 0));

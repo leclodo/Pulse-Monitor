@@ -24,7 +24,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import psutil
 
 APP_NAME = "Pulse Monitor"
-APP_VERSION = "0.7.13"
+APP_VERSION = "0.7.26"
 IS_WIN = os.name == "nt"
 FROZEN = bool(getattr(sys, "frozen", False))      # version .exe (PyInstaller)
 # données (réglages, historique…) : à côté du .exe ou du script ; fichiers de l'appli (page, icônes) : dans le paquet
@@ -105,10 +105,10 @@ def _setup_log():
 
     # erreurs non prévues (plantages) : dans le journal, avec leur détail
     def hook(t, v, tb):
-        logging.getLogger("pulse").critical("Plantage (%s)", "fenêtre" if "--window" in sys.argv else "appli", exc_info=(t, v, tb))
+        logging.getLogger("pulse").critical("Crash (%s)", "window" if "--window" in sys.argv else "app", exc_info=(t, v, tb))
     sys.excepthook = hook
     threading.excepthook = lambda a: logging.getLogger("pulse").critical(
-        "Plantage dans un fil d'exécution (%s)", getattr(a.thread, "name", "?"), exc_info=(a.exc_type, a.exc_value, a.exc_traceback))
+        "Crash in thread (%s)", getattr(a.thread, "name", "?"), exc_info=(a.exc_type, a.exc_value, a.exc_traceback))
     # plantage « dur » (ex. dans une fonction Windows) : trace écrite directement dans le journal
     try:
         import faulthandler
@@ -159,7 +159,7 @@ def run_ps_json(script, timeout=90):
         text = out.stdout.decode("utf-8", errors="replace").strip()
         return json.loads(text) if text else None
     except Exception:
-        log.exception("PowerShell a échoué")
+        log.exception("PowerShell failed")
         return None
 
 
@@ -283,7 +283,7 @@ class D3DKMT:
                 self.adapters.append({"luid": luid, "name": name, "handle": a.hAdapter})
             log.info("GPU (D3DKMT) : %s", [(a["name"], a["luid"]) for a in self.adapters])
         except Exception:
-            log.exception("D3DKMT indisponible")
+            log.exception("D3DKMT unavailable")
             self.adapters = []
 
     def _q(self, handle, qtype, struct):
@@ -473,7 +473,7 @@ class CounterReader(threading.Thread):
         try:
             mem = self.pdh.process_memory()
         except Exception:
-            log.exception("Mémoire GPU par processus")
+            log.exception("GPU memory per process")
             return {}
         out = {}
         for name, v in mem.items():
@@ -501,9 +501,9 @@ class CounterReader(threading.Thread):
         try:
             pdh = PdhCounters()
             self.pdh = pdh
-            log.info("Compteurs PDH actifs : %s", list(pdh.h))
+            log.info("PDH counters active: %s", list(pdh.h))
         except Exception:
-            log.exception("PDH indisponible, passage par PowerShell")
+            log.exception("PDH unavailable, falling back to PowerShell")
             return self._run_powershell()
         n = 0
         while True:
@@ -523,7 +523,7 @@ class CounterReader(threading.Thread):
                 eng, mem, perf = pdh.read()
                 self._store(aggregate_gpu(eng), aggregate_mem(mem), perf, eng)
             except Exception:
-                log.exception("Lecture PDH")
+                log.exception("PDH read")
                 time.sleep(5)
 
     # ---- plan B ----
@@ -538,7 +538,7 @@ class CounterReader(threading.Thread):
                     if line.startswith("{"):
                         self._parse_ps(json.loads(line))
             except Exception:
-                log.exception("Lecture des compteurs interrompue")
+                log.exception("Counter reading stopped")
             time.sleep(5)
 
     def _parse_ps(self, d):
@@ -1015,7 +1015,7 @@ class Insights:
         try:
             self.startup = startup_programs()
         except Exception:
-            log.exception("Programmes au démarrage")
+            log.exception("Startup programs")
 
     def _account(self, dt, cpu, maxcore, ram, gpu, vram_ratio):
         dt = min(max(dt, 0), 5)
@@ -1062,7 +1062,7 @@ class Insights:
         try:
             self.alerts = self._alerts()
         except Exception:
-            log.exception("Conseils")
+            log.exception("Insights")
             self.alerts = []
 
     # ---------- fenêtre fermée : mesure légère toutes les 2 s ----------
@@ -1284,7 +1284,7 @@ class Sampler(threading.Thread):
                     try:
                         self.insights.on_background()
                     except Exception:
-                        log.exception("Analyse en arrière-plan")
+                        log.exception("Background analysis")
                 continue
             try:
                 data = self.sample()
@@ -1294,7 +1294,7 @@ class Sampler(threading.Thread):
                 with self.lock:
                     self.latest = data
             except Exception:
-                log.exception("Erreur de mesure")
+                log.exception("Measurement error")
 
     def _volumes(self):
         # L'espace disque bouge lentement : on ne le relit que toutes les 10 s.
@@ -1564,12 +1564,12 @@ class DiskScan:
                 with gzip.open(os.path.join(SCANS_DIR, self._key(root) + ".json.gz"), "wt", encoding="utf-8") as f:
                     json.dump(res, f, ensure_ascii=False, separators=(",", ":"))
             except Exception:
-                log.exception("Sauvegarde de l'analyse")
+                log.exception("Saving disk scan")
             st.update(running=False, done=True)
         except InterruptedError:
             st.update(running=False, stopped=True)
         except Exception:
-            log.exception("Analyse du disque")
+            log.exception("Disk scan")
             st.update(running=False, error=True)
         finally:
             trim_memory()
@@ -1585,7 +1585,7 @@ class DiskScan:
                     self.results[root] = json.load(fh)
                 return self.results[root]
             except Exception:
-                log.exception("Lecture de l'analyse")
+                log.exception("Reading disk scan")
         return None
 
     def node(self, root, path):
@@ -1666,7 +1666,7 @@ def update_check():
             raise ValueError("APP_VERSION introuvable")
         latest = m.group(1)
     except Exception as e:
-        log.warning("Vérification des mises à jour : %s", e)
+        log.warning("Update check: %s", e)
         code = getattr(e, "code", None)            # erreur HTTP : GitHub a bien répondu
         err = "norelease" if code == 404 else "rate" if code in (403, 429) else "net"
         return {"error": err, "current": APP_VERSION}
@@ -1696,7 +1696,7 @@ def auto_update_loop():
                     update_settings(update_last=time.time())
                     UPDATE_AVAIL[0] = info.get("latest") if info.get("newer") else None
         except Exception:
-            log.exception("Vérification automatique des mises à jour")
+            log.exception("Automatic update check")
         time.sleep(1800)
 
 
@@ -1747,7 +1747,7 @@ def update_install():
                 with z.open(n) as fsrc, open(dst + ".new", "wb") as fdst:
                     shutil.copyfileobj(fsrc, fdst)
                 os.replace(dst + ".new", dst)
-            log.info("Mise à jour installée : %s -> %s", APP_VERSION, info.get("latest"))
+            log.info("Update installed: %s -> %s", APP_VERSION, info.get("latest"))
             UPDATE_STATE.update(done=True)
             time.sleep(1.5)                               # laisse la page afficher « redémarrage… »
             subprocess.Popen(self_cmd("--wait-pid", str(os.getpid()), "--open"),
@@ -1756,7 +1756,7 @@ def update_install():
                 QUIT_HOOK[0]()
             os._exit(0)
         except Exception as e:
-            log.exception("Mise à jour")
+            log.exception("Update")
             UPDATE_STATE.update(error=str(e) or "err")
         UPDATE_STATE["busy"] = False
     threading.Thread(target=job, daemon=True).start()
@@ -1879,7 +1879,7 @@ class TempScan:
             rb, rn = recycle_bin_size()
             groups.append({"id": "recycle", "size": rb, "items": [{"path": "shell:RecycleBinFolder", "size": rb, "files": rn}]})
         except Exception:
-            log.exception("Fichiers temporaires")
+            log.exception("Temporary files")
         groups.sort(key=lambda g: -g["size"])
         self.data = {"groups": groups, "total": sum(g["size"] for g in groups), "date": time.time(), "duration": time.time() - t0}
         self.busy = False
@@ -1965,7 +1965,7 @@ class History(threading.Thread):
                     except psutil.Error:
                         pass
         except Exception:
-            log.exception("Historique : programmes")
+            log.exception("History: programs")
         return p
 
     def _top3(self, luid):
@@ -2022,13 +2022,13 @@ class History(threading.Thread):
             if d:
                 pt["d"] = d
         except Exception:
-            log.exception("Historique : détail des programmes")
+            log.exception("History: program details")
         day = time.strftime("%Y-%m-%d", time.localtime(minute * 60))
         try:
             with open(os.path.join(HIST_DIR, day + ".jsonl"), "a", encoding="utf-8") as f:
                 f.write(json.dumps(pt, separators=(",", ":")) + "\n")
         except Exception:
-            log.exception("Historique : écriture")
+            log.exception("History: write")
 
     def _cleanup(self):
         limit = time.strftime("%Y-%m-%d", time.localtime(time.time() - self.KEEP_DAYS * 86400))
@@ -2054,7 +2054,7 @@ class History(threading.Thread):
                     try:
                         GAMES[0].tick(m, self.STEP)
                     except Exception:
-                        log.exception("Sessions de jeu")
+                        log.exception("Gaming sessions")
                 if not HIST_ON[0]:
                     self.acc = []
                     continue
@@ -2068,7 +2068,7 @@ class History(threading.Thread):
                 if n % 720 == 0:
                     self._cleanup()
             except Exception:
-                log.exception("Historique")
+                log.exception("History")
 
 
 # --------------------------------------------------------------------------
@@ -2108,6 +2108,308 @@ def _fg_window():
             m = mi.rcMonitor   # plein écran ou fenêtré sans bordure : la fenêtre couvre tout l'écran
             full = rc.left <= m.left and rc.top <= m.top and rc.right >= m.right and rc.bottom >= m.bottom
     return pid.value, full
+
+
+# --------------------------------------------------------------------------
+# Images par seconde des jeux : événements « Present » de Windows (ETW), lus directement (comme PresentMon)
+# Nécessite les droits administrateur OU le groupe « Utilisateurs du journal de performances » (S-1-5-32-559).
+# --------------------------------------------------------------------------
+class FrameCounter:
+    SESSION = "PulseMonitorFPS"
+    # fournisseurs : (GUID, id de l'événement « une image affichée », mots-clés, type)
+    PROVIDERS = (
+        ("{CA11C036-0102-4A2D-A6AD-F03CFED5D3C9}", 42, 0xFFFFFFFFFFFFFFFF, 0),    # DXGI : Present_Start (DirectX 10–12)
+        ("{783ACA0A-790E-4D7F-8451-AA850511C6B9}", 1, 0xFFFFFFFFFFFFFFFF, 1),     # Direct3D 9 : Present_Start
+        ("{802EC45A-1E99-4B83-9920-87C98277BA9D}", 184, 0x8000000, 2),            # DxgKrnl : Present (Vulkan, OpenGL…)
+    )
+
+    def __init__(self):
+        self.state = "unknown"          # ok | no_rights | error | unsupported | unknown
+        self.lock = threading.Lock()
+        self.targets = frozenset()
+        self.ts = {}                    # (pid, type) -> [horodatages QPC]
+        self.last = {}                  # (pid, type) -> dernier horodatage (entre deux relevés)
+        self.th = None
+        self.handle = None
+        self.trace = None
+        self._ids = {}
+        if not IS_WIN:
+            self.state = "unsupported"
+            return
+        import ctypes.wintypes as W
+        self.W = W
+        f = ctypes.c_longlong()
+        ctypes.windll.kernel32.QueryPerformanceFrequency(ctypes.byref(f))
+        self.qpf = f.value or 10_000_000
+        self._define()
+
+    # ---- structures Windows ----
+    def _define(self):
+        W, C = self.W, ctypes
+
+        class GUID(C.Structure):
+            _fields_ = [("Data1", C.c_ulong), ("Data2", C.c_ushort), ("Data3", C.c_ushort), ("Data4", C.c_ubyte * 8)]
+
+        class WNODE_HEADER(C.Structure):
+            _fields_ = [("BufferSize", C.c_ulong), ("ProviderId", C.c_ulong), ("HistoricalContext", C.c_uint64),
+                        ("TimeStamp", C.c_int64), ("Guid", GUID), ("ClientContext", C.c_ulong), ("Flags", C.c_ulong)]
+
+        class EVENT_TRACE_PROPERTIES(C.Structure):
+            _fields_ = [("Wnode", WNODE_HEADER), ("BufferSize", C.c_ulong), ("MinimumBuffers", C.c_ulong),
+                        ("MaximumBuffers", C.c_ulong), ("MaximumFileSize", C.c_ulong), ("LogFileMode", C.c_ulong),
+                        ("FlushTimer", C.c_ulong), ("EnableFlags", C.c_ulong), ("AgeLimit", C.c_long),
+                        ("NumberOfBuffers", C.c_ulong), ("FreeBuffers", C.c_ulong), ("EventsLost", C.c_ulong),
+                        ("BuffersWritten", C.c_ulong), ("LogBuffersLost", C.c_ulong), ("RealTimeBuffersLost", C.c_ulong),
+                        ("LoggerThreadId", C.c_void_p), ("LogFileNameOffset", C.c_ulong), ("LoggerNameOffset", C.c_ulong)]
+
+        class EVENT_DESCRIPTOR(C.Structure):
+            _fields_ = [("Id", C.c_ushort), ("Version", C.c_ubyte), ("Channel", C.c_ubyte), ("Level", C.c_ubyte),
+                        ("Opcode", C.c_ubyte), ("Task", C.c_ushort), ("Keyword", C.c_uint64)]
+
+        class EVENT_HEADER(C.Structure):
+            _fields_ = [("Size", C.c_ushort), ("HeaderType", C.c_ushort), ("Flags", C.c_ushort), ("EventProperty", C.c_ushort),
+                        ("ThreadId", C.c_ulong), ("ProcessId", C.c_ulong), ("TimeStamp", C.c_int64), ("ProviderId", GUID),
+                        ("EventDescriptor", EVENT_DESCRIPTOR), ("ProcessorTime", C.c_uint64), ("ActivityId", GUID)]
+
+        class EVENT_RECORD(C.Structure):
+            _fields_ = [("EventHeader", EVENT_HEADER), ("BufferContext", C.c_ulong), ("ExtendedDataCount", C.c_ushort),
+                        ("UserDataLength", C.c_ushort), ("ExtendedData", C.c_void_p), ("UserData", C.c_void_p),
+                        ("UserContext", C.c_void_p)]
+
+        class EVENT_TRACE_HEADER(C.Structure):
+            _fields_ = [("Size", C.c_ushort), ("FieldTypeFlags", C.c_ushort), ("Version", C.c_ulong), ("ThreadId", C.c_ulong),
+                        ("ProcessId", C.c_ulong), ("TimeStamp", C.c_int64), ("Guid", GUID), ("ProcessorTime", C.c_uint64)]
+
+        class EVENT_TRACE(C.Structure):
+            _fields_ = [("Header", EVENT_TRACE_HEADER), ("InstanceId", C.c_ulong), ("ParentInstanceId", C.c_ulong),
+                        ("ParentGuid", GUID), ("MofData", C.c_void_p), ("MofLength", C.c_ulong), ("ClientContext", C.c_ulong)]
+
+        class SYSTEMTIME(C.Structure):
+            _fields_ = [(n, C.c_ushort) for n in ("Y", "M", "DW", "D", "H", "Mi", "S", "Ms")]
+
+        class TIME_ZONE_INFORMATION(C.Structure):
+            _fields_ = [("Bias", C.c_long), ("StandardName", C.c_wchar * 32), ("StandardDate", SYSTEMTIME),
+                        ("StandardBias", C.c_long), ("DaylightName", C.c_wchar * 32), ("DaylightDate", SYSTEMTIME),
+                        ("DaylightBias", C.c_long)]
+
+        class TRACE_LOGFILE_HEADER(C.Structure):
+            _fields_ = [("BufferSize", C.c_ulong), ("Version", C.c_ulong), ("ProviderVersion", C.c_ulong),
+                        ("NumberOfProcessors", C.c_ulong), ("EndTime", C.c_int64), ("TimerResolution", C.c_ulong),
+                        ("MaximumFileSize", C.c_ulong), ("LogFileMode", C.c_ulong), ("BuffersWritten", C.c_ulong),
+                        ("LogInstanceGuid", GUID), ("LoggerName", C.c_void_p), ("LogFileName", C.c_void_p),
+                        ("TimeZone", TIME_ZONE_INFORMATION), ("BootTime", C.c_int64), ("PerfFreq", C.c_int64),
+                        ("StartTime", C.c_int64), ("ReservedFlags", C.c_ulong), ("BuffersLost", C.c_ulong)]
+
+        self.CALLBACK = C.WINFUNCTYPE(None, C.POINTER(EVENT_RECORD))
+
+        class EVENT_TRACE_LOGFILEW(C.Structure):
+            _fields_ = [("LogFileName", C.c_wchar_p), ("LoggerName", C.c_wchar_p), ("CurrentTime", C.c_int64),
+                        ("BuffersRead", C.c_ulong), ("ProcessTraceMode", C.c_ulong), ("CurrentEvent", EVENT_TRACE),
+                        ("LogfileHeader", TRACE_LOGFILE_HEADER), ("BufferCallback", C.c_void_p), ("BufferSize", C.c_ulong),
+                        ("Filled", C.c_ulong), ("EventsLost", C.c_ulong), ("EventRecordCallback", self.CALLBACK),
+                        ("IsKernelTrace", C.c_ulong), ("Context", C.c_void_p)]
+
+        self.GUID, self.PROPS, self.LOGFILE = GUID, EVENT_TRACE_PROPERTIES, EVENT_TRACE_LOGFILEW
+        a = C.WinDLL("advapi32")
+        a.StartTraceW.argtypes = [C.POINTER(C.c_uint64), C.c_wchar_p, C.c_void_p]
+        a.ControlTraceW.argtypes = [C.c_uint64, C.c_wchar_p, C.c_void_p, C.c_ulong]
+        a.EnableTraceEx2.argtypes = [C.c_uint64, C.POINTER(GUID), C.c_ulong, C.c_ubyte, C.c_uint64, C.c_uint64,
+                                     C.c_ulong, C.c_void_p]
+        a.OpenTraceW.argtypes = [C.POINTER(EVENT_TRACE_LOGFILEW)]
+        a.OpenTraceW.restype = C.c_uint64
+        a.ProcessTrace.argtypes = [C.POINTER(C.c_uint64), C.c_ulong, C.c_void_p, C.c_void_p]
+        a.CloseTrace.argtypes = [C.c_uint64]
+        self.api = a
+        # GUID des fournisseurs -> type (comparaison rapide sur Data1)
+        self._kinds = {}
+        for g, eid, _kw, kind in self.PROVIDERS:
+            self._kinds[int(g[1:9], 16)] = (eid, kind)
+
+    @staticmethod
+    def _guid(GUID, s):
+        import uuid
+        u = uuid.UUID(s)
+        g = GUID()
+        g.Data1, g.Data2, g.Data3 = u.fields[0], u.fields[1], u.fields[2]
+        for i, b in enumerate(u.bytes[8:]):
+            g.Data4[i] = b
+        return g
+
+    def _props(self):
+        name_bytes = (len(self.SESSION) + 1) * 2
+        buf = ctypes.create_string_buffer(ctypes.sizeof(self.PROPS) + name_bytes + 1024)
+        p = ctypes.cast(buf, ctypes.POINTER(self.PROPS)).contents
+        p.Wnode.BufferSize = len(buf)
+        p.Wnode.Flags = 0x00020000            # WNODE_FLAG_TRACED_GUID
+        p.Wnode.ClientContext = 1             # horodatage QPC
+        p.LogFileMode = 0x00000100            # EVENT_TRACE_REAL_TIME_MODE
+        p.BufferSize = 64                     # Ko
+        p.MinimumBuffers, p.MaximumBuffers = 4, 16
+        p.FlushTimer = 1
+        p.LoggerNameOffset = ctypes.sizeof(self.PROPS)
+        return buf
+
+    def _stop_session(self):
+        buf = self._props()
+        self.api.ControlTraceW(0, self.SESSION, buf, 1)       # EVENT_TRACE_CONTROL_STOP
+
+    # ---- droits ----
+    def probe(self):
+        """Vérifie (une fois) qu'on a le droit de lire ces événements : ouvre et referme une session."""
+        if self.state == "unsupported":
+            return self.state
+        try:
+            self._stop_session()
+            h = ctypes.c_uint64()
+            r = self.api.StartTraceW(ctypes.byref(h), self.SESSION, self._props())
+            if r == 0:
+                self._stop_session()
+                self.state = "ok"
+            elif r == 5:                       # ERROR_ACCESS_DENIED
+                self.state = "no_rights"
+            else:
+                self.state = "error"
+                log.warning("FPS: StartTrace returned %s", r)
+        except Exception:
+            self.state = "error"
+            log.exception("FPS: permission check")
+        admin = False
+        try:
+            admin = bool(ctypes.windll.shell32.IsUserAnAdmin())
+        except Exception:
+            pass
+        log.info("FPS: capture rights = %s (app running as administrator: %s)", self.state, "yes" if admin else "no")
+        return self.state
+
+    # ---- capture ----
+    def _on_event(self, rec):
+        h = rec.contents.EventHeader
+        pid = h.ProcessId
+        if pid not in self.targets:
+            return
+        k = self._kinds.get(h.ProviderId.Data1)
+        if not k or h.EventDescriptor.Id != k[0]:
+            return
+        lst = self.ts.get((pid, k[1]))
+        if lst is None:
+            lst = self.ts[(pid, k[1])] = []
+        lst.append(h.TimeStamp)
+
+    def _start(self):
+        self._stop_session()
+        h = ctypes.c_uint64()
+        r = self.api.StartTraceW(ctypes.byref(h), self.SESSION, self._props())
+        if r != 0:
+            self.state = "no_rights" if r == 5 else "error"
+            if r != 5:
+                log.warning("FPS: could not start capture (%s)", r)
+            return False
+        self.handle = h.value
+        for g, _eid, kw, _k in self.PROVIDERS:
+            gg = self._guid(self.GUID, g)
+            self.api.EnableTraceEx2(self.handle, ctypes.byref(gg), 1, 4, kw, 0, 0, None)  # ENABLE, niveau « info »
+        lf = self.LOGFILE()
+        lf.LoggerName = self.SESSION
+        lf.ProcessTraceMode = 0x00000100 | 0x10000000      # REAL_TIME | EVENT_RECORD
+        self._cb = self.CALLBACK(self._on_event)             # garder une référence (sinon libéré)
+        lf.EventRecordCallback = self._cb
+        self._lf = lf
+        t = self.api.OpenTraceW(ctypes.byref(lf))
+        if t == 0xFFFFFFFFFFFFFFFF:
+            log.warning("FPS: OpenTrace failed (%s)", ctypes.GetLastError())
+            self._stop_session()
+            self.handle = None
+            self.state = "error"
+            return False
+        self.trace = t
+
+        def run():
+            tr = ctypes.c_uint64(t)
+            try:
+                self.api.ProcessTrace(ctypes.byref(tr), 1, None, None)   # bloque jusqu'à l'arrêt de la session
+            except Exception:
+                log.exception("FPS: reading events")
+            finally:
+                self.api.CloseTrace(t)
+        self.th = threading.Thread(target=run, daemon=True, name="fps")
+        self.th.start()
+        self.state = "ok"
+        log.info("FPS: capture started")
+        return True
+
+    def _stop(self):
+        if self.handle is None:
+            return
+        self._stop_session()                  # ProcessTrace se termine tout seul
+        self.handle = None
+        self.trace = None
+        self.ts, self.last = {}, {}
+        log.info("FPS: capture stopped")
+
+    def set_targets(self, pids):
+        """Processus des jeux en cours. Vide = capture arrêtée (aucun coût hors des sessions de jeu)."""
+        if self.state in ("unsupported", "no_rights"):
+            return
+        pids = frozenset(pids)
+        self.targets = pids
+        try:
+            if pids and self.handle is None:
+                self._start()
+            elif not pids and self.handle is not None:
+                self._stop()
+        except Exception:
+            log.exception("FPS")
+
+    def take(self, pids):
+        """Intervalles entre images (ms) depuis le dernier relevé, pour le processus du jeu qui en affiche le plus."""
+        if self.handle is None:
+            return []
+        best = []
+        ts, self.ts = self.ts, {}            # échange atomique (GIL) : le rappel remplit le nouveau dictionnaire
+        for pid in pids:
+            for kind in (0, 1, 2):            # DXGI, sinon D3D9, sinon le noyau (Vulkan/OpenGL)
+                lst = ts.get((pid, kind))
+                if not lst:
+                    continue
+                prev = self.last.get((pid, kind))
+                self.last[(pid, kind)] = lst[-1]
+                seq = ([prev] if prev else []) + lst
+                iv = [(b - a) * 1000.0 / self.qpf for a, b in zip(seq, seq[1:])]
+                iv = [x for x in iv if 0 < x < 1000]              # > 1 s : jeu en pause / réduit, pas une « image lente »
+                if len(iv) > len(best):
+                    best = iv
+                break
+        return best
+
+
+def fps_stats(iv):
+    """FPS moyen et « 1 % low » (FPS des 1 % d'images les plus lentes) à partir des intervalles en ms."""
+    if len(iv) < 10:
+        return None, None
+    tot = sum(iv)
+    s = sorted(iv)
+    k = max(1, len(s) // 100)
+    slow = s[-k:]
+    return round(len(iv) * 1000 / tot, 1), round(1000 / (sum(slow) / len(slow)), 1)
+
+
+FPS = FrameCounter()
+FPS_ON = [True]
+
+
+def fps_grant():
+    """Ajoute le compte Windows au groupe « Utilisateurs du journal de performances » (une seule fois, avec l'accord
+    de l'administrateur). Il faut ensuite se déconnecter / reconnecter pour que Windows en tienne compte."""
+    user = "%s\\%s" % (os.environ.get("USERDOMAIN", ""), os.environ.get("USERNAME", ""))
+    u = user.replace("'", "''")
+    # déjà membre : pas une erreur
+    cmd = ("if (-not (Get-LocalGroupMember -SID 'S-1-5-32-559' | Where-Object { $_.Name -eq '%s' })) "
+           "{ Add-LocalGroupMember -SID 'S-1-5-32-559' -Member '%s' }" % (u, u))
+    ok = run_elevated_ps(cmd)
+    if ok:
+        update_settings(fps_granted=True)
+        log.info("FPS: account added to the Performance Log Users group")
+    return ok
 
 
 # --------------------------------------------------------------------------
@@ -2314,7 +2616,7 @@ class GameLib:
                 self._index()
                 self._save()
             except Exception:
-                log.exception("Recherche des jeux")
+                log.exception("Installed games search")
             self.busy = False
         threading.Thread(target=job, daemon=True).start()
 
@@ -2456,6 +2758,17 @@ class GameTracker:
             if m["v"] >= 95:
                 c["bv"] += 1
             c["end"] = now
+            iv = FPS.take(pids)
+            if iv:
+                c["ft"].extend(iv)                    # images de la minute en cours
+                c["fn"] += len(iv)
+                c["fms"] += sum(iv)
+                for x in iv:                          # répartition des temps d'image (par 0,5 ms) : pour le 1 % low de la session
+                    b = min(399, int(x * 2))
+                    c["fh"][b] = c["fh"].get(b, 0) + 1
+                c["fps_now"] = fps_stats(iv)[0]
+            else:
+                c["fps_now"] = None
             c["acc"].append(m)
             if len(c["acc"]) * dt >= 60:              # 1 point par minute pour les graphiques de la session
                 self._flush_tl(c)
@@ -2488,6 +2801,8 @@ class GameTracker:
                 if cpid:
                     self.curs[key]["pids"].add(cpid)
                 self.cand.pop(key, None)
+        # 3) mesure des FPS : seulement pendant les sessions de jeu
+        FPS.set_targets(set().union(*[c.get("pids", set()) for c in self.curs.values()]) if FPS_ON[0] else set())
 
     def _open(self, key, name, exe, start, now):
         start = int(start)
@@ -2497,6 +2812,7 @@ class GameTracker:
         self.curs[key] = {"key": key, "name": name[:-4] if name.lower().endswith(".exe") else name, "exe": exe,
                           "start": start, "end": now, "n": 0, "nT": 0, "sT": 0.0, "mT": 0.0,
                           "bg": 0, "bc": 0, "br": 0, "bv": 0, "acc": [], "tl": [],
+                          "ft": [], "fn": 0, "fms": 0.0, "fh": {}, "fmax": 0.0, "fps_now": None,
                           "pids": set(getattr(self, "_run", {}).get(key, ("", set()))[1]),
                           **{p + k: 0.0 for p in ("s", "m") for k in ("c", "g", "r", "v")}}
 
@@ -2508,12 +2824,20 @@ class GameTracker:
         avg = lambda k: round(sum((x[k] or 0) for x in a) / len(a), 1)
         mx = lambda k: round(max((x[k] or 0) for x in a), 1)
         temps = [x["T"] for x in a if x.get("T")]
+        f_avg, f_low = fps_stats(c.get("ft") or [])
+        c["ft"] = []
+        if f_avg:
+            c["fmax"] = max(c.get("fmax", 0.0), f_avg)
         c["tl"].append([int(time.time() - c["start"]), avg("c"), mx("c"), avg("g"), mx("g"),
-                        round(max(temps), 1) if temps else None, avg("r"), mx("v")])
+                        round(max(temps), 1) if temps else None, avg("r"), mx("v"), f_avg, f_low])
         if len(c["tl"]) > 600:                        # très longue session : on regroupe 2 par 2
             t = c["tl"]
+            mean = lambda x, y: round((x + y) / 2, 1) if x is not None and y is not None else (x if y is None else y)
+            low = lambda x, y: min([v for v in (x, y) if v is not None], default=None)
             c["tl"] = [[b[0], round((a_[1] + b[1]) / 2, 1), max(a_[2], b[2]), round((a_[3] + b[3]) / 2, 1), max(a_[4], b[4]),
-                        max([x for x in (a_[5], b[5]) if x is not None], default=None), round((a_[6] + b[6]) / 2, 1), max(a_[7], b[7])]
+                        max([x for x in (a_[5], b[5]) if x is not None], default=None), round((a_[6] + b[6]) / 2, 1), max(a_[7], b[7]),
+                        mean(a_[8] if len(a_) > 8 else None, b[8] if len(b) > 8 else None),
+                        low(a_[9] if len(a_) > 9 else None, b[9] if len(b) > 9 else None)]
                        for a_, b in zip(t[0::2], t[1::2])] + ([t[-1]] if len(t) % 2 else [])
 
     def stop(self, key=None):
@@ -2552,6 +2876,17 @@ class GameTracker:
              "temp": round(c["sT"] / c["nT"]) if c["nT"] else None, "temp_max": round(c["mT"]) if c["mT"] else None,
              "limit": {"gpu": c["bg"] / n, "cpu": c["bc"] / n, "ram": c["br"] / n, "vram": c["bv"] / n},
              "tl": c["tl"]}
+        if c.get("fn", 0) >= 100:                     # FPS de toute la session : moyenne, 1 % low, meilleure minute
+            g["fps"] = round(c["fn"] * 1000 / c["fms"])
+            need, acc, slow_ms, cnt = max(1, c["fn"] // 100), 0, 0.0, 0
+            for b in sorted(c["fh"], reverse=True):  # les 1 % d'images les plus lentes
+                k = min(c["fh"][b], need - cnt)
+                slow_ms += k * (b + 0.5) / 2
+                cnt += k
+                if cnt >= need:
+                    break
+            g["fps_low"] = round(1000 / (slow_ms / cnt)) if cnt else None
+            g["fps_max"] = round(c.get("fmax") or 0) or None
         with self.lock:
             self.sessions.append(g)
             self.sessions = self.sessions[-self.KEEP:]
@@ -2562,12 +2897,14 @@ class GameTracker:
         return [g for g in self.sessions[-3:] if t - g["end"] < self.SHOW_S]
 
     def data(self):
-        cur = [{"key": k, "name": c["name"], "start": int(c["start"]), "dur": int(c["end"] - c["start"])}
+        cur = [{"key": k, "name": c["name"], "start": int(c["start"]), "dur": int(c["end"] - c["start"]),
+                "fps": round(c["fps_now"]) if c.get("fps_now") else None}
                for k, c in sorted(self.curs.items(), key=lambda x: x[1]["start"])]
         paused = [{"key": k, "name": n} for k, n in self.ignore.items()]
         with self.lock:
             ss = [{**{k: v for k, v in g.items() if k != "tl"}, "has_tl": bool(g.get("tl"))} for g in reversed(self.sessions)]
-        return {"sessions": ss, "current": cur, "paused": paused, "on": GAMES_ON[0]}
+        return {"sessions": ss, "current": cur, "paused": paused, "on": GAMES_ON[0],
+                "fps": {"state": FPS.state, "on": FPS_ON[0], "granted": bool(load_settings().get("fps_granted"))}}
 
     def timeline(self, start):
         with self.lock:
@@ -2628,31 +2965,104 @@ def history_at(t):
     return best
 
 
-def read_history(hours):
-    """Points de l'historique ; regroupés par 10 min au-delà de 24 h."""
-    since = time.time() - hours * 3600
-    pts = []
+def _hist_files():
     try:
-        files = sorted(f for f in os.listdir(HIST_DIR) if f.endswith(".jsonl"))
+        return sorted(f for f in os.listdir(HIST_DIR) if f.endswith(".jsonl"))
     except OSError:
-        files = []
-    first_day = time.strftime("%Y-%m-%d", time.localtime(since))
-    for f in files:
-        if f[:10] < first_day:
-            continue
+        return []
+
+
+def _hist_read(f, keep):
+    out = []
+    try:
+        with open(os.path.join(HIST_DIR, f), encoding="utf-8") as fh:
+            for line in fh:
+                try:
+                    pt = json.loads(line)
+                except ValueError:
+                    continue
+                if keep(pt.get("t", 0)):
+                    if "d" in pt:                      # détail des programmes : lu au clic (history_at), trop lourd ici
+                        del pt["d"]
+                        pt["hd"] = 1
+                    out.append(pt)
+    except OSError:
+        pass
+    return out
+
+
+def read_history(view, end=None, compact=False, before=None, after=0):
+    """Points autour de la vue qui se termine à « end » (maintenant par défaut) : « before » heures avant, « after » après
+    (réserve pour glisser). compact : heures de mesures (les périodes éteintes ne comptent pas), sinon heures d'horloge.
+    Regroupés par 10 min quand la vue dépasse 24 h. Renvoie (points, pas, {t0, t1, more, first})."""
+    now = time.time()
+    live = end is None or end >= now - 60
+    end = now if live else end
+    before = before or view
+    after = 0 if live else after
+    files = _hist_files()
+    first = None
+    if files:
         try:
-            with open(os.path.join(HIST_DIR, f), encoding="utf-8") as fh:
-                for line in fh:
-                    try:
-                        pt = json.loads(line)
-                    except ValueError:
-                        continue
-                    if pt.get("t", 0) >= since:
-                        pts.append(pt)
-        except OSError:
+            with open(os.path.join(HIST_DIR, files[0]), encoding="utf-8") as fh:
+                first = json.loads(fh.readline()).get("t")
+        except (OSError, ValueError):
             pass
-    if hours <= 24:
-        return pts, 60
+    day = lambda t: time.strftime("%Y-%m-%d", time.localtime(t))
+    if not compact:
+        since, until = end - before * 3600, min(now, end + after * 3600)
+        pts = []
+        for f in files:
+            if day(since) <= f[:10] <= day(until):
+                pts += _hist_read(f, lambda t: since <= t <= until)
+        pts.sort(key=lambda p: p["t"])
+        # dernière mesure avant / première après la réserve : pour dessiner une coupure qui commence ou finit hors de la vue
+        lim0 = pts[0]["t"] if pts else until
+        prev = nxt = None
+        for f in reversed(files):
+            if f[:10] > day(lim0):
+                continue
+            ts = [p["t"] for p in _hist_read(f, lambda t: t < lim0)]
+            if ts:
+                prev = max(ts)
+                break
+        if until < now - 60:
+            lim1 = pts[-1]["t"] if pts else since
+            for f in files:
+                if f[:10] < day(lim1):
+                    continue
+                ts = [p["t"] for p in _hist_read(f, lambda t: t > lim1)]
+                if ts:
+                    nxt = min(ts)
+                    break
+        meta = {"t0": since, "t1": now if until >= now - 60 else until, "more": bool(first and first < since), "first": first,
+                "prev": prev, "next": nxt}
+    else:
+        nb, na = int(before * 60), int(after * 60)
+        old, new = [], []
+        for f in reversed(files):                       # avant « end » : du plus récent au plus ancien
+            if f[:10] > day(end):
+                continue
+            if len(old) >= nb:
+                break
+            old = _hist_read(f, lambda t: t <= end) + old
+        more = len(old) > nb
+        old = old[-nb:] if nb else []
+        if na:
+            for f in files:                             # après « end » : du plus ancien au plus récent
+                if f[:10] < day(end):
+                    continue
+                if len(new) >= na:
+                    break
+                new += _hist_read(f, lambda t: t > end)
+        reached = len(new) <= na                        # on a tout jusqu'à maintenant
+        new = new[:na]
+        pts = old + new
+        t0 = pts[0]["t"] if pts else end
+        t1 = now if (live or reached) else (new[-1]["t"] if new else end)
+        meta = {"t0": t0, "t1": t1, "more": more, "first": first}
+    if view <= 24:
+        return pts, 60, meta
     step = 600
     out, bucket, key = [], [], None
     for pt in pts + [None]:
@@ -2669,14 +3079,14 @@ def read_history(hours):
                     progs.setdefault(kk, vv)
             if progs:
                 agg["p"] = progs
-            if peak.get("d"):
-                agg["d"] = peak["d"]
+            if peak.get("hd"):
+                agg["hd"], agg["dt"] = 1, peak["t"]       # détail : celui du moment le plus chargé des 10 min
             out.append(agg)
             bucket = []
         if pt:
             key = k
             bucket.append(pt)
-    return out, step
+    return out, step, meta
 
 
 # --------------------------------------------------------------------------
@@ -2707,6 +3117,36 @@ def _health_script(out_file=None):
     if out_file:   # version admin : écrit le résultat dans un fichier
         return HEALTH_PS + "\n[IO.File]::WriteAllText('%s', $json, [Text.Encoding]::UTF8)\n" % out_file.replace("'", "''")
     return HEALTH_PS + "\n$json\n"
+
+
+def run_elevated_ps(cmd, wait=60):
+    """Lance une commande PowerShell avec l'accord de l'administrateur (fenêtre UAC). True si elle a réussi."""
+    if not IS_WIN:
+        return False
+    os.makedirs(SCANS_DIR, exist_ok=True)
+    done = os.path.join(SCANS_DIR, "elevated_%d.txt" % os.getpid())
+    try:
+        os.remove(done)
+    except OSError:
+        pass
+    full = ("$ErrorActionPreference='Stop'; $r='fail'; try { %s; $r='ok' } catch { $r='fail' }; "
+            "[IO.File]::WriteAllText('%s', $r)" % (cmd, done.replace("'", "''")))
+    enc = base64.b64encode(full.encode("utf-16-le")).decode("ascii")
+    if ctypes.windll.shell32.ShellExecuteW(None, "runas", "powershell.exe",
+                                           "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -EncodedCommand " + enc, None, 0) <= 32:
+        return False                         # refusé
+    for _ in range(wait * 2):
+        time.sleep(0.5)
+        if os.path.exists(done):
+            time.sleep(0.2)
+            try:
+                with open(done, encoding="utf-8-sig") as f:
+                    res = f.read().strip()
+                os.remove(done)
+            except OSError:
+                res = ""
+            return res == "ok"
+    return False
 
 
 def disk_health(refresh=False, admin=False):
@@ -2766,7 +3206,7 @@ def disk_health(refresh=False, admin=False):
         with open(HEALTH_FILE, "w", encoding="utf-8") as f:
             json.dump(res, f)
     except Exception:
-        log.exception("Santé des disques : cache")
+        log.exception("Disk health: cache")
     return res
 
 
@@ -2799,7 +3239,7 @@ class Hotkey(threading.Thread):
                 try:
                     self.callback()
                 except Exception:
-                    log.exception("Raccourci")
+                    log.exception("Hotkey")
             elif msg.message == self.WM_APP:
                 if registered:
                     u32.UnregisterHotKey(None, 1)
@@ -2911,7 +3351,7 @@ def autostart_set(on):
                 except OSError:
                     pass
     except OSError:
-        log.exception("Démarrage avec Windows")
+        log.exception("Start with Windows")
 
 
 THEMES = ("dark", "light", "oled", "midnight", "terminal")
@@ -2935,6 +3375,7 @@ def clean_settings(d):
         "bg": d.get("bg") is not False,
         "history": d.get("history") is not False,
         "hist_range": d.get("hist_range") if d.get("hist_range") in (1, 6, 12, 24, 168) else 24,
+        "hist_compact": d.get("hist_compact") is not False,
         "bell_off": [c for c in (d.get("bell_off") if isinstance(d.get("bell_off"), list) else []) if c in ("cpu", "ram", "gpu", "disk", "startup", "play", "update")],
         "dismissed": {str(k)[:60]: v for k, v in list((d.get("dismissed") if isinstance(d.get("dismissed"), dict) else {}).items())[:50]
                       if isinstance(v, (int, float))},
@@ -3009,15 +3450,22 @@ def make_handler(sampler, details):
                     t = 0
                 return self._send(200, json.dumps({"point": history_at(t) if t else None}).encode(), "application/json")
             if path == "/api/history":
+                q = self._q()
                 try:
-                    hours = max(1, min(24 * 8, int(self._q().get("hours", 24))))
+                    vh = max(1, min(24 * 8, int(q.get("view", q.get("hours", 24)))))
+                    before = max(1, min(24 * 9, float(q.get("before", vh))))
+                    after = max(0, min(24 * 9, float(q.get("after", 0))))
                 except ValueError:
-                    hours = 24
-                pts, step = read_history(hours)
-                live = HIST_LIVE[0].live_point() if HIST_LIVE[0] and step == 60 else None
+                    vh, before, after = 24, 24, 0
+                try:
+                    end = float(q["end"]) if q.get("end") else None
+                except ValueError:
+                    end = None
+                pts, step, view = read_history(vh, end, q.get("compact") == "1", before, after)
+                live = HIST_LIVE[0].live_point() if HIST_LIVE[0] and step == 60 and end is None else None
                 if live and (not pts or live["t"] > pts[-1]["t"]):
                     pts.append(live)
-                return self._send(200, json.dumps({"points": pts, "step": step, "on": HIST_ON[0]}).encode(), "application/json")
+                return self._send(200, json.dumps({"points": pts, "step": step, "on": HIST_ON[0], **view}).encode(), "application/json")
             if path.startswith("/api/games/"):
                 q, act = self._q(), path[len("/api/games/"):]
                 if act == "scan":
@@ -3060,6 +3508,12 @@ def make_handler(sampler, details):
                     update_settings(games=GAMES_ON[0])
                 if q.get("clear") == "1" and GAMES[0]:
                     GAMES[0].clear()
+                if "fps" in q:
+                    FPS_ON[0] = q["fps"] == "1"
+                    update_settings(fps=FPS_ON[0])
+                if q.get("fps_grant") == "1":
+                    fps_grant()
+                    FPS.probe()                   # si l'appli tourne en admin, ça marche tout de suite
                 data = GAMES[0].data() if GAMES[0] else {"sessions": [], "current": None, "on": GAMES_ON[0]}
                 return self._send(200, json.dumps(data).encode(), "application/json")
             if path == "/api/temp":
@@ -3090,7 +3544,7 @@ def make_handler(sampler, details):
                 try:
                     data = disk_health(q.get("refresh") == "1", q.get("admin") == "1")
                 except Exception:
-                    log.exception("Santé des disques")
+                    log.exception("Disk health")
                     data = {"disks": {}, "error": True}
                 return self._send(200, json.dumps(data).encode(), "application/json")
             if path == "/api/hotkey":
@@ -3111,7 +3565,7 @@ def make_handler(sampler, details):
                         with sampler.lock:
                             sampler.latest = sampler.sample()
                     except Exception:
-                        log.exception("Mesure au réveil")
+                        log.exception("Measurement after wake-up")
                 with sampler.lock:
                     body = json.dumps(dict(sampler.latest, widget_on=WIDGET_ON[0])).encode()
                 return self._send(200, body, "application/json")
@@ -3123,7 +3577,7 @@ def make_handler(sampler, details):
                 try:
                     data = details.compute(kind if kind in ("cpu", "ram", "disk", "gpu") else "cpu", luid)
                 except Exception:
-                    log.exception("Détails")
+                    log.exception("Details")
                     data = {"kind": kind, "items": [], "error": True}
                 return self._send(200, json.dumps(data).encode(), "application/json")
             if path == "/api/show":
@@ -3169,7 +3623,7 @@ def make_handler(sampler, details):
                         WIDGET_HOOK[0]()
                 self._send(200, b"{}", "application/json")
             except Exception:
-                log.exception("Réglages")
+                log.exception("Settings")
                 self._send(400, b"{}", "application/json")
     return Handler
 
@@ -3254,7 +3708,7 @@ def run_window(url):
                         state[k] = int(v)
             update_settings(window=state)
         except Exception:
-            log.exception("Position de la fenêtre")
+            log.exception("Window position")
 
     def shown(*_):
         set_window_icon(APP_NAME)
@@ -3336,7 +3790,7 @@ def set_window_icon(title_start):
             u32.SendMessageW(hwnd, 0x0080, ctypes.c_void_p(1), big)      # WM_SETICON, ICON_BIG
             u32.SendMessageW(hwnd, 0x0080, ctypes.c_void_p(0), small)    # ICON_SMALL
     except Exception:
-        log.exception("Icône de la fenêtre")
+        log.exception("Window icon")
 
 
 def _focus_window(title_start):
@@ -3358,7 +3812,7 @@ def _focus_window(title_start):
             u32.ShowWindow(ctypes.c_void_p(hwnd), 9)          # SW_RESTORE
             u32.SetForegroundWindow(ctypes.c_void_p(hwnd))
     except Exception:
-        log.exception("Mise au premier plan")
+        log.exception("Bring to front")
 
 
 class WindowManager:
@@ -3394,7 +3848,7 @@ class WindowManager:
 
     def _watch(self, proc):
         code = proc.wait()
-        (log.info if code == 0 else log.warning)("Fenêtre fermée (code %s%s)", code, "" if code == 0 else " : fermeture anormale")
+        (log.info if code == 0 else log.warning)("Window closed (code %s%s)", code, "" if code == 0 else ": abnormal exit")
         self.on_closed()
 
     def close(self):
@@ -3410,7 +3864,7 @@ class WindowManager:
 # --------------------------------------------------------------------------
 class DesktopWidget:
     BG, FG, MUTED, TRACK = "#11151d", "#e8ebf2", "#8b93a7", "#262c3b"
-    COLORS = {"cpu": "#4cc2ff", "gpu": "#ffa94d", "vram": "#ffa94d", "ram": "#b38cff"}
+    COLORS = {"cpu": "#4cc2ff", "gpu": "#ffa94d", "vram": "#2fd6c8", "ram": "#b38cff"}
     STYLES = ("compact", "bars")
     WARN, BAD = "#ffb547", "#ff5d6c"
     KEY = "#010203"   # couleur rendue invisible (et traversée par les clics) par Windows
@@ -3431,7 +3885,7 @@ class DesktopWidget:
             self.cmds.append(cmd)
         if self.thread is None:
             if not _has_module("tkinter"):
-                log.error("Widget : tkinter absent de cette installation de Python")
+                log.error("Widget: tkinter is missing from this Python installation")
                 return
             self.thread = threading.Thread(target=self._run, daemon=True)
             self.thread.start()
@@ -3454,7 +3908,7 @@ class DesktopWidget:
         return max(25, min(100, a)) / 100 if isinstance(a, (int, float)) else 0.86
 
     def set_visible(self, on):
-        log.info("Widget : %s (croix, menu de l'icône ou raccourci)", "affiché" if on else "masqué")
+        log.info("Widget: %s (close button, tray menu or hotkey)", "shown" if on else "hidden")
         update_settings(widget=bool(on))
         self._post("show", bool(on))
 
@@ -3497,12 +3951,12 @@ class DesktopWidget:
         root.after(100, self._loop_cmds)
         root.after(300, self._update)
         root.after(200, self._watch_ctrl)
-        log.info("Widget : démarré (épinglé=%s, position=%s,%s)", self.is_pinned, x, y)
+        log.info("Widget: started (pinned=%s, position=%s,%s)", self.is_pinned, x, y)
         try:
             root.mainloop()
         except Exception:
-            log.exception("Widget : arrêt inattendu")
-        log.warning("Widget : boucle Tk terminée")
+            log.exception("Widget: unexpected stop")
+        log.warning("Widget: Tk loop ended")
 
     def S(self, v):
         """Taille mise à l'échelle choisie dans les Paramètres."""
@@ -3571,7 +4025,7 @@ class DesktopWidget:
                 root.geometry("+%d+%d" % (nx - sw, ny))
                 update_settings(widget_x=nx, widget_y=ny)
         except Exception:
-            log.exception("Widget : placement")
+            log.exception("Widget: placement")
 
     # icônes : chacune centrée dans une case de taille fixe (les symboles n'ont pas tous la même ligne de base)
     ICONS = {"close": ("✕", 0, 0), "pin": ("📌", 0, 0), "snap": ("🧲", -2, 0), "style": ("◫", -1, 4)}   # (symbole, décalage vertical px, px en plus)
@@ -3700,7 +4154,12 @@ class DesktopWidget:
             cell["val"].pack(side="left")
             self.cells[k] = cell
         # session de jeu en cours : petit texte vert au bout de la ligne (visible même épinglé)
-        self.game_lbl = tk.Label(row, text="", bg=self.BG, fg="#5fd38d", font=self.bold)   # affiché seulement en jeu
+        # en jeu seulement : le point vert (remonté de 1 px pour être centré sur le texte) puis les FPS
+        self.game_box = tk.Frame(row, bg=self.BG)
+        self.fps_lbl = tk.Label(self.game_box, text="", bg=self.BG, fg=self.FG, font=self.bold)
+        self.game_lbl = tk.Label(self.game_box, text="●", bg=self.BG, fg="#5fd38d", font=self.bold)
+        self.game_lbl.pack(side="left", pady=(0, self.S(2)))
+        self._game_on = False
         tk.Frame(row, bg=self.BG, width=self.S(10)).pack(side="right")                             # marge droite du cadre
         self._apply_pin_look()
 
@@ -3714,7 +4173,7 @@ class DesktopWidget:
                 changed = True
             if cmd[0] == "show":
                 if cmd[1] != self.visible:
-                    log.info("Widget : %s", "affiché" if cmd[1] else "masqué")
+                    log.info("Widget: %s", "shown" if cmd[1] else "hidden")
                 self.visible = cmd[1]
                 WIDGET_ON[0] = cmd[1]
                 if cmd[1]:
@@ -3724,7 +4183,7 @@ class DesktopWidget:
                 else:
                     self.root.withdraw()
             elif cmd[0] == "pin":
-                log.info("Widget : %s", "épinglé" if cmd[1] else "désépinglé")
+                log.info("Widget: %s", "pinned" if cmd[1] else "unpinned")
                 self.is_pinned = cmd[1]
                 self._apply_pin()
             elif cmd[0] == "alpha":
@@ -3756,7 +4215,7 @@ class DesktopWidget:
             ex |= 0x80 | 0x08000000                                  # WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE
             u32.SetWindowLongW(h, -20, ex)
         except Exception:
-            log.exception("Widget : clic à travers")
+            log.exception("Widget: click-through")
 
     def _set_desktop_owner(self, on):
         """Libre : rattaché au Bureau, il reste visible quand on clique sur « Afficher le Bureau » (Win+D)."""
@@ -3769,7 +4228,7 @@ class DesktopWidget:
             owner = u32.FindWindowW("Progman", None) if on else 0
             setp(ctypes.c_void_p(self._hwnd()), -8, ctypes.c_void_p(owner or 0))     # GWLP_HWNDPARENT = propriétaire
         except Exception:
-            log.exception("Widget : rattachement au Bureau")
+            log.exception("Widget: attach to desktop")
 
     def _apply_pin(self):
         self._set_desktop_owner(not self.is_pinned)
@@ -3804,7 +4263,7 @@ class DesktopWidget:
         try:
             pid, full = _fg_window()
             name = psutil.Process(pid).name() if pid else "?"
-            return "%s%s" % (name, " plein écran" if full else "")
+            return "%s%s" % (name, " fullscreen" if full else "")
         except Exception:
             return "?"
 
@@ -3819,33 +4278,33 @@ class DesktopWidget:
             u32, h = ctypes.windll.user32, self._hwnd()
             issues = []
             if not u32.IsWindowVisible(h):
-                issues.append("caché par Windows")
+                issues.append("hidden by Windows")
             if u32.IsIconic(h):
-                issues.append("réduit")
+                issues.append("minimized")
             rc = wintypes.RECT()
             if u32.GetWindowRect(h, ctypes.byref(rc)):
                 c = wintypes.POINT((rc.left + rc.right) // 2 + self.side_w // 2, (rc.top + rc.bottom) // 2)
                 if not u32.MonitorFromPoint(c, 0):              # MONITOR_DEFAULTTONULL : hors de tous les écrans
-                    issues.append("hors écran (%d,%d)" % (rc.left, rc.top))
+                    issues.append("off screen (%d,%d)" % (rc.left, rc.top))
             if self.is_pinned and not (u32.GetWindowLongW(h, -20) & 0x8):   # WS_EX_TOPMOST perdu
-                issues.append("plus au-dessus de tout")
+                issues.append("no longer on top")
             key = tuple(issues)
             if key != getattr(self, "_ka_issue", ()):
                 if issues:
-                    log.warning("Widget : %s — premier plan : %s — remis en place", ", ".join(issues), self._fg_desc())
+                    log.warning("Widget: %s - foreground: %s - restored", ", ".join(issues), self._fg_desc())
                 elif getattr(self, "_ka_issue", ()):
-                    log.info("Widget : de nouveau visible")
+                    log.info("Widget: visible again")
                 self._ka_issue = key
-            if "caché par Windows" in issues or "réduit" in issues:
+            if "hidden by Windows" in issues or "minimized" in issues:
                 u32.ShowWindow(h, 4)                                   # SW_SHOWNOACTIVATE
-            if any(i.startswith("hors écran") for i in issues):
+            if any(i.startswith("off screen") for i in issues):
                 self._fit()
             if self.is_pinned:
                 u32.SetWindowPos.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint]
                 u32.SetWindowPos(ctypes.c_void_p(h), ctypes.c_void_p(-1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010 | 0x0200)
                 # HWND_TOPMOST ; SWP_NOSIZE | NOMOVE | NOACTIVATE | NOOWNERZORDER
         except Exception:
-            log.exception("Widget : maintien à l'écran")
+            log.exception("Widget: keep on screen")
 
     def _watch_ctrl(self):
         self._ka = getattr(self, "_ka", 0) + 1
@@ -3940,15 +4399,21 @@ class DesktopWidget:
                     "ram": (m["ram"], "%s  %s %s" % (pc(m["ram"]), fmt(m["ram_used"]), unit)),
                 }
                 g = GAMES[0].curs if GAMES[0] else None
-                gt = ""
-                if g:
-                    gt = "● Gaming"
-                if self.game_lbl.cget("text") != gt:
-                    self.game_lbl.configure(text=gt)
-                    if gt:
-                        self.game_lbl.pack(side="left", padx=(self.S(10), 0))
+                on = bool(g)
+                fps = max((c.get("fps_now") or 0 for c in g.values()), default=0) if g else 0
+                ft = "%d FPS" % round(fps) if fps else ""
+                if self.fps_lbl.cget("text") != ft:
+                    self.fps_lbl.configure(text=ft)
+                    if ft:
+                        self.fps_lbl.pack(side="left", padx=(self.S(5), 0))
                     else:
-                        self.game_lbl.pack_forget()
+                        self.fps_lbl.pack_forget()
+                if on != self._game_on:
+                    self._game_on = on
+                    if on:
+                        self.game_box.pack(side="left", padx=(self.S(10), 0))
+                    else:
+                        self.game_box.pack_forget()
                 for k, cell in self.cells.items():
                     pct, txt = vals[k]
                     hot = (pct is not None and pct >= 90) or (k == "gpu" and m["temp"] and m["temp"] >= 85)
@@ -3961,7 +4426,7 @@ class DesktopWidget:
                     self._lastw = w
                     self._fit()
             except Exception:
-                log.exception("Widget : mesure")
+                log.exception("Widget: measurement")
         self.root.after(1500, self._update)
 
 
@@ -4000,11 +4465,11 @@ def stable_tray_id():
                 data.update(kwargs)
                 return w32.Shell_NotifyIcon(code, w32.NOTIFYICONDATAW(**data))
             except Exception:
-                log.exception("Icône : identifiant fixe impossible, méthode d'origine")
+                log.exception("Icon: fixed id impossible, using original method")
                 return original(self, code, flags, **kwargs)
         pw.Icon._message = _message
     except Exception:
-        log.exception("Icône : patch identifiant")
+        log.exception("Icon: id patch")
 
 
 def tray_image():
@@ -4079,20 +4544,20 @@ class HealthWatch(threading.Thread):
                 for k, v, lim in (("cpu", cpu, self.CPU_WARN), ("gpu", gpu, self.GPU_WARN)):
                     self.high[k] = self.high[k] + 1 if v >= lim else 0
                     if self.high[k] >= 3:
-                        self._warn(k, "Santé de l'appli : %s élevé (%.1f %% depuis %d min)", k.upper(), v, self.high[k])
+                        self._warn(k, "App health: high %s (%.1f %% for %d min)", k.upper(), v, self.high[k])
                 if ram_mb >= self.RAM_WARN:
-                    self._warn("ram", "Santé de l'appli : RAM élevée (%.0f Mo, appli + fenêtre)", ram_mb)
+                    self._warn("ram", "App health: high RAM (%.0f MB, app + window)", ram_mb)
                 if n == 10:
                     self.base_py = py_mb                        # référence après le démarrage
                 elif self.base_py and py_mb > self.base_py * 1.8 and py_mb - self.base_py > 80:
-                    self._warn("leak", "Santé de l'appli : la mémoire du programme grossit (%.0f Mo, %.0f Mo au départ) : fuite possible", py_mb, self.base_py)
+                    self._warn("leak", "App health: program memory keeps growing (%.0f MB, %.0f MB at start): possible leak", py_mb, self.base_py)
                 if threads >= self.THREADS_WARN:
-                    self._warn("threads", "Santé de l'appli : beaucoup de fils d'exécution (%d) : fuite possible", threads)
+                    self._warn("threads", "App health: many threads (%d): possible leak", threads)
                 if n % 360 == 0:                                # bilan toutes les 6 h
-                    log.info("Santé de l'appli : en marche depuis %.0f h — moyennes : CPU %.1f %%, RAM %.0f Mo, GPU %.1f %% ; fils : %d",
+                    log.info("App health: running for %.0f h - averages: CPU %.1f %%, RAM %.0f MB, GPU %.1f %%; threads: %d",
                              (now - self.t0) / 3600, self.sum["cpu"] / n, self.sum["ram"] / n, self.sum["gpu"] / n, threads)
             except Exception:
-                log.exception("Santé de l'appli")
+                log.exception("App health")
 
 
 def main():
@@ -4114,12 +4579,12 @@ def main():
         pass
 
     if os.path.exists(RUN_FLAG):
-        log.warning("Le lancement précédent ne s'est pas fermé normalement (plantage, arrêt forcé ou PC éteint sans quitter)")
+        log.warning("Previous run did not exit normally (crash, forced close, or PC shut down without quitting)")
     try:
         with open(LOG_FILE + ".crash", encoding="utf-8") as f:
             crash = f.read().strip()
         if crash:
-            log.critical("Plantage grave au lancement précédent :\n%s", crash[-4000:])
+            log.critical("Hard crash during the previous run:\n%s", crash[-4000:])
         open(LOG_FILE + ".crash", "w").close()
     except OSError:
         pass
@@ -4128,7 +4593,7 @@ def main():
             f.write(str(os.getpid()))
     except OSError:
         pass
-    log.info("Démarrage de Pulse Monitor v%s (Python %s, %s)", APP_VERSION, platform.python_version(), platform.platform())
+    log.info("Starting Pulse Monitor v%s (Python %s, %s)", APP_VERSION, platform.python_version(), platform.platform())
 
     BG[0] = load_settings().get("bg", True) is not False
     kmt = D3DKMT()
@@ -4141,17 +4606,17 @@ def main():
         try:
             sampler.specs = collect_specs(kmt)
         except Exception:
-            log.exception("Impossible de lire les composants")
+            log.exception("Could not read components")
             sampler.specs = {"ready": True, "error": True, "tips": []}
     threading.Thread(target=load_specs, daemon=True).start()
 
     url = start_server(sampler)
-    log.info("Serveur sur %s", url)
+    log.info("Server on %s", url)
     HealthWatch(counters).start()
 
     def quit_app(*_):
         QUIT_HOOK[0] = None
-        log.info("Arrêt normal")
+        log.info("Normal exit")
         try:
             os.remove(RUN_FLAG)
         except OSError:
@@ -4194,6 +4659,8 @@ def main():
     SHOW_HOOK[0] = wm.open
     HIST_ON[0] = load_settings().get("history", True) is not False
     GAMES_ON[0] = load_settings().get("games", True) is not False
+    FPS_ON[0] = load_settings().get("fps", True) is not False
+    threading.Thread(target=FPS.probe, daemon=True).start()
     GAMES[0] = GameTracker(sampler)
     History(sampler, kmt).start()
     threading.Thread(target=auto_update_loop, daemon=True).start()
@@ -4256,7 +4723,7 @@ def main():
                 wm.open()
             threading.Thread(target=tooltip_loop, daemon=True).start()
             threading.Timer(3, refresh_menu).start()   # état du widget au démarrage
-        log.info("Icône de notification active")
+        log.info("Tray icon active")
         icon.run(setup=setup)   # bloque jusqu'à « Quitter »
         quit_app()
 

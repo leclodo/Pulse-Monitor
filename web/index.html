@@ -10,31 +10,31 @@
   :root, [data-theme="dark"] {
     --bg: #0d0f14; --panel: #151922; --panel2: #1b2030; --line: #262c3b; --hdr: #0d0f14f0;
     --text: #e8ebf2; --muted: #8b93a7; --dim: #5d6478; --chart: #11151d; --grid: #ffffff0d; --track: #232938;
-    --cpu: #4cc2ff; --ram: #b38cff; --gpu: #ffa94d; --disk: #5fd38d; --net: #ff6b9d; --up: #ffd36b;
+    --cpu: #4cc2ff; --ram: #b38cff; --gpu: #ffa94d; --vram: #2fd6c8; --disk: #5fd38d; --net: #ff6b9d; --up: #ffd36b;
     --ok: #5fd38d; --warn: #ffb547; --bad: #ff5d6c; --tip1: #1a2233; --tip2: #161b26; --tipline: #263048;
   }
   [data-theme="light"] { color-scheme: light;
     --bg: #f3f5f9; --panel: #ffffff; --panel2: #eceff5; --line: #dde2ea; --hdr: #f3f5f9f0;
     --text: #18202e; --muted: #5a6476; --dim: #8c94a5; --chart: #f6f8fb; --grid: #0000000f; --track: #e3e7ee;
-    --cpu: #0a84d6; --ram: #7c4ddb; --gpu: #e07b00; --disk: #1f9d55; --net: #d6336c; --up: #b98900;
+    --cpu: #0a84d6; --ram: #7c4ddb; --gpu: #e07b00; --vram: #0d9488; --disk: #1f9d55; --net: #d6336c; --up: #b98900;
     --ok: #1f9d55; --warn: #c97a00; --bad: #d93043; --tip1: #eef4ff; --tip2: #f6f8fc; --tipline: #dfe6f3;
   }
   [data-theme="oled"] {
     --bg: #000000; --panel: #0a0a0b; --panel2: #161618; --line: #1d1d20; --hdr: #000000f0;
     --text: #f2f2f2; --muted: #8f8f96; --dim: #5a5a62; --chart: #050506; --grid: #ffffff0b; --track: #1b1b1f;
-    --cpu: #4cc2ff; --ram: #b38cff; --gpu: #ffa94d; --disk: #5fd38d; --net: #ff6b9d; --up: #ffd36b;
+    --cpu: #4cc2ff; --ram: #b38cff; --gpu: #ffa94d; --vram: #2fd6c8; --disk: #5fd38d; --net: #ff6b9d; --up: #ffd36b;
     --ok: #5fd38d; --warn: #ffb547; --bad: #ff5d6c; --tip1: #0d0f14; --tip2: #08090b; --tipline: #1d1f26;
   }
   [data-theme="midnight"] {
     --bg: #0a1022; --panel: #111a33; --panel2: #18234a; --line: #223062; --hdr: #0a1022f0;
     --text: #e6ecff; --muted: #8e9bc4; --dim: #5d6a96; --chart: #0c1430; --grid: #ffffff0e; --track: #1d2a56;
-    --cpu: #5ad1ff; --ram: #c49bff; --gpu: #ffb86b; --disk: #6ee7a8; --net: #ff7ab2; --up: #ffe08a;
+    --cpu: #5ad1ff; --ram: #c49bff; --gpu: #ffb86b; --vram: #4fe3d6; --disk: #6ee7a8; --net: #ff7ab2; --up: #ffe08a;
     --ok: #6ee7a8; --warn: #ffc15e; --bad: #ff6b81; --tip1: #16224a; --tip2: #111a38; --tipline: #24336a;
   }
   [data-theme="terminal"] {
     --bg: #050a06; --panel: #0a130c; --panel2: #102014; --line: #173320; --hdr: #050a06f0;
     --text: #c8ffd9; --muted: #6fbf88; --dim: #3f7a52; --chart: #061008; --grid: #33ff990f; --track: #12301b;
-    --cpu: #33ff99; --ram: #7dffb8; --gpu: #c6ff5c; --disk: #2ee6c3; --net: #9dff6b; --up: #e6ff8a;
+    --cpu: #33ff99; --ram: #7dffb8; --gpu: #c6ff5c; --vram: #5cf6ff; --disk: #2ee6c3; --net: #9dff6b; --up: #e6ff8a;
     --ok: #33ff99; --warn: #e6ff5c; --bad: #ff6b6b; --tip1: #0c1d10; --tip2: #08140b; --tipline: #173320;
   }
   [data-theme="terminal"] body { font-family: Consolas, "Cascadia Mono", monospace; }
@@ -371,6 +371,10 @@
   .hist-tip { position: fixed; z-index: 40; pointer-events: none; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px;
     padding: 7px 10px; font-size: 12.5px; line-height: 1.5; box-shadow: 0 6px 20px #0005; display: none; max-width: 340px; width: max-content; }
   .hist-tip b { font-variant-numeric: tabular-nums; }
+  .hist-nav { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--dim); }
+  .hist-nav .btn.sm { padding: 3px 8px; }
+  .hist-nav #hist-when { min-width: 60px; text-align: center; font-variant-numeric: tabular-nums; }
+  #an-hist canvas[data-hs] { cursor: grab; }
   /* panneau « programmes les plus gourmands » d'un moment de l'historique */
   .drawer.wide { width: 560px; }
   .hd-sec { padding: 4px 6px 12px; }
@@ -499,7 +503,7 @@ const I18N = {
     pv_b3: "Aucun compte, aucune pub, aucun traceur",
     pv_b4: "Tout est supprimable à tout moment",
     pv_read_t: "Ce que l'appli lit, et pourquoi",
-    pv_read: ["<b>Performances</b> (processeur, carte graphique, mémoire, disques, réseau) : pour les graphiques. Pour le réseau, seulement le débit, jamais ce que tu échanges.", "<b>Composants</b> (modèles, quantités, versions) : lus auprès de Windows pour l'onglet Composants.", "<b>Noms des programmes ouverts</b> et ce qu'ils consomment : pour les détails, les conseils de la cloche et les sessions de jeu.", "<b>Noms et tailles des fichiers</b> : seulement quand tu lances une analyse dans Stockage. Le contenu des fichiers n'est jamais ouvert.", "<b>Jeux installés</b> (dossiers Steam, Epic, GOG, programmes installés) : seulement quand tu cliques sur « Rechercher les jeux installés ».", "<b>Santé des disques</b> : seulement quand tu cliques sur le bouton, avec ton accord (droits administrateur)."],
+    pv_read: ["<b>Performances</b> (processeur, carte graphique, mémoire, disques, réseau) : pour les graphiques. Pour le réseau, seulement le débit, jamais ce que tu échanges.", "<b>Composants</b> (modèles, quantités, versions) : lus auprès de Windows pour l'onglet Composants.", "<b>Noms des programmes ouverts</b> et ce qu'ils consomment : pour les détails, les conseils de la cloche et les sessions de jeu.", "<b>Noms et tailles des fichiers</b> : seulement quand tu lances une analyse dans Stockage. Le contenu des fichiers n'est jamais ouvert.", "<b>Jeux installés</b> (dossiers Steam, Epic, GOG, programmes installés) : seulement quand tu cliques sur « Rechercher les jeux installés ».", "<b>Santé des disques</b> : seulement quand tu cliques sur le bouton, avec ton accord (droits administrateur).", "<b>Images par seconde des jeux</b> : seulement pendant une session de jeu, en comptant les images que le jeu affiche (événements de Windows). Rien d'autre n'est lu dans le jeu."],
     pv_store_t: "Ce qui est gardé, uniquement sur ton PC",
     pv_store: ["<code>settings.json</code> : tes réglages (langue, thème, ordre des cartes…)", "<code>history/</code> : l'historique 24 h / 7 jours (1 point par minute avec les 10 programmes les plus gourmands, effacé après 8 jours)", "<code>games.json</code> et <code>games_lib.json</code> : tes sessions de jeu et la liste des jeux reconnus", "<code>scans/</code> : les résultats des analyses de stockage et de santé des disques", "<code>stats.json</code> : l'analyse d'usage (onglet Analyse)", "<code>pulse_monitor.log</code> : un journal technique (démarrages, erreurs, santé de l'appli), limité à 1 Mo, jamais envoyé"],
     pv_store_note: "Tout est dans le dossier des données de Pulse Monitor (bouton ci-dessous). Tu peux supprimer ces fichiers quand tu veux : l'appli repart de zéro.",
@@ -611,6 +615,8 @@ const I18N = {
     hist_empty: "Pas encore de données : l'historique se remplit d'un point par minute (gardé 8 jours).",
     hist_sub_cpu: "moyenne · max", hist_sub_gpu: "moyenne · max · °C", hist_sub_ram: "utilisée", hist_sub_vram: "max",
     hist_progs: "Programmes en cause :", hist_10min: "moyenne sur 10 min",
+    gap_off_short: "éteint", hist_prev: "Plus tôt (tu peux aussi faire glisser un graphique)", hist_next: "Plus tard", hist_now: "Maintenant", hist_live: "en direct", hist_now_l: "maintenant",
+    hist_compact: "Compacter les périodes éteintes", hist_compact_tip: "Les coupures de plus de 30 min (PC éteint, appli fermée) deviennent une bande étroite : les graphiques montrent le temps d'utilisation.",
     hd_t: "Programmes les plus gourmands", hd_cpu: "Processeur (moyenne sur la minute)", hd_ram: "Mémoire", hd_gpu: "Carte graphique",
     hd_none: "Pas de détail pour ce moment (enregistré depuis la v0.7.0, une fois l'appli lancée depuis 2 min).", hd_empty: "Rien de notable",
     hd_hint: "Clic : voir les programmes", hd_close: "Fermer", hd_peak: "moment le plus chargé des 10 min",
@@ -637,7 +643,10 @@ const I18N = {
     gm_stop: "Pause et voir le résumé", gm_stop_tip: "Termine la session maintenant et affiche ses graphiques. Le programme n'est plus suivi jusqu'à ce que tu relances le suivi (ou qu'il soit fermé).",
     gm_del: "Supprimer cette session", gm_del_sure: "Supprimer ?", gm_paused: "En pause :", gm_resume: "Relancer le suivi", gm_resume_tip: "Démarre une nouvelle session tout de suite pour ce programme.",
     gm_t: "Sessions de jeu", gm_avg: "moy.", gm_show: "Cliquer pour voir les graphiques", gm_hide: "Cliquer pour masquer les graphiques",
-    gm_no_tl: "Pas de graphique pour cette session : elle a été enregistrée avant la v0.4.5.", gm_opt: "Détecter mes sessions de jeu", gm_clear: "Effacer la liste", gm_sure: "Sûr ? Clique encore", gm_now: "En cours :",
+    gm_no_tl: "Pas de graphique pour cette session : elle a été enregistrée avant la v0.4.5.", gm_opt: "Détecter mes sessions de jeu", gm_fps_opt: "Mesurer les FPS", gm_fps_tip: "Images par seconde du jeu, lues dans les événements d'affichage de Windows, seulement pendant une session. Aucun programme ajouté, rien n'est envoyé.",
+    gm_fps_need: "Pour mesurer les FPS, Windows demande une autorisation (une seule fois) : ton compte est ajouté au groupe « Utilisateurs du journal de performances ».", gm_fps_btn: "Autoriser",
+    gm_fps_relog: "Autorisation donnée : déconnecte-toi de Windows puis reconnecte-toi pour activer la mesure des FPS.", gm_fps_fail: "L'autorisation a été refusée ou n'a pas pu être donnée.",
+    gm_fps_low: "1 % low", gm_fps_err: "La mesure des FPS n'a pas pu démarrer (voir le journal).", gm_clear: "Effacer la liste", gm_sure: "Sûr ? Clique encore", gm_now: "En cours :",
     gm_empty: "Aucune session pour l'instant. Lance un jeu : il est reconnu en 10 s s'il est connu ou trouvé par la recherche, sinon en 30 s (jeu dans un dossier Steam, Epic, Battle.net… ou en plein écran avec la carte graphique sollicitée). Les sessions de moins de 3 min ne sont pas gardées.",
     gm_game: "Jeu", gm_date: "Date", gm_dur: "Durée", gm_temp: "Temp. GPU", gm_verdict: "Ce qui limitait", gm_avgmax: "moyenne / max",
     gm_v_gpu: "Carte graphique à fond", gm_v_cpu: "Processeur", gm_v_ram: "RAM pleine", gm_v_vram: "Mémoire vidéo pleine", gm_v_none: "Rien",
@@ -720,7 +729,7 @@ const I18N = {
     pv_b3: "No account, no ads, no trackers",
     pv_b4: "Everything can be deleted anytime",
     pv_read_t: "What the app reads, and why",
-    pv_read: ["<b>Performance</b> (CPU, graphics card, memory, disks, network): for the charts. For the network, only the speed, never what you exchange.", "<b>Components</b> (models, amounts, versions): read from Windows for the Components tab.", "<b>Names of open programs</b> and what they use: for details, bell tips and gaming sessions.", "<b>File names and sizes</b>: only when you start an analysis in Storage. File contents are never opened.", "<b>Installed games</b> (Steam, Epic, GOG folders, installed programs): only when you click \"Find installed games\".", "<b>Disk health</b>: only when you click the button, with your consent (administrator rights)."],
+    pv_read: ["<b>Performance</b> (CPU, graphics card, memory, disks, network): for the charts. For the network, only the speed, never what you exchange.", "<b>Components</b> (models, amounts, versions): read from Windows for the Components tab.", "<b>Names of open programs</b> and what they use: for details, bell tips and gaming sessions.", "<b>File names and sizes</b>: only when you start an analysis in Storage. File contents are never opened.", "<b>Installed games</b> (Steam, Epic, GOG folders, installed programs): only when you click \"Find installed games\".", "<b>Disk health</b>: only when you click the button, with your consent (administrator rights).", "<b>Game frame rate</b>: only during a gaming session, by counting the frames the game displays (Windows events). Nothing else is read from the game."],
     pv_store_t: "What is kept, only on your PC",
     pv_store: ["<code>settings.json</code>: your settings (language, theme, card order…)", "<code>history/</code>: the 24 h / 7-day history (1 point per minute with the 10 most demanding programs, deleted after 8 days)", "<code>games.json</code> and <code>games_lib.json</code>: your gaming sessions and the list of recognized games", "<code>scans/</code>: storage analysis and disk health results", "<code>stats.json</code>: the usage analysis (Analysis tab)", "<code>pulse_monitor.log</code>: a technical log (startups, errors, app health), capped at 1 MB, never sent"],
     pv_store_note: "Everything is in the Pulse Monitor data folder (button below). You can delete these files anytime: the app starts from scratch.",
@@ -832,6 +841,8 @@ const I18N = {
     hist_empty: "No data yet: history fills up with one point per minute (kept 8 days).",
     hist_sub_cpu: "average · max", hist_sub_gpu: "average · max · °C", hist_sub_ram: "used", hist_sub_vram: "max",
     hist_progs: "Programs involved:", hist_10min: "10-min average",
+    gap_off_short: "off", hist_prev: "Earlier (you can also drag a chart)", hist_next: "Later", hist_now: "Now", hist_live: "live", hist_now_l: "now",
+    hist_compact: "Compact switched-off periods", hist_compact_tip: "Gaps longer than 30 min (PC off, app closed) become a narrow band: the charts show usage time.",
     hd_t: "Most demanding programs", hd_cpu: "Processor (minute average)", hd_ram: "Memory", hd_gpu: "Graphics card",
     hd_none: "No details for this moment (recorded since v0.7.0, once the app has been running for 2 min).", hd_empty: "Nothing notable",
     hd_hint: "Click: see the programs", hd_close: "Close", hd_peak: "busiest moment of the 10 min",
@@ -858,7 +869,10 @@ const I18N = {
     gm_stop: "Pause and see the summary", gm_stop_tip: "Ends the session now and shows its charts. The program isn't tracked until you resume tracking (or it's closed).",
     gm_del: "Delete this session", gm_del_sure: "Delete?", gm_paused: "Paused:", gm_resume: "Resume tracking", gm_resume_tip: "Starts a new session right away for this program.",
     gm_t: "Gaming sessions", gm_avg: "avg", gm_show: "Click to see the charts", gm_hide: "Click to hide the charts",
-    gm_no_tl: "No chart for this session: it was recorded before v0.4.5.", gm_opt: "Detect my gaming sessions", gm_clear: "Clear the list", gm_sure: "Sure? Click again", gm_now: "In progress:",
+    gm_no_tl: "No chart for this session: it was recorded before v0.4.5.", gm_opt: "Detect my gaming sessions", gm_fps_opt: "Measure FPS", gm_fps_tip: "The game's frames per second, read from Windows display events, only during a session. No extra program, nothing is sent.",
+    gm_fps_need: "To measure FPS, Windows needs a one-time permission: your account is added to the \"Performance Log Users\" group.", gm_fps_btn: "Allow",
+    gm_fps_relog: "Permission granted: sign out of Windows and back in to turn on FPS measurement.", gm_fps_fail: "The permission was refused or could not be granted.",
+    gm_fps_low: "1% low", gm_fps_err: "FPS measurement could not start (see the log).", gm_clear: "Clear the list", gm_sure: "Sure? Click again", gm_now: "In progress:",
     gm_empty: "No session yet. Start a game: it's recognized within 10 s if known or found by the search, otherwise 30 s (game in a Steam, Epic, Battle.net… folder, or full screen with the graphics card under load). Sessions shorter than 3 min aren't kept.",
     gm_game: "Game", gm_date: "Date", gm_dur: "Duration", gm_temp: "GPU temp.", gm_verdict: "What limited", gm_avgmax: "average / max",
     gm_v_gpu: "Graphics card maxed", gm_v_cpu: "CPU", gm_v_ram: "RAM full", gm_v_vram: "Video memory full", gm_v_none: "Nothing",
@@ -970,6 +984,7 @@ async function loadSettings() {
     bellOff = new Set(Array.isArray(s.bell_off) ? s.bell_off : []);
     histOn = s.history !== false;
     if ([1, 6, 12, 24, 168].includes(s.hist_range)) histRange = s.hist_range;
+    histCompact = s.hist_compact !== false;
     widgetOn = !!s.widget; hotkey = s.hotkey && s.hotkey.vk ? s.hotkey : null; widgetStyle = s.widget_style === "bars" ? "bars" : "compact";
     if (typeof s.widget_alpha === "number") widgetAlpha = Math.max(25, Math.min(100, s.widget_alpha));
     if (typeof s.widget_scale === "number") widgetScale = Math.max(70, Math.min(200, s.widget_scale));
@@ -981,7 +996,7 @@ function saveSettings() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     // le widget n'est envoyé que si on vient de le changer ici (il peut aussi changer depuis l'icône ou sa croix)
-    const body = {lang, theme, collapsed: [...collapsed], order, manual, hidden, big: bigMode, tray: trayMode, bg: bgMode, dismissed, bell_off: [...bellOff], hist_range: histRange, ...widgetPatch,
+    const body = {lang, theme, collapsed: [...collapsed], order, manual, hidden, big: bigMode, tray: trayMode, bg: bgMode, dismissed, bell_off: [...bellOff], hist_range: histRange, hist_compact: histCompact, ...widgetPatch,
                   history: histPatch != null ? histPatch : histOn};
     if (histPatch != null) { histOn = histPatch; histPatch = null; }
     widgetPatch = {};
@@ -1029,7 +1044,7 @@ const setHTML = (el, h) => { if (el && el._h !== h) { el.innerHTML = h; el._h = 
 let COL = {};
 function readColors() {
   const cs = getComputedStyle(document.documentElement);
-  for (const k of ["cpu", "ram", "gpu", "disk", "net", "up", "grid", "chart"]) COL[k] = cs.getPropertyValue("--" + k).trim();
+  for (const k of ["cpu", "ram", "gpu", "vram", "disk", "net", "up", "grid", "chart"]) COL[k] = cs.getPropertyValue("--" + k).trim();
 }
 
 // =================== Historique & graphiques ===================
@@ -1243,7 +1258,7 @@ function renderGPU(g) {
   const id = "gpu-" + g.id;
   const c = card(id, gridMain, {det: "gpu:" + g.id, tip: "gpu_use", title: T(g.integrated ? "gpu_int" : "gpu"), color: "var(--gpu)",
     body: `<div class="stats">${stat("temp", "temp")}${stat("vram", "vram")}</div>
-           <div class="bar"${tipAttr("vram")}><i data-r="vbar" style="background:var(--gpu)"></i></div>`});
+           <div class="bar"${tipAttr("vram")}><i data-r="vbar" style="background:var(--vram)"></i></div>`});
   setText(c.sub, g.name);
   const temp = g.temp != null ? Math.round(g.temp) + " °C" : T("na");
   const vram = g.integrated ? (g.shared_used != null ? fmtBytes(g.shared_used, 1) + " " + T("shared") : T("shared"))
@@ -1866,31 +1881,58 @@ function hiddenHTML() {
 // =================== Analyse : quel composant te limite ? ===================
 // ---------- Historique 24 h / 7 jours ----------
 let histRange = 24, histData = null, histT = 0, histCursor = null;
+let histEnd = null, histCompact = true, histMap = null, histDrag = null, histDragged = false, histOff = 0;   // fin de la vue (null = maintenant)
 const HSERIES = [
   {k: "cpu", lab: "CPU", avg: "c", max: "C", col: () => COL.cpu},
   {k: "gpu", lab: "GPU", avg: "g", max: "G", col: () => COL.gpu, temp: true},
+  {k: "vram", lab: "VRAM", avg: "v", col: () => COL.vram},
   {k: "ram", lab: "RAM", avg: "r", col: () => COL.ram},
-  {k: "vram", lab: "VRAM", avg: "v", col: () => COL.gpu},
 ];
 async function loadHistory(force) {
-  if (!force && histData && Date.now() - histT < 30000) return renderHistory();
+  if (!force && histData && (histEnd != null || Date.now() - histT < 30000)) return renderHistory();   // dans le passé : rien ne bouge
   histT = Date.now();
-  histData = await stJ("/api/history?hours=" + histRange);
+  const end = histEnd, H = histRange;
+  // réserve : la vue + 1 vue de chaque côté (en temps d'utilisation si compact), pour glisser en voyant tout de suite les données
+  const d = await stJ(`/api/history?view=${H}&before=${Math.min(216, 2 * H)}&after=${end == null ? 0 : H}${end != null ? "&end=" + Math.round(end) : ""}${histCompact ? "&compact=1" : ""}`);
+  if (end !== histEnd || H !== histRange) return;   // la vue a changé pendant le chargement
+  histData = d;
   renderHistory();
+}
+function histGo(end, reload) {             // déplacer la vue (null = revenir à maintenant)
+  const now = Date.now() / 1000;
+  const live = end == null || end >= now - 90;
+  const changed = live !== (histEnd == null);
+  histEnd = live ? null : Math.max(now - 8 * 86400 + histRange * 3600, end);
+  drawHistory();                            // tout de suite, avec les données déjà là (la position est gardée)
+  let m = histMap;
+  if (m && m.clamped) {                      // on a buté sur la première mesure : la vue s'arrête là
+    const e2 = histTimeAtXb(m, m.xe);
+    histEnd = e2 >= now - 90 || m.xe >= m.totalW - 1 && histData.t1 >= now - 90 ? null : e2;
+    drawHistory(); m = histMap;
+  }
+  // recharger quand la vue approche d'un bord de la réserve (et qu'il y a des données au-delà)
+  const nearStart = m && m.xe - m.w < m.w * 0.5 && histData.more;
+  const nearEnd = m && histEnd != null && histData.t1 < now - 120 && m.totalW - m.xe < m.w * 0.5;
+  const need = reload || changed || !m || nearStart || nearEnd;
+  if (need) loadHistory(true);
 }
 function renderHistory() {
   const el = document.getElementById("an-hist"), D = histData;
   if (!D) { if (!el.innerHTML) el.innerHTML = `<div class="loading" style="padding:20px"><div class="spinner"></div></div>`; return; }
   // déjà construit avec des données : on redessine seulement (pas de clignotement)
-  if (D.points.length && el.querySelector("canvas[data-hs]")) {
+  const has = D.points.length || D.first != null;   // un historique existe (la vue peut tomber dans une période éteinte)
+  if (has && el.querySelector("canvas[data-hs]")) {
     el.querySelectorAll("[data-h]").forEach(x => x.classList.toggle("on", +x.dataset.h === histRange));
     drawHistory(); return;
   }
   const head = `<div class="hist-head"><h2 style="margin:0;font-size:16px">${esc(T("hist_t"))}</h2>
       <div class="seg small" id="hist-range">${[1, 6, 12, 24, 168].map(h => `<button data-h="${h}" class="${histRange === h ? "on" : ""}">${h === 168 ? esc(T("hist_7d")) : h + " h"}</button>`).join("")}</div>
+      <div class="hist-nav"><button class="btn sm" id="hist-prev" data-tip="${esc(T("hist_prev"))}">◀</button><span id="hist-when"></span>
+        <button class="btn sm" id="hist-next" data-tip="${esc(T("hist_next"))}">▶</button><button class="btn sm" id="hist-now">${esc(T("hist_now"))}</button></div>
       <span style="flex:1"></span>
+      <label class="check" style="font-weight:400;font-size:12.5px" data-tip="${esc(T("hist_compact_tip"))}"><input type="checkbox" id="hist-cmp" ${histCompact ? "checked" : ""}><span>${esc(T("hist_compact"))}</span></label>
       <label class="check" style="font-weight:400;font-size:12.5px"><input type="checkbox" id="hist-cb" ${D.on ? "checked" : ""}><span>${esc(T("hist_opt"))}</span></label></div>`;
-  if (!D.points.length) {
+  if (!has) {
     el.innerHTML = head + `<div class="muted" style="font-size:13px;padding:8px 0">${esc(T("hist_empty"))}</div>`;
   } else {
     el.innerHTML = head + HSERIES.map(s => `<div class="hist-row"><div class="lab" style="color:${s.col()}">${s.lab}
@@ -1898,15 +1940,35 @@ function renderHistory() {
       `<div class="hist-axis"><div></div><div id="hist-axis"></div></div>`;
     drawHistory();
     el.querySelectorAll("canvas").forEach(c => {
-      c.onmousemove = e => { const r = c.getBoundingClientRect(); histCursor = (e.clientX - r.left) / r.width; drawHistory(); histTip(e);
+      c.onmousemove = e => { if (histDrag) return; const r = c.getBoundingClientRect(); histCursor = (e.clientX - r.left) / r.width; drawHistory(); histTip(e);
         c.classList.toggle("pick", !!histPointAt(histCursor)); };
-      c.onclick = e => { e.stopPropagation(); const r = c.getBoundingClientRect(), p = histPointAt((e.clientX - r.left) / r.width);
-        if (p) { histSel = p.t; openHistDetail(p); drawHistory(); } };
-      c.onmouseleave = () => { histCursor = null; drawHistory(); histTipEl.style.display = "none"; };
+      c.onmousedown = e => { if (e.button !== 0) return; e.preventDefault(); histDrag = {x0: e.clientX, w: c.clientWidth, dx: 0}; };
+      c.onclick = async e => { e.stopPropagation(); if (histDragged) { histDragged = false; return; }
+        const r = c.getBoundingClientRect(), p = histPointAt((e.clientX - r.left) / r.width);
+        if (!p) return;
+        histSel = p.t; drawHistory();
+        let pt = p;
+        if (p.hd && !p.d) { try { pt = {...p, ...((await stJ("/api/history/at?t=" + (p.dt || p.t))).point || {}), t: p.t}; } catch (err) {} }
+        openHistDetail(pt); };
+      c.onmouseleave = () => { if (histDrag) return; histCursor = null; drawHistory(); histTipEl.style.display = "none"; };
     });
   }
+  document.getElementById("hist-prev").onclick = () => histGo(histPan(-0.5));
+  document.getElementById("hist-next").onclick = () => histGo(histPan(0.5));
+  document.getElementById("hist-now").onclick = () => histGo(null, true);
+  document.getElementById("hist-cmp").onchange = e => { histCompact = e.target.checked; saveSettings(); loadHistory(true); };
   el.querySelectorAll("[data-h]").forEach(b => b.onclick = () => {
-    histRange = +b.dataset.h; saveSettings();   // on garde l'ancien graphique affiché jusqu'à l'arrivée des nouvelles données
+    // zoom autour du milieu de ce qui est affiché (on garde l'ancien graphique jusqu'à l'arrivée des nouvelles données)
+    const old = histRange, nh = +b.dataset.h, m = histMap;
+    let end = null;
+    if (m && nh !== old) {
+      end = histTimeAtXb(m, m.off + m.w / 2 + m.w / 2 * nh / old);
+      const first = histData && histData.first;   // milieu avant la 1re mesure (peu d'historique) : on zoome sur le début des données
+      if (first != null && end - nh * 3600 < first) end = first + nh * 3600;
+    }
+    histRange = nh; saveSettings();
+    const now = Date.now() / 1000;
+    histEnd = end == null || end >= now - 90 ? null : Math.max(now - 8 * 86400 + nh * 3600, end);
     el.querySelectorAll("[data-h]").forEach(x => x.classList.toggle("on", +x.dataset.h === histRange));
     loadHistory(true);
   });
@@ -1949,36 +2011,107 @@ function openHistDetail(p, fromGame) {
 }
 const histTipEl = Object.assign(document.createElement("div"), {className: "hist-tip"});
 document.body.appendChild(histTipEl);
-function histRangeT() { const t1 = Date.now() / 1000; return [t1 - histRange * 3600, t1]; }
+// position x à l'écran <-> heure. Les longues périodes éteintes (mode compact) deviennent une bande étroite.
+// La carte couvre toute la réserve chargée ; la vue (largeur w) en montre une partie, décalée pendant le glisser.
+const BAND = 34;
+function histBuildMap(w) {
+  const D = histData, P = D.points, now = Date.now() / 1000, cg = Math.max(1800, D.step * 3);
+  const atNow = D.t1 >= now - 120;           // la réserve va jusqu'à maintenant
+  const B1 = atNow ? Math.max(D.t1, now) : D.t1, B0 = D.t0;
+  const bands = [];
+  if (histCompact) {
+    for (let i = 1; i < P.length; i++) if (P[i].t - P[i - 1].t > cg) bands.push({a: P[i - 1].t, b: P[i].t});
+    const lt = P.length ? P[P.length - 1].t : B0;
+    if (atNow && B1 - lt > cg) bands.push({a: lt, b: B1, end: true});
+  }
+  const k = w / (histRange * 3600);          // pixels par seconde de mesures
+  let x = 0, t = B0;
+  for (const g of bands) { g.x0 = x + (g.a - t) * k; g.x1 = g.x0 + BAND; x = g.x1; t = g.b; }
+  const Xb = tt => { let xx = 0, tp = B0;
+    for (const g of bands) { if (tt <= g.a) return xx + (tt - tp) * k;
+      if (tt < g.b) return g.x0 + (tt - g.a) / (g.b - g.a) * BAND; xx = g.x1; tp = g.b; }
+    return xx + (tt - tp) * k; };
+  const Tb = xx => { let tp = B0, xp = 0;
+    for (const g of bands) { if (xx <= g.x0) return tp + (xx - xp) / k;
+      if (xx < g.x1) return g.a + (xx - g.x0) / BAND * (g.b - g.a); xp = g.x1; tp = g.b; }
+    return tp + (xx - xp) / k; };
+  const totalW = Xb(B1);
+  let xe = Xb(histEnd == null ? B1 : Math.min(B1, histEnd)) - histOff;     // bord droit de la vue
+  // pas plus loin que la toute première mesure (ni au-delà de maintenant en direct)
+  const first = D.first != null ? D.first : (D.more ? null : B0);
+  const minXe = first != null && first >= B0 - 1 ? Math.min(totalW, Xb(first) + w) : -Infinity;
+  const clamped = xe < minXe;
+  if (clamped) xe = minXe;
+  const off = xe - w;
+  for (const g of bands) { g.sx0 = g.x0 - off; g.sx1 = g.x1 - off; }
+  return histMap = {X: tt => Xb(tt) - off, T: xs => Tb(xs + off), Xb, Tb, band: xs => bands.find(g => xs >= g.sx0 && xs < g.sx1),
+    bands, w, k, xe, off, totalW, B0, B1, t0: Tb(off), t1: Tb(xe), minXe, clamped};
+}
+function histRangeT() { const m = histMap; return m ? [m.t0, m.t1] : [Date.now() / 1000 - histRange * 3600, Date.now() / 1000]; }
+function histTimeAtXb(m, xb) {             // heure à une position de la réserve (prolongée au-delà de ses bords)
+  return xb <= 0 ? m.B0 + xb / m.k : xb >= m.totalW ? m.B1 + (xb - m.totalW) / m.k : m.Tb(xb);
+}
+function histPan(frac) {                   // fin de la vue décalée d'une fraction de la largeur
+  const m = histMap; if (!m) return histEnd;
+  return histTimeAtXb(m, m.xe + frac * m.w);
+}
 function histPointAt(frac) {
-  const [t0, t1] = histRangeT(), t = t0 + frac * (t1 - t0), P = histData.points;
+  if (!histData || !histData.points.length || !histMap) return null;
+  const m = histMap, x = frac * m.w;
+  if (m.band(x)) return null;                // bande « éteint »
+  const t = m.T(x), P = histData.points;
   let best = null, bd = Infinity;
   for (const p of P) { const dd = Math.abs(p.t - t); if (dd < bd) { bd = dd; best = p; } }
   if (!best || bd > histData.step) return null;
   // dans une zone vide (grisée) : jamais de valeurs, sauf pile sur un point isolé (±4 px)
-  const gap = histData.step * 2.5, near = 0.004 * (t1 - t0);
+  const gap = histData.step * 2.5;
   for (let i = 1; i < P.length; i++) {
     const a = P[i - 1].t, b = P[i].t;
-    if (b - a > gap && t > a && t < b) return Math.abs(best.t - t) <= near ? best : null;
+    if (b - a > gap && t > a && t < b) return Math.abs(m.X(best.t) - x) <= 4 ? best : null;
   }
   return best;
 }
+function fmtGap(s) { const h = s / 3600; return h >= 48 ? Math.round(h / 24) + (lang === "fr" ? " j" : " d") : h >= 1 ? Math.round(h) + " h" : Math.round(s / 60) + " min"; }
+// glisser un graphique de l'historique vers la droite = remonter dans le temps (les données suivent la souris)
+let histRaf = 0;
+addEventListener("mousemove", e => {
+  if (!histDrag) return;
+  histDrag.dx = e.clientX - histDrag.x0;
+  if (Math.abs(histDrag.dx) > 4) {
+    histTipEl.style.display = "none"; histCursor = null;
+    document.querySelectorAll("#an-hist canvas[data-hs]").forEach(c => c.style.cursor = "grabbing");
+    histOff = histDrag.dx;
+    if (!histRaf) histRaf = requestAnimationFrame(() => { histRaf = 0; drawHistory(); });
+  }
+});
+addEventListener("mouseup", () => {
+  if (!histDrag) return;
+  const d = histDrag; histDrag = null;
+  document.querySelectorAll("#an-hist canvas[data-hs]").forEach(c => c.style.cursor = "");
+  if (Math.abs(d.dx) <= 4) { histOff = 0; return; }
+  histDragged = true; setTimeout(() => histDragged = false, 50);
+  const m = histMap, end = m ? histTimeAtXb(m, m.xe) : histEnd;   // m.xe tient déjà compte du décalage
+  histOff = 0;
+  histGo(end);
+});
 let TC = null;   // couleurs ok / attention / mauvais du thème (relues à chaque dessin)
 const tempCol = v => { if (!TC) { const cs = getComputedStyle(document.documentElement); TC = ["--ok", "--warn", "--bad"].map(k => cs.getPropertyValue(k).trim()); }
   return TC[v >= 85 ? 2 : v >= 75 ? 1 : 0]; };
 function drawHistory() {
   TC = null;
-  const D = histData; if (!D || !D.points.length) return;
-  const [t0, t1] = histRangeT(), gap = D.step * 2.5, last = D.points[D.points.length - 1];
-  // enregistrement en cours : la dernière valeur continue jusqu'au bord droit (pas de creux pour la minute en cours)
-  const P = D.on && t1 - last.t <= D.step * 3 ? [...D.points, {...last, t: t1}] : D.points;
+  const D = histData; if (!D || (!D.points.length && D.first == null)) return;
+  const cv0 = document.querySelector("#an-hist canvas[data-hs]");
+  const M = histBuildMap(cv0 ? cv0.clientWidth : 1000), t0 = M.t0, t1 = M.t1;
+  const gap = D.step * 2.5, last = D.points[D.points.length - 1];
+  // enregistrement en cours : la dernière valeur continue jusqu'au maintenant (pas de creux pour la minute en cours)
+  const P = last && D.on && M.B1 - last.t <= D.step * 3 && Date.now() / 1000 - M.B1 < 120 ? [...D.points, {...last, t: M.B1}] : D.points;
   document.querySelectorAll("#an-hist canvas[data-hs]").forEach(cv => {
     const s = HSERIES.find(x => x.k === cv.dataset.hs);
     const w = cv.clientWidth, h = cv.clientHeight; if (!w) return;
     const dpr = window.devicePixelRatio || 1;
     if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
     const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
-    const X = t => (t - t0) / (t1 - t0) * w, Y = v => h - 2 - Math.min(100, Math.max(0, v || 0)) / 100 * (h - 6);
+    const X = M.X, Y = v => h - 2 - Math.min(100, Math.max(0, v || 0)) / 100 * (h - 6);
     ctx.strokeStyle = COL.grid; ctx.lineWidth = 1; ctx.beginPath();
     for (let i = 1; i < 4; i++) { const y = Math.round(h * i / 4) + .5; ctx.moveTo(0, y); ctx.lineTo(w, y); }
     ctx.stroke();
@@ -1987,11 +2120,38 @@ function drawHistory() {
     if (cur.length) segs.push(cur);
     // périodes sans données (PC éteint / appli fermée) : zone grisée + traits verticaux de séparation
     ctx.save();
-    for (let i = 1; i < segs.length; i++) {
-      const a = X(segs[i - 1][segs[i - 1].length - 1].t), b = X(segs[i][0].t);
+    // coupures : entre deux bouts de courbe, et celles qui commencent / finissent hors de la réserve chargée
+    const cuts = [];
+    for (let i = 1; i < segs.length; i++) cuts.push([segs[i - 1][segs[i - 1].length - 1].t, segs[i][0].t]);
+    if (!histCompact && D.prev != null && P.length && P[0].t - D.prev > gap) cuts.unshift([D.prev, P[0].t]);
+    if (!histCompact && D.next != null && P.length && D.next - P[P.length - 1].t > gap) cuts.push([P[P.length - 1].t, D.next]);
+    if (!P.length && D.prev != null) cuts.push([D.prev, D.next != null ? D.next : M.B1]);   // vue entière dans une coupure
+    for (const [ta, tb] of cuts) {
+      const a = X(ta), b = X(tb);
+      if (b < 0 || a > w) continue;
+      if (M.band(a + 1)) continue;          // longue coupure : dessinée comme une bande (plus bas)
       ctx.fillStyle = COL.grid; ctx.fillRect(a, 0, Math.max(1, b - a), h);
       ctx.strokeStyle = "#8b93a7aa"; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
       ctx.beginPath(); ctx.moveTo(Math.round(a) + .5, 0); ctx.lineTo(Math.round(a) + .5, h); ctx.moveTo(Math.round(b) + .5, 0); ctx.lineTo(Math.round(b) + .5, h); ctx.stroke();
+      const dur = tb - ta, va = Math.max(0, a), vb = Math.min(w, b);
+      if (cv === cv0 && dur >= 1800 && vb - va >= 36) {   // durée écrite dans la partie visible du trou
+        ctx.setLineDash([]); ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--dim") || "#8b93a7";
+        ctx.font = "10.5px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText((vb - va >= 110 ? T("gap_off_short") + " · " : "") + fmtGap(dur), (va + vb) / 2, h / 2);
+      }
+    }
+    for (const g of M.bands) {               // bandes « éteint » (mode compact) : hachures + durée
+      if (g.sx1 < 0 || g.sx0 > w) continue;
+      ctx.fillStyle = COL.grid; ctx.fillRect(g.sx0, 0, BAND, h);
+      ctx.strokeStyle = "#8b93a733"; ctx.lineWidth = 1; ctx.setLineDash([]); ctx.beginPath();
+      for (let yy = -BAND; yy < h; yy += 6) { ctx.moveTo(g.sx0, yy + BAND); ctx.lineTo(g.sx1, yy); }
+      ctx.stroke();
+      ctx.strokeStyle = "#8b93a7aa"; ctx.setLineDash([3, 3]); ctx.beginPath();
+      ctx.moveTo(Math.round(g.sx0) + .5, 0); ctx.lineTo(Math.round(g.sx0) + .5, h); ctx.moveTo(Math.round(g.sx1) - .5, 0); ctx.lineTo(Math.round(g.sx1) - .5, h); ctx.stroke();
+      ctx.setLineDash([]);
+      if (cv === cv0) { ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--dim") || "#8b93a7";
+        ctx.font = "10.5px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(fmtGap(g.b - g.a), (g.sx0 + g.sx1) / 2, h / 2); }
     }
     ctx.restore();
     const line = (key, color, width, fill, scale) => {
@@ -2023,22 +2183,33 @@ function drawHistory() {
         { const tc = tempCol(Math.max(a.T, b.T)); ctx.strokeStyle = tc; ctx.stroke(); }
       }
     }
-    if (histSel != null && histSel >= t0) { const x = Math.round(X(histSel)) + .5; ctx.strokeStyle = COL.cpu; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); ctx.lineWidth = 1; }
+    if (histSel != null && histSel >= t0 && histSel <= t1) { const x = Math.round(X(histSel)) + .5; ctx.strokeStyle = COL.cpu; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); ctx.lineWidth = 1; }
     if (histCursor != null) { const x = Math.round(histCursor * w) + .5; ctx.strokeStyle = "#ffffff55"; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
   });
   const ax = document.getElementById("hist-axis");
   if (ax) {
-    const n = 6, fmt = t1 - t0 <= 86400 * 1.01 ? {hour: "2-digit", minute: "2-digit"} : {weekday: "short", day: "numeric", hour: "2-digit"};
-    setHTML(ax, Array.from({length: n + 1}, (_, i) => `<span style="left:${i / n * 100}%">${esc(new Date((t0 + i / n * (t1 - t0)) * 1000).toLocaleString(lang === "fr" ? "fr-FR" : "en-GB", fmt))}</span>`).join(""));
+    const n = 6, loc = lang === "fr" ? "fr-FR" : "en-GB", oneDay = new Date(t0 * 1000).toDateString() === new Date(t1 * 1000).toDateString();
+    const fmt = oneDay ? {hour: "2-digit", minute: "2-digit"} : {weekday: "short", day: "numeric", hour: "2-digit", minute: "2-digit"};
+    setHTML(ax, Array.from({length: n + 1}, (_, i) => { const x = i / n * M.w, g = M.band(x);
+      return `<span style="left:${i / n * 100}%;${i === 0 ? "transform:none" : i === n ? "transform:translateX(-100%)" : ""}">${g ? "" : esc(new Date(M.T(x) * 1000).toLocaleString(loc, fmt))}</span>`; }).join(""));
   }
+  const wh = document.getElementById("hist-when");
+  if (wh) { const loc = lang === "fr" ? "fr-FR" : "en-GB", f = {weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"};
+    setText(wh, histEnd == null ? T("hist_live") : new Date(t0 * 1000).toLocaleString(loc, f) + " → " + new Date(t1 * 1000).toLocaleString(loc, f));
+    document.getElementById("hist-now").style.display = histEnd == null ? "none" : "";
+    document.getElementById("hist-next").disabled = histEnd == null;
+    document.getElementById("hist-prev").disabled = M.xe <= M.minXe + 1; }
 }
 function histTip(e) {
   const p = histPointAt(histCursor);
   if (!p) {
     // dans un trou de l'historique (et après le 1er point) : on le dit
-    const [t0, t1] = histRangeT(), t = t0 + histCursor * (t1 - t0), P = histData.points;
-    if (P.length && t > P[0].t && t < P[P.length - 1].t) {
-      histTipEl.innerHTML = `<span class="muted">${esc(T("gap_off"))}</span>`;
+    const m = histMap, x = histCursor * m.w, g = m.band(x), t = m.T(x), P = histData.points;
+    const D = histData, lo = !histCompact && D.prev != null ? D.prev : (P.length ? P[0].t : 0),
+          hi = !histCompact && D.next != null ? D.next : (P.length ? P[P.length - 1].t : (D.prev != null ? histMap.B1 : 0));
+    if (g || ((P.length || D.prev != null) && t > lo && t < hi)) {
+      const loc = lang === "fr" ? "fr-FR" : "en-GB", f = {weekday: "short", hour: "2-digit", minute: "2-digit"};
+      histTipEl.innerHTML = `<span class="muted">${esc(T("gap_off"))}</span>${g ? `<br>${esc(new Date(g.a * 1000).toLocaleString(loc, f))} → ${g.end ? esc(T("hist_now_l")) : esc(new Date(g.b * 1000).toLocaleString(loc, f))} <b>(${esc(fmtGap(g.b - g.a))})</b>` : ""}`;
       histTipEl.style.display = "block";
       placeHistTip(e);
     } else histTipEl.style.display = "none";
@@ -2049,7 +2220,7 @@ function histTip(e) {
   histTipEl.innerHTML = `<div class="muted">${esc(when)}${histData.step > 60 ? " (" + T("hist_10min") + ")" : ""}</div>
     CPU <b>${Math.round(p.c)} %</b> <span class="muted">(max ${Math.round(p.C)} %)</span><br>
     GPU <b>${Math.round(p.g)} %</b> <span class="muted">(max ${Math.round(p.G)} %)</span>${p.T ? ` · <b style="color:${tempCol(p.T)}">${Math.round(p.T)} °C</b>` : ""}<br>
-    RAM <b>${Math.round(p.r)} %</b> · VRAM <b>${Math.round(p.v)} %</b>${p.d ? `<div class="muted" style="font-size:11.5px;margin-top:3px">${esc(T("hd_hint"))}</div>` : ""}${progs ? `<div style="margin-top:4px;border-top:1px solid var(--line);padding-top:4px"><span class="muted">${esc(T("hist_progs"))}</span><br>${progs}</div>` : ""}`;
+    RAM <b>${Math.round(p.r)} %</b> · VRAM <b>${Math.round(p.v)} %</b>${p.d || p.hd ? `<div class="muted" style="font-size:11.5px;margin-top:3px">${esc(T("hd_hint"))}</div>` : ""}${progs ? `<div style="margin-top:4px;border-top:1px solid var(--line);padding-top:4px"><span class="muted">${esc(T("hist_progs"))}</span><br>${progs}</div>` : ""}`;
   histTipEl.style.display = "block";
   placeHistTip(e);
 }
@@ -2067,8 +2238,10 @@ const gmTl = {};
 const GSER = [
   {k: "cpu", lab: "CPU", a: 1, m: 2, col: () => COL.cpu, sub: g => `${T("gm_avg")} ${g.cpu} % · max ${g.cpu_max} %`},
   {k: "gpu", lab: "GPU", a: 3, m: 4, t: 5, col: () => COL.gpu, sub: g => `${T("gm_avg")} ${g.gpu} % · max ${g.gpu_max} %`, sub2: g => g.temp_max ? `max ${g.temp_max} °C` : ""},
+  {k: "vram", lab: "VRAM", a: 7, col: () => COL.vram, sub: g => `max ${g.vram_max} %`},
   {k: "ram", lab: "RAM", a: 6, col: () => COL.ram, sub: g => `max ${g.ram_max} %`},
-  {k: "vram", lab: "VRAM", a: 7, col: () => COL.gpu, sub: g => `max ${g.vram_max} %`},
+  {k: "fps", lab: "FPS", a: 8, m: 9, abs: true, col: () => "#5fd38d", only: g => g.fps,
+   sub: g => `${T("gm_avg")} ${g.fps} · ${T("gm_fps_low")} ${g.fps_low ?? "–"}`, sub2: g => g.fps_max ? `max ${g.fps_max}` : ""},
 ];
 async function loadTl(st) {
   if (!gmTl[st]) { try { gmTl[st] = (await stJ("/api/games/session?start=" + st)).tl || []; } catch (e) { gmTl[st] = []; } }
@@ -2084,7 +2257,8 @@ function drawSession() {
     const dpr = window.devicePixelRatio || 1;
     if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
     const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
-    const X = t => Math.min(1, t / dur) * w, Y = v => h - 2 - Math.min(100, Math.max(0, v || 0)) / 100 * (h - 6);
+    const top = s.abs ? Math.max(30, Math.ceil(Math.max(...tl.map(p => p[s.a] || 0)) * 1.1 / 30) * 30) : 100;   // FPS : échelle selon le max
+    const X = t => Math.min(1, t / dur) * w, Y = v => h - 2 - Math.min(top, Math.max(0, v || 0)) / top * (h - 6);
     ctx.strokeStyle = COL.grid; ctx.lineWidth = 1; ctx.beginPath();
     for (let i = 1; i < 4; i++) { const y = Math.round(h * i / 4) + .5; ctx.moveTo(0, y); ctx.lineTo(w, y); }
     ctx.stroke();
@@ -2110,7 +2284,7 @@ function drawSession() {
   if (ax) { const n = 4, loc = lang === "fr" ? "fr-FR" : "en-GB";
     setHTML(ax, Array.from({length: n + 1}, (_, i) => `<span style="left:${i / n * 100}%;${i === 0 ? "transform:none" : i === n ? "transform:translateX(-100%)" : ""}">${esc(new Date((g.start + i / n * dur) * 1000).toLocaleTimeString(loc, {hour: "2-digit", minute: "2-digit"}))}</span>`).join("")); }
 }
-function vcol(v) { return {gpu: "var(--gpu)", cpu: "var(--cpu)", ram: "var(--ram)", vram: "var(--gpu)", none: "var(--ok)"}[v]; }
+function vcol(v) { return {gpu: "var(--gpu)", cpu: "var(--cpu)", ram: "var(--ram)", vram: "var(--vram)", none: "var(--ok)"}[v]; }
 function gmVerdict(g) {
   const L = g.limit || {};
   return (L.vram || 0) >= .2 ? "vram" : (L.cpu || 0) >= .25 && (L.cpu || 0) > (L.gpu || 0) ? "cpu" : (L.ram || 0) >= .2 ? "ram" : (L.gpu || 0) >= .4 ? "gpu" : "none";
@@ -2182,7 +2356,7 @@ function renderGames() {
   const tc = v => v == null ? "" : `color:${v >= 85 ? "var(--bad)" : v >= 75 ? "var(--warn)" : "var(--ok)"}`;
   const loc = lang === "fr" ? "fr-FR" : "en-GB";
   const rows = D.sessions.map(g => { const v = gmVerdict(g), op = gmOpen === g.start;
-    const det = op ? `<tr class="gm-det"><td colspan="10">${g.has_tl ? `<div class="gm-charts">${GSER.map(x => `<div class="hist-row"><div class="lab" style="color:${x.col()}">${x.lab}
+    const det = op ? `<tr class="gm-det"><td colspan="10">${g.has_tl ? `<div class="gm-charts">${GSER.filter(x => !x.only || x.only(g)).map(x => `<div class="hist-row"><div class="lab" style="color:${x.col()}">${x.lab}
         <small>${esc(x.sub(g))}</small>${x.sub2 && x.sub2(g) ? `<small>${esc(x.sub2(g))}</small>` : ""}</div><canvas data-gc="${x.k}"></canvas></div>`).join("")}
         <div class="hist-axis"><div></div><div id="gm-axis"></div></div></div>`
       : `<div class="muted" style="font-size:12.5px;padding:6px 0">${esc(T("gm_no_tl"))}</div>`}</td></tr>` : "";
@@ -2194,18 +2368,27 @@ function renderGames() {
       <td data-tip="${esc(T("gm_vt_" + v))}"><span style="color:${vcol(v)}">●</span> ${esc(T("gm_v_" + v))}</td>
       <td class="gm-dcol"><button class="gm-del" data-gdel="${g.start}" data-tip="${esc(T("gm_del"))}"><svg class="bi" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button></td></tr>${det}`; }).join("");
   const am = `<span style="display:block;text-transform:none;letter-spacing:0;font-weight:400">${esc(T("gm_avgmax"))}</span>`;
-  const cur = (D.current || []).map(c => `<div class="gm-live"><span><span style="color:var(--ok);font-weight:600">● ${esc(T("gm_now"))}</span> ${esc(c.name)} · ${fmtD(c.dur)}</span>
+  const F = D.fps || {state: "unsupported"};
+  const fpsNote = !F.on ? "" : F.state === "no_rights" ? `<div class="gm-live" style="flex-wrap:wrap;margin-bottom:8px"><span class="muted" style="flex:1;min-width:260px">${esc(T(F.granted ? "gm_fps_relog" : (gmFpsFail ? "gm_fps_fail" : "gm_fps_need")))}</span>
+      ${F.granted ? "" : `<button class="btn sm" id="gm-fps-ok" ${gmGranting ? "disabled" : ""}>🛡 ${esc(gmGranting ? "…" : T("gm_fps_btn"))}</button>`}</div>`
+    : F.state === "error" ? `<div class="muted" style="font-size:12.5px;margin-bottom:8px">${esc(T("gm_fps_err"))}</div>` : "";
+  const cur = (D.current || []).map(c => `<div class="gm-live"><span><span style="color:var(--ok);font-weight:600">● ${esc(T("gm_now"))}</span> ${esc(c.name)} · ${fmtD(c.dur)}${c.fps ? ` · <b style="color:#5fd38d">${c.fps} FPS</b>` : ""}</span>
       <button class="btn sm" data-gstop="${esc(c.key)}" data-tip="${esc(T("gm_stop_tip"))}">⏸ ${esc(T("gm_stop"))}</button></div>`).join("")
     + (D.paused || []).map(c => `<div class="gm-live"><span><span class="muted" style="font-weight:600">⏸ ${esc(T("gm_paused"))}</span> ${esc(c.name)}</span>
       <button class="btn sm" data-gres="${esc(c.key)}" data-tip="${esc(T("gm_resume_tip"))}">▶ ${esc(T("gm_resume"))}</button></div>`).join("");
   setHTML(el, `<div class="hist-head"><h2 style="margin:0;font-size:16px">${esc(T("gm_t"))}</h2><span style="flex:1"></span>
       ${D.sessions.length ? `<button class="btn sm btn-danger" id="gm-clear"><svg class="bi" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span>${esc(T("gm_clear"))}</span></button>` : ""}
-      <label class="check" style="font-weight:400;font-size:12.5px"><input type="checkbox" id="gm-cb" ${D.on ? "checked" : ""}><span>${esc(T("gm_opt"))}</span></label></div>
+      <label class="check" style="font-weight:400;font-size:12.5px"><input type="checkbox" id="gm-cb" ${D.on ? "checked" : ""}><span>${esc(T("gm_opt"))}</span></label>
+      ${F.state !== "unsupported" ? `<label class="check" style="font-weight:400;font-size:12.5px" data-tip="${esc(T("gm_fps_tip"))}"><input type="checkbox" id="gm-fps" ${F.on ? "checked" : ""}><span>${esc(T("gm_fps_opt"))}</span></label>` : ""}</div>
+    ${fpsNote}
     ${cur}
     ${D.sessions.length ? `<div class="tw"><table><tr><th>${esc(T("gm_game"))}</th><th>${esc(T("gm_date"))}</th><th>${esc(T("gm_dur"))}</th>
       <th>GPU${am}</th><th>CPU${am}</th><th>${esc(T("gm_temp"))}${am}</th><th>RAM max</th><th>VRAM max</th><th>${esc(T("gm_verdict"))}</th><th></th></tr>${rows}</table></div>`
       : `<div class="muted" style="font-size:13px">${esc(T("gm_empty"))}</div>`}`);
   const cb = document.getElementById("gm-cb"); if (cb) cb.onchange = e => loadGames("?on=" + (e.target.checked ? 1 : 0));
+  const fc = document.getElementById("gm-fps"); if (fc) fc.onchange = e => loadGames("?fps=" + (e.target.checked ? 1 : 0));
+  const fo = document.getElementById("gm-fps-ok"); if (fo) fo.onclick = async () => { if (gmGranting) return; gmGranting = true; renderGames();
+    await loadGames("?fps_grant=1"); gmGranting = false; gmFpsFail = !(gmData.fps && (gmData.fps.granted || gmData.fps.state === "ok")); renderGames(); };
   const cl = document.getElementById("gm-clear"); if (cl) cl.onclick = e => { e.stopPropagation(); if (cl.dataset.ok) return loadGames("?clear=1"); armConfirm(cl, T("gm_sure")); };
   el.querySelectorAll("[data-gstop]").forEach(sb => sb.onclick = async () => { sb.disabled = true;
     try { const d = await stJ("/api/games/stop?key=" + encodeURIComponent(sb.dataset.gstop)); gmData = d; gmT = Date.now(); if (d.stopped) { gmOpen = d.stopped; delete gmTl[d.stopped]; loadTl(d.stopped); } } catch (e) {}
@@ -2230,7 +2413,7 @@ function renderGames() {
   });
   drawSession();
 }
-let gmCursor = null;
+let gmCursor = null, gmFpsFail = false, gmGranting = false;
 function gmPoint() {
   const tl = gmOpen && gmTl[gmOpen], g = gmData && gmData.sessions.find(x => x.start === gmOpen);
   if (!tl || !tl.length || !g || gmCursor == null) return null;
@@ -2250,7 +2433,7 @@ function gmTip(e) {
   histTipEl.innerHTML = `<div class="muted">${esc(when)}</div>
     CPU <b>${R(p[1])}</b> <span class="muted">(max ${R(p[2])})</span><br>
     GPU <b>${R(p[3])}</b> <span class="muted">(max ${R(p[4])})</span>${p[5] ? ` · <b style="color:${tempCol(p[5])}">${Math.round(p[5])} °C</b>` : ""}<br>
-    RAM <b>${R(p[6])}</b> · VRAM <b>${R(p[7])}</b><div class="muted" style="font-size:11.5px;margin-top:3px">${esc(T("hd_hint"))}</div>`;
+    RAM <b>${R(p[6])}</b> · VRAM <b>${R(p[7])}</b>${p[8] ? `<br>FPS <b>${Math.round(p[8])}</b> <span class="muted">(${esc(T("gm_fps_low"))} ${p[9] ? Math.round(p[9]) : "–"})</span>` : ""}<div class="muted" style="font-size:11.5px;margin-top:3px">${esc(T("hd_hint"))}</div>`;
   histTipEl.style.display = "block";
   placeHistTip(e);
 }
@@ -2261,7 +2444,7 @@ function renderAnalysis(force) {
   const dur = s => { s = Math.floor(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60);
     return h ? `${h} ${T("h")} ${String(m).padStart(2, "0")} ${T("min")}` : m ? `${m} ${T("min")} ${String(s % 60).padStart(2, "0")} s` : `${s} s`; };
   const rows = ["gpu", "cpu", "vram", "ram"].map(k => `<span${tipAttr("sh")}>${esc(T("sh_" + k))}</span>
-      <div class="bar" style="height:10px"><i style="width:${(I.shares[k] * 100).toFixed(1)}%;background:var(--${k === "vram" ? "gpu" : k})"></i></div>
+      <div class="bar" style="height:10px"><i style="width:${(I.shares[k] * 100).toFixed(1)}%;background:var(--${k})"></i></div>
       <b style="text-align:right">${Math.round(I.shares[k] * 100)} %</b>`).join("");
   const pct = Math.min(100, I.load_s / I.need_s * 100);
   const now = I.loading_now

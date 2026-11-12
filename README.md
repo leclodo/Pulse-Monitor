@@ -23,6 +23,8 @@ From the [Releases](https://github.com/leclodo/Pulse-Monitor/releases/latest) pa
 | ![Components](docs/composants.png) | ![Storage](docs/stockage.png) |
 | **Analysis** | **Gaming** |
 | ![Analysis](docs/analyse.png) | ![Gaming](docs/gaming.png) |
+| **Most demanding programs at a given moment** | **Settings** |
+| ![Programs](docs/programmes.png) | ![Settings](docs/parametres.png) |
 
 ## What it shows
 
@@ -44,13 +46,16 @@ From the [Releases](https://github.com/leclodo/Pulse-Monitor/releases/latest) pa
 - **Temporary files**: Windows temp files, updates, browser / app / shader caches, thumbnails, crash reports, Recycle Bin. Nothing is deleted.
 
 **Analysis**
-- **1 h / 6 h / 12 h / 24 h / 7 days** history: CPU, GPU + temperature, RAM, VRAM (hover = values, click = the most demanding programs for CPU, RAM and GPU); drag a chart to go back in time, switched-off periods compacted
+- **1 h / 6 h / 12 h / 24 h / 7 days** history (kept 8 days): CPU, GPU + temperature, VRAM, RAM
+- Hover = values, click = the most demanding programs (CPU, RAM, GPU) at that moment
+- Drag a chart (or ◀ ▶) to go back in time; changing the range zooms around the middle
+- Switched-off periods compacted into a narrow band (optional) and always labelled
 - Which component holds you back the most (after 10 min of heavy usage)
 
 **Gaming**
 - Games recognized within 10 to 30 s (Steam, Epic, GOG, Battle.net, Riot… or full screen with the graphics card under load)
-- Report for each session: duration, GPU / CPU (average / max), temperature, RAM / VRAM, what limited, and charts
-- FPS (average, 1% low, max) read from Windows display events, no extra program (one-time permission: "Performance Log Users" group)
+- Report for each session: duration, CPU / GPU (average / max), GPU temperature, VRAM / RAM, **FPS (average / 1% low)**, what limited, and charts (hover for values, click for the most demanding programs)
+- FPS read from Windows display events, no extra program (one-time permission if needed: "Performance Log Users" group)
 - Find installed games, add any program manually, pause / resume tracking
 
 ## Usage
@@ -60,7 +65,7 @@ From the [Releases](https://github.com/leclodo/Pulse-Monitor/releases/latest) pa
 - **Cards: Collapsed / Small / Large** buttons at the top of Performance; **⋮⋮** handle to reorder by drag and drop.
 - **Settings**: FR / EN language (Windows language by default), 5 themes, start with Windows, keep in tray when closed, daily update check.
 - **Close the window (✕)**: the app stays near the clock with a small icon (~30 MB). Click = reopen, right-click = Quit.
-- **Desktop widget**: CPU, GPU + temperature, VRAM, RAM on one line (compact or bars). 📌 = pinned on top with click-through (hold Ctrl to move it), 🧲 snaps to screen edges. Configurable keyboard shortcut.
+- **Desktop widget**: CPU, GPU + temperature, VRAM, RAM on one line (compact or bars), plus ● and the FPS while gaming. 📌 = pinned on top with click-through (hold Ctrl to move it), 🧲 snaps to screen edges. Adjustable opacity and size, configurable keyboard shortcut.
 - **Updates**: click the version number → "Check for updates".
 - Hover any value for a short explanation.
 

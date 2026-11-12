@@ -23,6 +23,8 @@ Dans les [Releases](https://github.com/leclodo/Pulse-Monitor/releases/latest) :
 | ![Composants](docs/composants.png) | ![Stockage](docs/stockage.png) |
 | **Analyse** | **Gaming** |
 | ![Analyse](docs/analyse.png) | ![Gaming](docs/gaming.png) |
+| **Programmes les plus gourmands à un moment donné** | **Paramètres** |
+| ![Programmes](docs/programmes.png) | ![Paramètres](docs/parametres.png) |
 
 ## Ce qu'il affiche
 
@@ -44,13 +46,16 @@ Dans les [Releases](https://github.com/leclodo/Pulse-Monitor/releases/latest) :
 - **Fichiers temporaires** : fichiers temporaires Windows, mises à jour, caches des navigateurs / applis / shaders, miniatures, rapports de plantage, corbeille. Rien n'est supprimé.
 
 **Analyse**
-- Historique **1 h / 6 h / 12 h / 24 h / 7 jours** : CPU, GPU + température, RAM, VRAM (survol = valeurs, clic = les programmes les plus gourmands en CPU, RAM et GPU) ; glisser un graphique pour remonter dans le temps, périodes éteintes compactées
+- Historique **1 h / 6 h / 12 h / 24 h / 7 jours** (gardé 8 jours) : CPU, GPU + température, VRAM, RAM
+- Survol = valeurs, clic = les programmes les plus gourmands (CPU, RAM, GPU) à ce moment-là
+- Glisser un graphique (ou ◀ ▶) pour remonter dans le temps ; changer de durée zoome autour du milieu
+- Périodes éteintes réduites à une bande étroite (au choix) et toujours indiquées
 - Quel composant te limite le plus (après 10 min d'usage intensif)
 
 **Gaming**
 - Jeu reconnu en 10 à 30 s (Steam, Epic, GOG, Battle.net, Riot… ou plein écran avec la carte graphique chargée)
-- Rapport de chaque session : durée, GPU / CPU (moyenne / max), température, RAM / VRAM, ce qui limitait, et graphiques
-- FPS (moyenne, 1 % low, max) lus dans les événements d'affichage de Windows, sans programme ajouté (autorisation unique : groupe « Utilisateurs du journal de performances »)
+- Rapport de chaque session : durée, CPU / GPU (moyenne / max), température du GPU, VRAM / RAM, **FPS (moyenne / 1 % low)**, ce qui limitait, et graphiques (survol = valeurs, clic = les programmes les plus gourmands)
+- FPS lus dans les événements d'affichage de Windows, sans programme ajouté (autorisation unique si besoin : groupe « Utilisateurs du journal de performances »)
 - Recherche des jeux installés, ajout manuel de n'importe quel programme, pause / reprise du suivi
 
 ## Utilisation
@@ -60,7 +65,7 @@ Dans les [Releases](https://github.com/leclodo/Pulse-Monitor/releases/latest) :
 - Boutons **Cartes : Repliées / Petites / Grandes** en haut de Performances ; poignée **⋮⋮** pour réorganiser par glisser-déposer.
 - **Paramètres** : langue FR / EN (celle de Windows par défaut), 5 thèmes, lancement avec Windows, garder en fond à la fermeture, vérification quotidienne des mises à jour.
 - **Fermer la fenêtre (✕)** : l'appli reste près de l'horloge avec une petite icône (~30 Mo). Clic = rouvrir, clic droit = Quitter.
-- **Widget de bureau** : CPU, GPU + température, VRAM, RAM sur une ligne (compact ou barres). 📌 = épinglé au-dessus de tout avec clics à travers (maintenir Ctrl pour le déplacer), 🧲 = aimanté aux bords de l'écran. Raccourci clavier configurable.
+- **Widget de bureau** : CPU, GPU + température, VRAM, RAM sur une ligne (compact ou barres), plus ● et les FPS en jeu. 📌 = épinglé au-dessus de tout avec clics à travers (maintenir Ctrl pour le déplacer), 🧲 = aimanté aux bords de l'écran. Opacité et taille réglables, raccourci clavier configurable.
 - **Mises à jour** : clic sur le numéro de version → « Vérifier les mises à jour ».
 - Survole une donnée pour une explication courte.
 

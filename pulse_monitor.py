@@ -24,7 +24,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import psutil
 
 APP_NAME = "Pulse Monitor"
-APP_VERSION = "0.7.7"
+APP_VERSION = "0.7.13"
 IS_WIN = os.name == "nt"
 FROZEN = bool(getattr(sys, "frozen", False))      # version .exe (PyInstaller)
 # données (réglages, historique…) : à côté du .exe ou du script ; fichiers de l'appli (page, icônes) : dans le paquet
@@ -48,11 +48,77 @@ HEALTH_FILE = os.path.join(DATA_DIR, "scans", "health.json")
 GAMES_FILE = os.path.join(DATA_DIR, "games.json")
 GAMELIB_FILE = os.path.join(DATA_DIR, "games_lib.json")
 
-logging.basicConfig(
-    filename=os.path.join(DATA_DIR, "pulse_monitor.log"),
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(message)s",
-)
+LOG_FILE = os.path.join(DATA_DIR, "pulse_monitor.log")
+RUN_FLAG = os.path.join(DATA_DIR, "running.flag")      # présent pendant que l'appli tourne : sert à repérer un plantage
+
+
+def _fix_log_encoding():
+    """Le journal est en UTF-8 (avec la marque BOM pour que le Bloc-notes affiche bien les accents).
+    Les anciennes lignes écrites dans l'encodage Windows sont converties une fois."""
+    try:
+        with open(LOG_FILE, "rb") as f:
+            raw = f.read()
+    except OSError:
+        raw = None
+    if raw is None or raw == b"":
+        try:
+            with open(LOG_FILE, "wb") as f:
+                f.write(b"\xef\xbb\xbf")
+        except OSError:
+            pass
+        return
+    if raw.startswith(b"\xef\xbb\xbf"):
+        return
+    out = []
+    for line in raw.splitlines(keepends=True):
+        try:
+            out.append(line.decode("utf-8"))
+        except UnicodeDecodeError:
+            out.append(line.decode("cp1252", errors="replace"))
+    try:
+        with open(LOG_FILE, "w", encoding="utf-8-sig", newline="") as f:
+            f.write("".join(out))
+    except OSError:
+        pass
+
+
+def _setup_log():
+    """Journal limité à 1 Mo (+ 1 ancienne copie). La fenêtre (2e processus) écrit sans faire tourner le fichier."""
+    if "--window" not in sys.argv:
+        _fix_log_encoding()
+    fmt = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
+    if "--window" in sys.argv:
+        h = logging.FileHandler(LOG_FILE, encoding="utf-8")
+    else:
+        from logging.handlers import RotatingFileHandler
+
+        class Rot(RotatingFileHandler):
+            def doRollover(self):                 # nouveau fichier : on remet la marque UTF-8 en tête
+                super().doRollover()
+                if self.stream:
+                    self.stream.write("\ufeff")
+        h = Rot(LOG_FILE, maxBytes=1024 * 1024, backupCount=1, encoding="utf-8")
+    h.setFormatter(fmt)
+    lg = logging.getLogger()
+    lg.setLevel(logging.INFO)
+    lg.addHandler(h)
+
+    # erreurs non prévues (plantages) : dans le journal, avec leur détail
+    def hook(t, v, tb):
+        logging.getLogger("pulse").critical("Plantage (%s)", "fenêtre" if "--window" in sys.argv else "appli", exc_info=(t, v, tb))
+    sys.excepthook = hook
+    threading.excepthook = lambda a: logging.getLogger("pulse").critical(
+        "Plantage dans un fil d'exécution (%s)", getattr(a.thread, "name", "?"), exc_info=(a.exc_type, a.exc_value, a.exc_traceback))
+    # plantage « dur » (ex. dans une fonction Windows) : trace écrite directement dans le journal
+    try:
+        import faulthandler
+        _setup_log.crash_file = open(LOG_FILE + ".crash", "a", encoding="utf-8")
+        faulthandler.enable(_setup_log.crash_file)
+    except Exception:
+        pass
+
+
+_setup_log()
 log = logging.getLogger("pulse")
 
 CREATE_NO_WINDOW = 0x08000000
@@ -2875,6 +2941,8 @@ def clean_settings(d):
         # widget : seulement si la page les envoie (le widget gère aussi sa position / épinglage lui-même)
         **({"widget": bool(d["widget"])} if "widget" in d else {}),
         **({"widget_style": d["widget_style"] if d["widget_style"] in ("compact", "bars") else "compact"} if "widget_style" in d else {}),
+        **({"widget_alpha": max(25, min(100, int(d["widget_alpha"])))} if isinstance(d.get("widget_alpha"), (int, float)) else {}),
+        **({"widget_scale": max(70, min(200, int(d["widget_scale"])))} if isinstance(d.get("widget_scale"), (int, float)) else {}),
     }
 
 
@@ -3097,7 +3165,7 @@ def make_handler(sampler, details):
                         save_settings(cur)
                     BG[0] = cs["bg"]
                     HIST_ON[0] = cs["history"]
-                    if ("widget" in cs or "widget_style" in cs) and WIDGET_HOOK[0]:
+                    if ("widget" in cs or "widget_style" in cs or "widget_alpha" in cs or "widget_scale" in cs) and WIDGET_HOOK[0]:
                         WIDGET_HOOK[0]()
                 self._send(200, b"{}", "application/json")
             except Exception:
@@ -3326,7 +3394,7 @@ class WindowManager:
 
     def _watch(self, proc):
         code = proc.wait()
-        log.info("Fenêtre fermée (code %s)", code)
+        (log.info if code == 0 else log.warning)("Fenêtre fermée (code %s%s)", code, "" if code == 0 else " : fermeture anormale")
         self.on_closed()
 
     def close(self):
@@ -3344,7 +3412,6 @@ class DesktopWidget:
     BG, FG, MUTED, TRACK = "#11151d", "#e8ebf2", "#8b93a7", "#262c3b"
     COLORS = {"cpu": "#4cc2ff", "gpu": "#ffa94d", "vram": "#ffa94d", "ram": "#b38cff"}
     STYLES = ("compact", "bars")
-    BAR_W = 56
     WARN, BAD = "#ffb547", "#ff5d6c"
     KEY = "#010203"   # couleur rendue invisible (et traversée par les clics) par Windows
 
@@ -3372,9 +3439,22 @@ class DesktopWidget:
     def apply_settings(self):
         st = load_settings()
         self._post("style", st.get("widget_style") if st.get("widget_style") in self.STYLES else "compact")
+        self._post("alpha", self._alpha(st))
+        self._post("scale", self._scale(st))
         self._post("show", bool(st.get("widget")))
 
+    @staticmethod
+    def _scale(st):
+        v = st.get("widget_scale")
+        return max(70, min(200, v)) / 100 if isinstance(v, (int, float)) else 1.0
+
+    @staticmethod
+    def _alpha(st):
+        a = st.get("widget_alpha")
+        return max(25, min(100, a)) / 100 if isinstance(a, (int, float)) else 0.86
+
     def set_visible(self, on):
+        log.info("Widget : %s (croix, menu de l'icône ou raccourci)", "affiché" if on else "masqué")
         update_settings(widget=bool(on))
         self._post("show", bool(on))
 
@@ -3401,31 +3481,63 @@ class DesktopWidget:
         root.withdraw()
         root.overrideredirect(True)            # sans bordure ni bouton dans la barre des tâches
         root.configure(bg=self.KEY)
-        root.attributes("-alpha", 0.86)
+        root.attributes("-alpha", self._alpha(st))
         if IS_WIN:
             root.attributes("-transparentcolor", self.KEY)
-        self.font = ("Segoe UI", 9)
-        self.bold = ("Segoe UI Semibold", 9)
-        # Fenêtre de taille FIXE : [zone des boutons | chiffres]. La zone des boutons est toujours là ;
-        # vide, elle est de la couleur invisible. Afficher/masquer les boutons ne redimensionne et ne déplace
-        # donc jamais la fenêtre (plus de clignotement ni d'élargissement).
-        self._build_header()
-        self.outer = tk.Frame(root, bg=self.BG, padx=0, pady=6)
-        self.outer.pack(side="left", fill="both", expand=True)
-        self.body = tk.Frame(self.outer, bg=self.BG)
-        self.body.pack(fill="both", expand=True)
+        self.pt = root.winfo_fpixels("1i") / 72             # pixels par point (écran)
+        self.k = self._scale(st)
+        self._make_ui()
         x, y = st.get("widget_x"), st.get("widget_y")         # position des chiffres
         if not isinstance(x, int) or not isinstance(y, int):
             x, y = root.winfo_screenwidth() - 260, 70
         root.geometry("+%d+%d" % (x - self.side_w, y))
-        self._build_body()
         root.bind("<ButtonPress-1>", self._drag_start)
         root.bind("<B1-Motion>", self._drag_move)
         root.bind("<ButtonRelease-1>", self._drag_end)
         root.after(100, self._loop_cmds)
         root.after(300, self._update)
         root.after(200, self._watch_ctrl)
-        root.mainloop()
+        log.info("Widget : démarré (épinglé=%s, position=%s,%s)", self.is_pinned, x, y)
+        try:
+            root.mainloop()
+        except Exception:
+            log.exception("Widget : arrêt inattendu")
+        log.warning("Widget : boucle Tk terminée")
+
+    def S(self, v):
+        """Taille mise à l'échelle choisie dans les Paramètres."""
+        return max(1, round(v * self.k))
+
+    def _make_ui(self):
+        # Fenêtre de taille FIXE : [zone des boutons | chiffres]. La zone des boutons est toujours là ;
+        # vide, elle est de la couleur invisible. Afficher/masquer les boutons ne redimensionne et ne déplace
+        # donc jamais la fenêtre (plus de clignotement ni d'élargissement).
+        tk = self.tk
+        fpx = max(8, round(9 * self.pt * self.k))
+        self.font = ("Segoe UI", -fpx)
+        self.bold = ("Segoe UI Semibold", -fpx)
+        self.ibox, self.bw, self.bh = self.S(20), self.S(56), self.S(6)
+        self._build_header()
+        self.outer = tk.Frame(self.root, bg=self.BG, padx=0, pady=self.S(6))
+        self.outer.pack(side="left", fill="both", expand=True)
+        self.body = tk.Frame(self.outer, bg=self.BG)
+        self.body.pack(fill="both", expand=True)
+        self._build_body()
+
+    def _rescale(self, k):
+        if abs(k - self.k) < 0.001:
+            return
+        root = self.root
+        x, y = root.winfo_x() + self.side_w, root.winfo_y()   # position des chiffres : elle ne bouge pas
+        self._hide_tip()
+        self.side.destroy()
+        self.outer.destroy()
+        self.k = k
+        self._make_ui()
+        root.geometry("+%d+%d" % (x - self.side_w, y))
+        self._lastw = 0
+        if self.visible:
+            root.after(60, self._fit)
 
     def _work_area(self, px, py):
         """Zone de travail (sans la barre des tâches) de l'écran qui contient ce point."""
@@ -3462,7 +3574,6 @@ class DesktopWidget:
             log.exception("Widget : placement")
 
     # icônes : chacune centrée dans une case de taille fixe (les symboles n'ont pas tous la même ligne de base)
-    ICON_BOX = 20
     ICONS = {"close": ("✕", 0, 0), "pin": ("📌", 0, 0), "snap": ("🧲", -2, 0), "style": ("◫", -1, 4)}   # (symbole, décalage vertical px, px en plus)
     TIPS = {
         "fr": {"close": "Masquer le widget", "pin": "Épingler au-dessus de tout (clics à travers)", "unpin": "Désépingler",
@@ -3508,9 +3619,10 @@ class DesktopWidget:
             self._tip = None
 
     def _icon_btn(self, parent, kind, cb):
-        tk, n = self.tk, self.ICON_BOX
+        tk, n = self.tk, self.ibox
         text, dy, grow = self.ICONS[kind]
-        px = round(9 * self.root.winfo_fpixels("1i") / 72) + grow       # 9 pt en pixels, + agrandissement
+        px = round(9 * self.pt * self.k) + round(grow * self.k)       # 9 pt en pixels (à l'échelle), + agrandissement
+        dy = round(dy * self.k)
         b = tk.Frame(parent, bg=self.BG, width=n, height=n, cursor="hand2")
         b.pack_propagate(False)
         b.lbl = tk.Label(b, text=text, bg=self.BG, fg=self.MUTED, font=("Segoe UI Symbol", -px), bd=0, padx=0, pady=0, cursor="hand2")
@@ -3543,9 +3655,9 @@ class DesktopWidget:
         et que Ctrl est maintenu. Ils sont dans une zone de largeur fixe : les chiffres ne bougent jamais."""
         tk = self.tk
         self.side = tk.Frame(self.root, bg=self.KEY)          # zone fixe, invisible là où il n'y a rien
-        self.pad = tk.Frame(self.side, bg=self.BG, width=10)  # marge gauche du cadre, toujours visible
+        self.pad = tk.Frame(self.side, bg=self.BG, width=self.S(10))  # marge gauche du cadre, toujours visible
         self.pad.pack(side="right", fill="y")
-        self.strip = tk.Frame(self.side, bg=self.BG, padx=4)  # fond juste derrière les boutons affichés
+        self.strip = tk.Frame(self.side, bg=self.BG, padx=self.S(4))  # fond juste derrière les boutons affichés
         self.close_btn = self._icon_btn(self.strip, "close", lambda: self.set_visible(False))
         self.pin_btn = self._icon_btn(self.strip, "pin", lambda: self.set_pinned(not self.is_pinned))
         self.style_btn = self._icon_btn(self.strip, "style", self._toggle_style)
@@ -3554,7 +3666,7 @@ class DesktopWidget:
         self.root.update_idletasks()
         sets = ([self.close_btn, self.pin_btn, self.snap_btn, self.style_btn], [self.pin_btn, self.snap_btn, self.style_btn])
         # marge gauche du cadre (10 px) toujours visible : elle fait partie de la zone des boutons
-        self.side_w = max(sum(self.ICON_BOX + 2 for w in ws) for ws in sets) + 8 + 10
+        self.side_w = max(sum(self.ibox + 2 for w in ws) for ws in sets) + self.S(4) * 2 + self.S(10)
         self.side.configure(width=self.side_w)
         self.side.pack_propagate(False)
         self.side.pack(side="left", fill="y")
@@ -3577,19 +3689,19 @@ class DesktopWidget:
         row.pack(fill="x", pady=(1, 0))
         for i, (k, name) in enumerate([("cpu", "CPU"), ("gpu", "GPU"), ("vram", "VRAM"), ("ram", "RAM")]):
             if i:
-                tk.Label(row, text="·" if self.style == "compact" else " ", bg=self.BG, fg=self.MUTED, font=self.font).pack(side="left", padx=4)
-            tk.Label(row, text=name, bg=self.BG, fg=self.COLORS[k], font=self.bold).pack(side="left", padx=(0, 5))
+                tk.Label(row, text="·" if self.style == "compact" else " ", bg=self.BG, fg=self.MUTED, font=self.font).pack(side="left", padx=self.S(4))
+            tk.Label(row, text=name, bg=self.BG, fg=self.COLORS[k], font=self.bold).pack(side="left", padx=(0, self.S(5)))
             cell = {}
             if self.style == "bars":
-                c = tk.Canvas(row, width=self.BAR_W, height=6, bg=self.TRACK, highlightthickness=0, bd=0)
-                c.pack(side="left", padx=(0, 5))
-                cell.update(canvas=c, bar=c.create_rectangle(0, 0, 0, 6, fill=self.COLORS[k], width=0))
+                c = tk.Canvas(row, width=self.bw, height=self.bh, bg=self.TRACK, highlightthickness=0, bd=0)
+                c.pack(side="left", padx=(0, self.S(5)))
+                cell.update(canvas=c, bar=c.create_rectangle(0, 0, 0, self.bh, fill=self.COLORS[k], width=0))
             cell["val"] = tk.Label(row, text="–", bg=self.BG, fg=self.FG, font=self.font)
             cell["val"].pack(side="left")
             self.cells[k] = cell
         # session de jeu en cours : petit texte vert au bout de la ligne (visible même épinglé)
         self.game_lbl = tk.Label(row, text="", bg=self.BG, fg="#5fd38d", font=self.bold)   # affiché seulement en jeu
-        tk.Frame(row, bg=self.BG, width=10).pack(side="right")                             # marge droite du cadre
+        tk.Frame(row, bg=self.BG, width=self.S(10)).pack(side="right")                             # marge droite du cadre
         self._apply_pin_look()
 
     # ---------- commandes (depuis les autres threads) ----------
@@ -3601,6 +3713,8 @@ class DesktopWidget:
             if cmd[0] in ("show", "pin"):
                 changed = True
             if cmd[0] == "show":
+                if cmd[1] != self.visible:
+                    log.info("Widget : %s", "affiché" if cmd[1] else "masqué")
                 self.visible = cmd[1]
                 WIDGET_ON[0] = cmd[1]
                 if cmd[1]:
@@ -3610,8 +3724,13 @@ class DesktopWidget:
                 else:
                     self.root.withdraw()
             elif cmd[0] == "pin":
+                log.info("Widget : %s", "épinglé" if cmd[1] else "désépinglé")
                 self.is_pinned = cmd[1]
                 self._apply_pin()
+            elif cmd[0] == "alpha":
+                self.root.attributes("-alpha", cmd[1])
+            elif cmd[0] == "scale":
+                self._rescale(cmd[1])
             elif cmd[0] == "style" and cmd[1] != self.style:
                 self.style = cmd[1]
                 self._build_body()
@@ -3680,7 +3799,58 @@ class DesktopWidget:
         else:
             self.strip.pack_forget()
 
+    def _fg_desc(self):
+        """Fenêtre au premier plan (programme, plein écran ?) : pour comprendre ce qui a caché le widget."""
+        try:
+            pid, full = _fg_window()
+            name = psutil.Process(pid).name() if pid else "?"
+            return "%s%s" % (name, " plein écran" if full else "")
+        except Exception:
+            return "?"
+
+    def _keep_alive(self):
+        """Épinglé : Windows peut le cacher (Afficher le bureau, jeu plein écran, explorateur relancé…)
+        ou le faire passer derrière une autre fenêtre « au-dessus de tout ». On le remet, sans l'activer.
+        Chaque problème est noté (une fois) dans pulse_monitor.log."""
+        if not (IS_WIN and self.visible):
+            return
+        try:
+            from ctypes import wintypes
+            u32, h = ctypes.windll.user32, self._hwnd()
+            issues = []
+            if not u32.IsWindowVisible(h):
+                issues.append("caché par Windows")
+            if u32.IsIconic(h):
+                issues.append("réduit")
+            rc = wintypes.RECT()
+            if u32.GetWindowRect(h, ctypes.byref(rc)):
+                c = wintypes.POINT((rc.left + rc.right) // 2 + self.side_w // 2, (rc.top + rc.bottom) // 2)
+                if not u32.MonitorFromPoint(c, 0):              # MONITOR_DEFAULTTONULL : hors de tous les écrans
+                    issues.append("hors écran (%d,%d)" % (rc.left, rc.top))
+            if self.is_pinned and not (u32.GetWindowLongW(h, -20) & 0x8):   # WS_EX_TOPMOST perdu
+                issues.append("plus au-dessus de tout")
+            key = tuple(issues)
+            if key != getattr(self, "_ka_issue", ()):
+                if issues:
+                    log.warning("Widget : %s — premier plan : %s — remis en place", ", ".join(issues), self._fg_desc())
+                elif getattr(self, "_ka_issue", ()):
+                    log.info("Widget : de nouveau visible")
+                self._ka_issue = key
+            if "caché par Windows" in issues or "réduit" in issues:
+                u32.ShowWindow(h, 4)                                   # SW_SHOWNOACTIVATE
+            if any(i.startswith("hors écran") for i in issues):
+                self._fit()
+            if self.is_pinned:
+                u32.SetWindowPos.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint]
+                u32.SetWindowPos(ctypes.c_void_p(h), ctypes.c_void_p(-1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010 | 0x0200)
+                # HWND_TOPMOST ; SWP_NOSIZE | NOMOVE | NOACTIVATE | NOOWNERZORDER
+        except Exception:
+            log.exception("Widget : maintien à l'écran")
+
     def _watch_ctrl(self):
+        self._ka = getattr(self, "_ka", 0) + 1
+        if self._ka % 10 == 0:                     # toutes les 2 s
+            self._keep_alive()
         if self.visible and self.is_pinned and IS_WIN:
             down = bool(ctypes.windll.user32.GetAsyncKeyState(0x11) & 0x8000)   # VK_CONTROL
             if down != self.ctrl_down:          # Ctrl : on ne change que les clics à travers et les boutons
@@ -3776,7 +3946,7 @@ class DesktopWidget:
                 if self.game_lbl.cget("text") != gt:
                     self.game_lbl.configure(text=gt)
                     if gt:
-                        self.game_lbl.pack(side="left", padx=(10, 0))
+                        self.game_lbl.pack(side="left", padx=(self.S(10), 0))
                     else:
                         self.game_lbl.pack_forget()
                 for k, cell in self.cells.items():
@@ -3784,7 +3954,7 @@ class DesktopWidget:
                     hot = (pct is not None and pct >= 90) or (k == "gpu" and m["temp"] and m["temp"] >= 85)
                     cell["val"].configure(text=txt, fg=self.BAD if hot else self.FG)
                     if "canvas" in cell:
-                        cell["canvas"].coords(cell["bar"], 0, 0, self.BAR_W * min(100, pct or 0) / 100, 6)
+                        cell["canvas"].coords(cell["bar"], 0, 0, self.bw * min(100, pct or 0) / 100, self.bh)
                         cell["canvas"].itemconfigure(cell["bar"], fill=self._color(k, pct))
                 w = self.root.winfo_reqwidth()
                 if w != getattr(self, "_lastw", 0):    # la largeur a changé : rester entier à l'écran
@@ -3850,6 +4020,81 @@ def tray_image():
     return img
 
 
+class HealthWatch(threading.Thread):
+    """Surveille l'appli elle-même, 1 fois par minute (coût négligeable) : CPU, RAM, GPU, nombre de fils
+    d'exécution. Note dans le journal ce qui sort de l'ordinaire (une fois par heure au plus pour chaque problème)
+    et un bilan toutes les 6 h."""
+    CPU_WARN = 5.0          # % du processeur entier, en moyenne sur 3 minutes de suite
+    RAM_WARN = 450          # Mo (appli + fenêtre)
+    GPU_WARN = 15.0         # % de la carte graphique, 3 minutes de suite
+    THREADS_WARN = 90
+
+    def __init__(self, counters):
+        super().__init__(daemon=True, name="health")
+        self.counters = counters
+        self.me = psutil.Process()
+        self.ncpu = psutil.cpu_count() or 1
+        self.last_warn = {}
+        self.high = collections.Counter()
+        self.base_py = None
+        self.t0 = time.time()
+        self.sum = collections.Counter()
+
+    def _warn(self, key, msg, *a):
+        if time.time() - self.last_warn.get(key, 0) >= 3600:
+            self.last_warn[key] = time.time()
+            log.warning(msg, *a)
+
+    def _procs(self):
+        try:
+            return [self.me] + self.me.children(recursive=True)
+        except psutil.Error:
+            return [self.me]
+
+    def run(self):
+        prev, n = {}, 0
+        while True:
+            time.sleep(60)
+            try:
+                now = time.time()
+                cpu = ram = 0.0
+                cur = {}
+                for p in self._procs():
+                    try:
+                        t = p.cpu_times()
+                        cur[p.pid] = (now, t.user + t.system)
+                        ram += p.memory_info().rss
+                    except psutil.Error:
+                        continue
+                    old = prev.get(p.pid)
+                    if old:
+                        cpu += (cur[p.pid][1] - old[1]) / max(1, now - old[0]) / self.ncpu * 100
+                prev = cur
+                ram_mb = ram / 1048576
+                py_mb = self.me.memory_info().rss / 1048576
+                gpu = sum(v for pid, v in self.counters.gpu_by_pid(None).items() if pid in cur) if self.counters else 0.0
+                threads = self.me.num_threads()
+                n += 1
+                self.sum.update(cpu=cpu, ram=ram_mb, gpu=gpu)
+                for k, v, lim in (("cpu", cpu, self.CPU_WARN), ("gpu", gpu, self.GPU_WARN)):
+                    self.high[k] = self.high[k] + 1 if v >= lim else 0
+                    if self.high[k] >= 3:
+                        self._warn(k, "Santé de l'appli : %s élevé (%.1f %% depuis %d min)", k.upper(), v, self.high[k])
+                if ram_mb >= self.RAM_WARN:
+                    self._warn("ram", "Santé de l'appli : RAM élevée (%.0f Mo, appli + fenêtre)", ram_mb)
+                if n == 10:
+                    self.base_py = py_mb                        # référence après le démarrage
+                elif self.base_py and py_mb > self.base_py * 1.8 and py_mb - self.base_py > 80:
+                    self._warn("leak", "Santé de l'appli : la mémoire du programme grossit (%.0f Mo, %.0f Mo au départ) : fuite possible", py_mb, self.base_py)
+                if threads >= self.THREADS_WARN:
+                    self._warn("threads", "Santé de l'appli : beaucoup de fils d'exécution (%d) : fuite possible", threads)
+                if n % 360 == 0:                                # bilan toutes les 6 h
+                    log.info("Santé de l'appli : en marche depuis %.0f h — moyennes : CPU %.1f %%, RAM %.0f Mo, GPU %.1f %% ; fils : %d",
+                             (now - self.t0) / 3600, self.sum["cpu"] / n, self.sum["ram"] / n, self.sum["gpu"] / n, threads)
+            except Exception:
+                log.exception("Santé de l'appli")
+
+
 def main():
     if "--window" in sys.argv:
         return run_window(sys.argv[sys.argv.index("--window") + 1])
@@ -3868,6 +4113,23 @@ def main():
     except Exception:
         pass
 
+    if os.path.exists(RUN_FLAG):
+        log.warning("Le lancement précédent ne s'est pas fermé normalement (plantage, arrêt forcé ou PC éteint sans quitter)")
+    try:
+        with open(LOG_FILE + ".crash", encoding="utf-8") as f:
+            crash = f.read().strip()
+        if crash:
+            log.critical("Plantage grave au lancement précédent :\n%s", crash[-4000:])
+        open(LOG_FILE + ".crash", "w").close()
+    except OSError:
+        pass
+    try:
+        with open(RUN_FLAG, "w") as f:
+            f.write(str(os.getpid()))
+    except OSError:
+        pass
+    log.info("Démarrage de Pulse Monitor v%s (Python %s, %s)", APP_VERSION, platform.python_version(), platform.platform())
+
     BG[0] = load_settings().get("bg", True) is not False
     kmt = D3DKMT()
     counters = CounterReader()
@@ -3885,9 +4147,15 @@ def main():
 
     url = start_server(sampler)
     log.info("Serveur sur %s", url)
+    HealthWatch(counters).start()
 
     def quit_app(*_):
         QUIT_HOOK[0] = None
+        log.info("Arrêt normal")
+        try:
+            os.remove(RUN_FLAG)
+        except OSError:
+            pass
         try:
             if getattr(sampler, "insights", None):
                 sampler.insights.save_stats()

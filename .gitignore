@@ -3,7 +3,8 @@ settings.json
 stats.json
 games.json
 games_lib.json
-pulse_monitor.log
+pulse_monitor.log*
+running.flag
 history/
 scans/
 backup/

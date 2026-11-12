@@ -6,7 +6,7 @@
 
 A simple, lightweight dashboard for Windows: real-time PC performance (like Task Manager), a hardware sheet with what you need to know when upgrading parts, storage analysis, disk health and gaming session reports. 100% local, no telemetry.
 
-Current version: **v0.7.7**
+Current version: **v0.7.13**
 
 ## Download
 

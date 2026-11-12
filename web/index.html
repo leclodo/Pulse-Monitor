@@ -405,6 +405,8 @@
   .c-flow { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
   .c-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
   @media (max-width: 900px) { .c-flow { grid-template-columns: 1fr; } }
+  .range { -webkit-appearance: none; appearance: none; width: 160px; height: 4px; border-radius: 2px; background: var(--line); outline: none; cursor: pointer; }
+  .range::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--cpu); border: 2px solid var(--panel); box-shadow: 0 0 0 1px var(--cpu); }
   .themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
   .theme { border: 2px solid var(--line); border-radius: 11px; padding: 8px; cursor: pointer; background: var(--panel2); text-align: left; font: inherit; color: var(--text); }
   .theme.on { border-color: var(--cpu); }
@@ -499,7 +501,7 @@ const I18N = {
     pv_read_t: "Ce que l'appli lit, et pourquoi",
     pv_read: ["<b>Performances</b> (processeur, carte graphique, mémoire, disques, réseau) : pour les graphiques. Pour le réseau, seulement le débit, jamais ce que tu échanges.", "<b>Composants</b> (modèles, quantités, versions) : lus auprès de Windows pour l'onglet Composants.", "<b>Noms des programmes ouverts</b> et ce qu'ils consomment : pour les détails, les conseils de la cloche et les sessions de jeu.", "<b>Noms et tailles des fichiers</b> : seulement quand tu lances une analyse dans Stockage. Le contenu des fichiers n'est jamais ouvert.", "<b>Jeux installés</b> (dossiers Steam, Epic, GOG, programmes installés) : seulement quand tu cliques sur « Rechercher les jeux installés ».", "<b>Santé des disques</b> : seulement quand tu cliques sur le bouton, avec ton accord (droits administrateur)."],
     pv_store_t: "Ce qui est gardé, uniquement sur ton PC",
-    pv_store: ["<code>settings.json</code> : tes réglages (langue, thème, ordre des cartes…)", "<code>history/</code> : l'historique 24 h / 7 jours (1 point par minute avec les 10 programmes les plus gourmands, effacé après 8 jours)", "<code>games.json</code> et <code>games_lib.json</code> : tes sessions de jeu et la liste des jeux reconnus", "<code>scans/</code> : les résultats des analyses de stockage et de santé des disques", "<code>stats.json</code> : l'analyse d'usage (onglet Analyse)", "<code>pulse_monitor.log</code> : un journal technique en cas d'erreur, jamais envoyé"],
+    pv_store: ["<code>settings.json</code> : tes réglages (langue, thème, ordre des cartes…)", "<code>history/</code> : l'historique 24 h / 7 jours (1 point par minute avec les 10 programmes les plus gourmands, effacé après 8 jours)", "<code>games.json</code> et <code>games_lib.json</code> : tes sessions de jeu et la liste des jeux reconnus", "<code>scans/</code> : les résultats des analyses de stockage et de santé des disques", "<code>stats.json</code> : l'analyse d'usage (onglet Analyse)", "<code>pulse_monitor.log</code> : un journal technique (démarrages, erreurs, santé de l'appli), limité à 1 Mo, jamais envoyé"],
     pv_store_note: "Tout est dans le dossier des données de Pulse Monitor (bouton ci-dessous). Tu peux supprimer ces fichiers quand tu veux : l'appli repart de zéro.",
     pv_open: "Ouvrir le dossier des données",
     pv_net_t: "Connexions",
@@ -670,7 +672,7 @@ const I18N = {
     hk_t: "Raccourci clavier", hk_none: "Aucun", hk_set: "Changer", hk_clear: "Retirer", hk_listen: "Appuie sur la combinaison…",
     hk_taken: "Ce raccourci est déjà utilisé par une autre appli.", hk_need: "Utilise Ctrl, Alt ou Win avec une touche (ou une touche F1-F12).",
     widget_t: "Widget de bureau", widget_opt: "Afficher le widget (CPU, GPU, température, VRAM, RAM)", widget_style: "Style :",
-    ws_compact: "Compact", ws_bars: "Barres",
+    ws_compact: "Compact", ws_bars: "Barres", wg_alpha: "Opacité :", wg_scale: "Taille :", wg_scale_tip: "Agrandir ou réduire le widget (100 % = taille normale)", wg_alpha_tip: "Plus bas = plus transparent, pour un widget plus discret",
     widget_hint: "Déplace-le à la souris. 📌 l'épingle au-dessus de tout : les clics passent alors à travers et la croix disparaît — maintiens Ctrl pour le déplacer ou le désépingler. Aussi dans le menu de l'icône (clic droit). Coût : ~5-10 Mo.",
     bell_tip: "Conseils en direct", now_t: "Notifications", all_good: "✓ Tout va bien",
     usage_t: "Quel composant te limite ?", usage_since: "Analysé depuis le", usage_load: "de charge analysées",
@@ -720,7 +722,7 @@ const I18N = {
     pv_read_t: "What the app reads, and why",
     pv_read: ["<b>Performance</b> (CPU, graphics card, memory, disks, network): for the charts. For the network, only the speed, never what you exchange.", "<b>Components</b> (models, amounts, versions): read from Windows for the Components tab.", "<b>Names of open programs</b> and what they use: for details, bell tips and gaming sessions.", "<b>File names and sizes</b>: only when you start an analysis in Storage. File contents are never opened.", "<b>Installed games</b> (Steam, Epic, GOG folders, installed programs): only when you click \"Find installed games\".", "<b>Disk health</b>: only when you click the button, with your consent (administrator rights)."],
     pv_store_t: "What is kept, only on your PC",
-    pv_store: ["<code>settings.json</code>: your settings (language, theme, card order…)", "<code>history/</code>: the 24 h / 7-day history (1 point per minute with the 10 most demanding programs, deleted after 8 days)", "<code>games.json</code> and <code>games_lib.json</code>: your gaming sessions and the list of recognized games", "<code>scans/</code>: storage analysis and disk health results", "<code>stats.json</code>: the usage analysis (Analysis tab)", "<code>pulse_monitor.log</code>: a technical log in case of errors, never sent"],
+    pv_store: ["<code>settings.json</code>: your settings (language, theme, card order…)", "<code>history/</code>: the 24 h / 7-day history (1 point per minute with the 10 most demanding programs, deleted after 8 days)", "<code>games.json</code> and <code>games_lib.json</code>: your gaming sessions and the list of recognized games", "<code>scans/</code>: storage analysis and disk health results", "<code>stats.json</code>: the usage analysis (Analysis tab)", "<code>pulse_monitor.log</code>: a technical log (startups, errors, app health), capped at 1 MB, never sent"],
     pv_store_note: "Everything is in the Pulse Monitor data folder (button below). You can delete these files anytime: the app starts from scratch.",
     pv_open: "Open the data folder",
     pv_net_t: "Connections",
@@ -891,7 +893,7 @@ const I18N = {
     hk_t: "Keyboard shortcut", hk_none: "None", hk_set: "Change", hk_clear: "Remove", hk_listen: "Press the key combination…",
     hk_taken: "This shortcut is already used by another app.", hk_need: "Use Ctrl, Alt or Win with a key (or an F1-F12 key).",
     widget_t: "Desktop widget", widget_opt: "Show the widget (CPU, GPU, temperature, VRAM, RAM)", widget_style: "Style:",
-    ws_compact: "Compact", ws_bars: "Bars",
+    ws_compact: "Compact", ws_bars: "Bars", wg_alpha: "Opacity:", wg_scale: "Size:", wg_scale_tip: "Make the widget bigger or smaller (100% = normal size)", wg_alpha_tip: "Lower = more transparent, for a more discreet widget",
     widget_hint: "Drag it with the mouse. 📌 pins it above everything: clicks then go through it and the close button disappears — hold Ctrl to move or unpin it. Also in the icon menu (right-click). Cost: ~5-10 MB.",
     bell_tip: "Live tips", now_t: "Notifications", all_good: "✓ All good",
     usage_t: "Which component holds you back?", usage_since: "Analyzed since", usage_load: "of load analyzed",
@@ -950,7 +952,7 @@ const SICO = {
 const sh2 = (ico, text) => `<h2 class="sh2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${SICO[ico]}</svg>${text}</h2>`;
 let bellOff = new Set();
 const BELL_CATS = ["cpu", "ram", "gpu", "disk", "startup", "play", "update"];
-let collapsed = new Set(), order = {}, theme = "dark", manual = {}, hidden = {}, bigMode = false, trayMode = true, bgMode = true, dismissed = {}, widgetOn = false, widgetStyle = "compact", widgetPatch = {}, autostart = false, histOn = true, hotkey = null, wgLock = 0;
+let collapsed = new Set(), order = {}, theme = "dark", manual = {}, hidden = {}, bigMode = false, trayMode = true, bgMode = true, dismissed = {}, widgetOn = false, widgetStyle = "compact", widgetAlpha = 86, widgetScale = 100, widgetPatch = {}, autostart = false, histOn = true, hotkey = null, wgLock = 0;
 async function loadSettings() {
   try {
     const s = await (await fetch("/api/settings", {cache: "no-store"})).json();
@@ -969,6 +971,8 @@ async function loadSettings() {
     histOn = s.history !== false;
     if ([1, 6, 12, 24, 168].includes(s.hist_range)) histRange = s.hist_range;
     widgetOn = !!s.widget; hotkey = s.hotkey && s.hotkey.vk ? s.hotkey : null; widgetStyle = s.widget_style === "bars" ? "bars" : "compact";
+    if (typeof s.widget_alpha === "number") widgetAlpha = Math.max(25, Math.min(100, s.widget_alpha));
+    if (typeof s.widget_scale === "number") widgetScale = Math.max(70, Math.min(200, s.widget_scale));
     autostart = !!s.autostart; autoUpdate = !!s.auto_update;
   } catch (e) {}
 }
@@ -1577,6 +1581,12 @@ function renderCustom() {
       <label class="check"><input type="checkbox" id="wg-cb" ${widgetOn ? "checked" : ""}><span>${esc(T("widget_opt"))}</span></label>
       <div style="display:flex;align-items:center;gap:10px"><span class="muted" style="font-size:12.5px">${esc(T("widget_style"))}</span>
         <div class="seg small" id="wg-style"><button data-ws="compact" class="${widgetStyle === "compact" ? "on" : ""}">${esc(T("ws_compact"))}</button><button data-ws="bars" class="${widgetStyle === "bars" ? "on" : ""}">${esc(T("ws_bars"))}</button></div></div>
+      <div style="display:flex;align-items:center;gap:10px"><span class="muted" style="font-size:12.5px;min-width:62px">${esc(T("wg_alpha"))}</span>
+        <input type="range" id="wg-alpha" class="range" min="25" max="100" step="1" value="${widgetAlpha}" data-tip="${esc(T("wg_alpha_tip"))}">
+        <span id="wg-alpha-v" style="font-size:12.5px;font-variant-numeric:tabular-nums;min-width:38px">${widgetAlpha} %</span></div>
+      <div style="display:flex;align-items:center;gap:10px"><span class="muted" style="font-size:12.5px;min-width:62px">${esc(T("wg_scale"))}</span>
+        <input type="range" id="wg-scale" class="range" min="70" max="200" step="5" value="${widgetScale}" data-tip="${esc(T("wg_scale_tip"))}">
+        <span id="wg-scale-v" style="font-size:12.5px;font-variant-numeric:tabular-nums;min-width:38px">${widgetScale} %</span></div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="muted" style="font-size:12.5px">${esc(T("hk_t"))} :</span>
         <span class="kbd" id="hk-kbd">${esc(hotkey ? hotkey.label : T("hk_none"))}</span>
         <button class="btn sm" id="hk-set">${esc(T("hk_set"))}</button>${hotkey ? `<button class="btn sm" id="hk-clear">${esc(T("hk_clear"))}</button>` : ""}
@@ -1588,6 +1598,12 @@ function renderCustom() {
   document.getElementById("pv-open").onclick = () => fetch("/api/storage/openfolder?path=__data");
   document.getElementById("wg-cb").onchange = e => { widgetOn = e.target.checked; wgLock = Date.now() + 4000; widgetPatch.widget = widgetOn; saveSettings(); };
   setupHotkeyUI();
+  const wa = document.getElementById("wg-alpha");
+  wa.oninput = () => { widgetAlpha = +wa.value; setText(document.getElementById("wg-alpha-v"), widgetAlpha + " %");
+    widgetPatch.widget_alpha = widgetAlpha; saveSettings(); };
+  const wz = document.getElementById("wg-scale");
+  wz.oninput = () => { widgetScale = +wz.value; setText(document.getElementById("wg-scale-v"), widgetScale + " %"); };
+  wz.onchange = () => { widgetPatch.widget_scale = widgetScale; saveSettings(); };   // au relâchement : le widget est reconstruit
   el.querySelectorAll("[data-ws]").forEach(b => b.onclick = () => {
     widgetStyle = b.dataset.ws; widgetPatch.widget_style = widgetStyle; saveSettings(); renderCustom();
   });

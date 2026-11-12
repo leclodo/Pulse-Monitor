@@ -24,7 +24,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import psutil
 
 APP_NAME = "Pulse Monitor"
-APP_VERSION = "0.7.33"
+APP_VERSION = "0.7.34"
 IS_WIN = os.name == "nt"
 FROZEN = bool(getattr(sys, "frozen", False))      # version .exe (PyInstaller)
 # données (réglages, historique…) : à côté du .exe ou du script ; fichiers de l'appli (page, icônes) : dans le paquet
@@ -3223,6 +3223,36 @@ class Hotkey(threading.Thread):
         self.want = None              # (mods, vk) à enregistrer
         self.result = threading.Event()
         self.ok = False
+        self.last = 0.0               # dernier déclenchement (évite le double déclenchement)
+        self.poller = None
+
+    def _fire(self):
+        if time.time() - self.last < 0.4:
+            return
+        self.last = time.time()
+        try:
+            self.callback()
+        except Exception:
+            log.exception("Hotkey")
+
+    def _poll(self):
+        """Secours : certains jeux (ex. League of Legends) bloquent les raccourcis Windows pendant qu'ils sont au premier
+        plan. On lit aussi l'état des touches toutes les 50 ms (coût négligeable), seulement si un raccourci est défini."""
+        u32 = ctypes.windll.user32
+        down = lambda vk: u32.GetAsyncKeyState(vk) & 0x8000
+        was = False
+        while True:
+            w = self.want
+            if not w:
+                time.sleep(0.5)
+                continue
+            mods, vk = w
+            ok = (down(vk) and (not mods & 1 or down(0x12)) and (not mods & 2 or down(0x11))
+                  and (not mods & 4 or down(0x10)) and (not mods & 8 or down(0x5B) or down(0x5C)))
+            if ok and not was:
+                self._fire()
+            was = bool(ok)
+            time.sleep(0.05)
 
     def run(self):
         if not IS_WIN:
@@ -3236,10 +3266,7 @@ class Hotkey(threading.Thread):
         self.result.set()
         while u32.GetMessageW(ctypes.byref(msg), None, 0, 0) > 0:
             if msg.message == self.WM_HOTKEY:
-                try:
-                    self.callback()
-                except Exception:
-                    log.exception("Hotkey")
+                self._fire()
             elif msg.message == self.WM_APP:
                 if registered:
                     u32.UnregisterHotKey(None, 1)
@@ -3248,6 +3275,9 @@ class Hotkey(threading.Thread):
                     mods, vk = self.want
                     registered = bool(u32.RegisterHotKey(None, 1, mods | 0x4000, vk))   # MOD_NOREPEAT
                 self.ok = registered or not self.want
+                if self.want and self.poller is None:
+                    self.poller = threading.Thread(target=self._poll, daemon=True, name="hotkey-poll")
+                    self.poller.start()
                 self.result.set()
 
     def set(self, mods, vk):

@@ -24,7 +24,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import psutil
 
 APP_NAME = "Pulse Monitor"
-APP_VERSION = "0.7.35"
+APP_VERSION = "0.7.36"
 IS_WIN = os.name == "nt"
 FROZEN = bool(getattr(sys, "frozen", False))      # version .exe (PyInstaller)
 # données (réglages, historique…) : à côté du .exe ou du script ; fichiers de l'appli (page, icônes) : dans le paquet
@@ -1655,9 +1655,25 @@ def _gh(url, timeout=15):
 
 
 def update_check():
-    """Version du code publié sur GitHub (branche principale) : un simple « push » suffit, pas besoin de release."""
+    """Lancée depuis le code : version du code sur GitHub (un simple « push » suffit).
+    Version .exe : dernière release publiée (un .exe ne peut se mettre à jour qu'avec les fichiers d'une release)."""
     if not UPDATE_REPO:
         return {"error": "norepo", "current": APP_VERSION}
+    if FROZEN:
+        try:
+            with _gh("https://api.github.com/repos/%s/releases/latest" % UPDATE_REPO) as r:
+                rel = json.loads(r.read().decode("utf-8"))
+            latest = (rel.get("tag_name") or "").lstrip("vV").strip()
+            if not re.match(r"^\d+(\.\d+)*$", latest):
+                raise ValueError("tag de release illisible : %r" % rel.get("tag_name"))
+        except Exception as e:
+            log.warning("Update check (release): %s", e)
+            code = getattr(e, "code", None)
+            err = "norelease" if code == 404 else "rate" if code in (403, 429) else "net"
+            return {"error": err, "current": APP_VERSION}
+        return {"current": APP_VERSION, "latest": latest, "newer": _vtuple(latest) > _vtuple(APP_VERSION),
+                "notes": (rel.get("body") or "")[:4000], "exe": True,
+                "page": rel.get("html_url") or "https://github.com/%s/releases/latest" % UPDATE_REPO}
     try:
         with _gh("https://raw.githubusercontent.com/%s/HEAD/pulse_monitor.py" % UPDATE_REPO) as r:
             head = r.read(6000).decode("utf-8", "ignore")

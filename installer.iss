@@ -13,6 +13,12 @@ AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher=leclodo
 AppPublisherURL=https://github.com/leclodo/Pulse-Monitor
 AppSupportURL=https://github.com/leclodo/Pulse-Monitor
+; éditeur et version affichés dans les propriétés du Setup.exe
+VersionInfoCompany=leclodo
+VersionInfoProductName={#MyAppName}
+VersionInfoDescription={#MyAppName} v{#MyAppVersion} - installeur
+VersionInfoVersion={#MyAppVersion}
+VersionInfoCopyright=leclodo
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes

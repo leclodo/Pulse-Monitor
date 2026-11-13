@@ -15,7 +15,10 @@ if errorlevel 1 goto :err
 echo [2/4] Creation de Pulse Monitor.exe (1 a 2 minutes)...
 if exist build rmdir /s /q build
 if exist dist rmdir /s /q dist
-%PY% -m PyInstaller --noconfirm --clean --log-level WARN --windowed --name "Pulse Monitor" --icon "assets\icon.ico" ^
+rem editeur "leclodo" et version dans les proprietes de l'exe (Gestionnaire des taches, demarrage)
+%PY% -c "v='%VER%';t=tuple(int(x) for x in (v.split('.')+['0']*4)[:4]);s=lambda k,x:'StringStruct('+repr(k)+','+repr(x)+')';open('version_info.txt','w',encoding='utf-8').write('VSVersionInfo(ffi=FixedFileInfo(filevers='+str(t)+',prodvers='+str(t)+',mask=0x3f,flags=0x0,OS=0x40004,fileType=0x1,subtype=0x0,date=(0,0)),kids=[StringFileInfo([StringTable('+repr('040C04B0')+',['+','.join([s('CompanyName','leclodo'),s('FileDescription','Pulse Monitor v'+v),s('FileVersion',v),s('InternalName','Pulse Monitor'),s('LegalCopyright','leclodo'),s('OriginalFilename','Pulse Monitor.exe'),s('ProductName','Pulse Monitor'),s('ProductVersion',v)])+'])]),VarFileInfo([VarStruct('+repr('Translation')+',[1036,1200])])])')"
+if errorlevel 1 goto :err
+%PY% -m PyInstaller --noconfirm --clean --log-level WARN --windowed --name "Pulse Monitor" --icon "assets\icon.ico" --version-file version_info.txt ^
   --add-data "web;web" --add-data "assets;assets" ^
   --collect-all webview --hidden-import pystray._win32 ^
   pulse_monitor.py
@@ -51,6 +54,7 @@ rem on ne garde que le resultat final (dossier release)
 if exist build rmdir /s /q build
 if exist dist rmdir /s /q dist
 if exist "Pulse Monitor.spec" del "Pulse Monitor.spec"
+if exist version_info.txt del version_info.txt
 if exist __pycache__ rmdir /s /q __pycache__
 
 echo.

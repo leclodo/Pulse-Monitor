@@ -94,6 +94,8 @@
   .section.collapsed > .grid { display: none; }
   .chev { width: 15px; height: 15px; flex: none; transition: transform .2s; opacity: .7; }
   .section.collapsed > .section-title .chev, .card.collapsed > .c-head .chev { transform: rotate(-90deg); }
+  /* texte sélectionnable partout (copier-coller), sauf les boutons, onglets et graphiques */
+  button, .seg, #tabs, canvas, .kbd, .check { user-select: none; -webkit-user-select: none; }
   .grip { cursor: grab; color: var(--dim); opacity: 0; transition: opacity .15s; font-size: 13px; letter-spacing: -2px; width: 10px; margin-left: -8px; flex: none; user-select: none; }
   .c-head.nofold { cursor: default; }
   .card:not(.spec) > .c-head { cursor: default; } .card:not(.spec) > .c-head:has(.detbtn) { cursor: pointer; }

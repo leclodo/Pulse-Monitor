@@ -24,7 +24,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import psutil
 
 APP_NAME = "Pulse Monitor"
-APP_VERSION = "0.7.34"
+APP_VERSION = "0.7.35"
 IS_WIN = os.name == "nt"
 FROZEN = bool(getattr(sys, "frozen", False))      # version .exe (PyInstaller)
 # données (réglages, historique…) : à côté du .exe ou du script ; fichiers de l'appli (page, icônes) : dans le paquet
@@ -3709,12 +3709,13 @@ def run_window(url):
     if not (isinstance(x, int) and isinstance(y, int) and _on_screen(x + 40, y + 20)):
         x = y = None          # écran débranché / position invalide : on laisse Windows centrer
     state = {"x": x, "y": y, "w": w, "h": h, "max": bool(geo.get("max"))}
-    kw = dict(width=w, height=h, min_size=(900, 600), background_color="#0d0f14")
+    kw = dict(width=w, height=h, min_size=(900, 600), background_color="#0d0f14", text_select=True)   # texte sélectionnable (copier-coller)
     if x is not None:
         kw.update(x=x, y=y)
     try:
         win = webview.create_window("%s v%s" % (APP_NAME, APP_VERSION), url, maximized=state["max"], **kw)
     except TypeError:     # ancienne version de pywebview
+        kw.pop("text_select", None)
         win = webview.create_window("%s v%s" % (APP_NAME, APP_VERSION), url, **kw)
 
     # on suit la position / taille, et on les enregistre à la fermeture

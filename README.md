@@ -6,7 +6,7 @@
 
 A simple, lightweight dashboard for Windows: real-time PC performance (like Task Manager), a hardware sheet with what you need to know when upgrading parts, storage analysis, disk health and gaming session reports. 100% local, no telemetry.
 
-Current version: **v0.9.0**
+Current version: **v0.9.8**
 
 ## Download
 
@@ -59,7 +59,7 @@ From the [Releases](https://github.com/leclodo/Pulse-Monitor/releases/latest) pa
 
 **Gaming**
 - **Gaming mode**: closes unneeded programs while you play (cloud sync, launchers, chat, browsers…) and shows the RAM, CPU, disk and GPU it frees. Each program's impact is relative to your PC's hardware. Scan, a clear verdict (boost is only offered when it really helps), review the list (impact of each program), optimize; optional automatic mode when a game is detected. System, drivers, audio, anti-cheat and antivirus are never touched. "Restore" restarts everything afterwards
-- Play time per day, per week and per game; a ⚠ temperature warning in the desktop widget when the graphics card runs hot during a game
+- Play time per day, per week and per game (one color per game, large 7 / 30 / 90-day chart); a ⚠ temperature warning in the desktop widget when the graphics card runs hot during a game
 - Games recognized within 10 to 30 s (Steam, Epic, GOG, Battle.net, Riot… or full screen with the graphics card under load)
 - Report for each session: duration, CPU / GPU (average / max), GPU temperature, VRAM / RAM, **FPS (average / 1% low)**, what limited, and charts (hover for values, click for the most demanding programs)
 - FPS read from Windows display events, no extra program (one-time permission if needed: "Performance Log Users" group)

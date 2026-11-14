@@ -100,6 +100,7 @@
   .c-head.nofold { cursor: default; }
   .card:not(.spec) > .c-head { cursor: default; } .card:not(.spec) > .c-head:has(.detbtn) { cursor: pointer; }
   .card:not(.spec) > .c-head:has(.detbtn):hover .c-title { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, currentColor 40%, transparent); }
+  .card:not(.spec) > .c-head:has(.detbtn):hover .detbtn { background: color-mix(in srgb, var(--cpu) 18%, var(--panel2)); border-color: color-mix(in srgb, var(--cpu) 60%, var(--line)); color: var(--text); }
   .c-head:hover .grip, .section-title:hover .grip { opacity: 1; }
   .c-head.nofold { cursor: default; }
   .dragging { opacity: .35; }
@@ -185,7 +186,7 @@
   .d-val { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; }
   .d-val small { display: block; color: var(--muted); font-weight: 400; font-size: 11.5px; }
   .d-foot { color: var(--dim); font-size: 12px; padding: 8px 16px; border-top: 1px solid var(--line); }
-  .tipbox { position: fixed; z-index: 60; max-width: 290px; background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+  .tipbox { position: fixed; z-index: 120; max-width: 290px; background: var(--panel2); color: var(--text); border: 1px solid var(--line);
     border-radius: 8px; padding: 6px 9px; font-size: 12.5px; line-height: 1.4; box-shadow: 0 6px 20px #0005; pointer-events: none;
     opacity: 0; transition: opacity .12s; text-transform: none; letter-spacing: 0; font-weight: 400; }
   .tipbox.on { opacity: 1; }
@@ -347,13 +348,29 @@
   .gm-charts canvas { cursor: crosshair; width: 100%; height: 64px; display: block; border-radius: 6px; background: var(--chart); border: 1px solid var(--line); box-sizing: border-box; }
   .gm-col { display: grid; gap: 12px; }
   .gm-band { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .gm-wrap { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 12px; align-items: start; }
+  .gm-wrap { display: grid; grid-template-columns: 280px 300px minmax(0, 1fr); gap: 12px; align-items: start; }
+  @media (max-width: 1180px) { .gm-wrap { grid-template-columns: 280px minmax(0, 1fr); } .gm-wrap #an-games { grid-column: 1 / -1; } }
   @media (max-width: 900px) { .gm-wrap { grid-template-columns: 1fr; } }
+  /* en-tête de carte qui ouvre le panneau (comme les cartes Performances) : toute la largeur est cliquable,
+     au survol le titre est souligné et le bouton s'éclaire */
+  .h-pair { cursor: pointer; }
+  .h-pair:hover .h-link { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, currentColor 40%, transparent); }
+  .h-pair:hover .detbtn { background: color-mix(in srgb, var(--cpu) 18%, var(--panel2)); border-color: color-mix(in srgb, var(--cpu) 60%, var(--line)); color: var(--text); }
   /* colonne des jeux : tient toujours dans la fenêtre (la liste rétrécit, l'ajout manuel reste visible) */
   .gm-left { display: grid; gap: 12px; }
   .pt-bars { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; align-items: end; height: 70px; }
   .pt-bars div { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; font-size: 10.5px; color: var(--muted); gap: 3px; }
-  .pt-bars i { width: 100%; border-radius: 4px 4px 0 0; background: color-mix(in srgb, var(--gpu) 70%, transparent); min-height: 2px; }
+  .pt-bars i, .ptb-bars i { width: 100%; border-radius: 4px 4px 0 0; overflow: hidden; display: flex; flex-direction: column-reverse; min-height: 2px; background: var(--line); }
+  .pt-bars i b, .ptb-bars i b { display: block; flex: none; }
+  .pt-bars div:hover i, .ptb-bars div:hover i { filter: brightness(1.2); }
+  .pt-dot { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; flex: none; }
+  .ptb-bars { display: flex; gap: 3px; align-items: flex-end; height: 260px; padding-top: 6px; }
+  .ptb-bars > div { flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; font-size: 10px; color: var(--muted); }
+  .ptb-bars > div span { height: 12px; white-space: nowrap; }
+  .ptb-leg { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 4px 14px; font-size: 12.5px; }
+  .ptb-leg div { display: flex; align-items: center; min-width: 0; } .ptb-leg .n { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pt-tip { display: grid; grid-template-columns: auto auto; gap: 2px 14px; margin-top: 4px; } .pt-tip span:nth-child(even) { text-align: right; font-weight: 600; }
+
   .pt-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; font-size: 12.5px; padding: 3px 0; }
   .pt-row .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .su-t td { vertical-align: middle; } .su-t td.n { max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -363,7 +380,7 @@
   .sw2:disabled { opacity: .5; cursor: wait; }
   #gm-lib { position: static; top: calc(var(--hdr-h, 57px) + 14px); max-height: calc(100vh - var(--hdr-h, 57px) - 14px - 30px); }
   #gm-lib > * { flex-shrink: 0; }
-  #gm-lib .gl-list { flex: 0 1 auto; min-height: 60px; }
+  #d-list .gl-list { margin: 0; padding: 4px 12px 14px; columns: 2; column-gap: 18px; }
   /* mode gaming : cadrans façon tableau de bord de voiture */
   #gm-mode { background: radial-gradient(ellipse 70% 90% at 50% 10%, color-mix(in srgb, var(--cpu) 9%, var(--panel)), var(--panel) 70%); }
   .gmm-main { display: grid; grid-template-columns: minmax(560px, 1fr) minmax(0, 1.15fr); gap: 12px; align-items: stretch; }
@@ -441,6 +458,8 @@
   #an-hist canvas[data-hs] { cursor: grab; }
   /* panneau « programmes les plus gourmands » d'un moment de l'historique */
   .drawer.wide { width: 560px; }
+  .drawer.wide.xwide { width: min(940px, 94vw); }
+  .ptb-bars.n90 { gap: 1px; }
   .hd-sec { padding: 4px 6px 12px; }
   .hd-sec h4 { margin: 6px 0 4px; font-size: 13px; border-left: 3px solid currentColor; padding-left: 8px; }
   .hd-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) 140px 70px; gap: 10px; align-items: center; padding: 6px 6px; border-radius: 7px; font-size: 13px; }
@@ -544,7 +563,7 @@
     <div id="an-body" class="st-grid" style="margin-top:12px"></div>
     <div class="card" id="an-startup" style="margin-top:12px"></div></section>
   <section id="gaming" class="tab"><div class="gm-col"><div class="gmm-main"><div class="card gm" id="gm-mode"></div><div class="card gm" id="gmm-listc"></div></div>
-    <div class="gm-wrap"><div class="gm-left"><div class="card gm" id="gm-play"></div><div class="card gm" id="gm-lib"></div></div><div class="card gm" id="an-games"></div></div></div></section>
+    <div class="gm-wrap" id="gm-wrap"><div class="card gm" id="gm-lib"></div><div class="card gm" id="gm-play"></div><div class="card gm" id="an-games"></div></div></div></section>
   <section id="custom" class="tab"><div id="custom-body" class="custom"></div></section>
 </main>
 <div class="toast" id="toast"></div>
@@ -713,11 +732,12 @@ const I18N = {
     tip_h_errors: "Erreurs rencontrées par le disque. Les « non corrigées » sont le signe d'un disque qui lâche.",
     tab_analysis: "Analyse", tab_gaming: "Gaming", an_now: "En ce moment :", an_now_load: "usage intensif, ce moment est compté",
     an_now_idle: "usage léger, rien n'est assez sollicité pour te limiter : pas compté", an_how_t: "Comment ça marche",
-    gl_search: "Rechercher un jeu…", gl_t: "Jeux reconnus", gl_tn: "jeux reconnus", gl_find: "Chercher dans la liste", gl_scan: "Rechercher les jeux installés", gl_busy: "Recherche…", gl_last: "Dernière recherche le",
+    gl_search: "Rechercher un jeu…", gl_t: "Jeux reconnus", gl_tn: "jeux reconnus", gl_scan: "Rechercher les jeux installés", gl_busy: "Recherche…", gl_last: "Dernière recherche le",
     gl_none: "Lance une recherche : Pulse Monitor regarde Steam, Epic, GOG et les jeux installés (Riot, Blizzard, EA, Ubisoft…). Les jeux connus (League of Legends, Valorant, Fortnite, WoW…) sont déjà reconnus d'office.",
     gl_manual: "Ajouter un jeu à la main", gl_pick: "Choisis un programme ouvert…", gl_add: "Ajouter", gl_manual_hint: "Lance le jeu, puis choisis-le dans la liste. Il sera toujours compté comme un jeu.", gl_rm: "Retirer",
     gm_stop: "Pause et voir le résumé", gm_stop_tip: "Termine la session maintenant et affiche ses graphiques. Le programme n'est plus suivi jusqu'à ce que tu relances le suivi (ou qu'il soit fermé).",
-    gm_del: "Supprimer cette session", gm_del_sure: "Supprimer ?", gm_paused: "En pause :", gm_resume: "Relancer le suivi", gm_resume_tip: "Démarre une nouvelle session tout de suite pour ce programme.",
+    gm_del: "Supprimer cette session", gm_del_sure: "Supprimer ?", gm_paused: "En pause :", gm_never: "Arrêter le suivi", gm_never_sure: "Arrêter ?", gm_never_tip: "Ce programme ne sera plus jamais suivi (ce n'est pas un jeu). La session en cours n'est pas gardée. Clique deux fois pour confirmer ; annulable dans la carte des jeux reconnus.",
+    gl_never: "Jamais suivis", gl_never_tip: "Programmes pour lesquels tu as arrêté le suivi. Clique sur ✕ pour les suivre à nouveau.", gl_allow: "Suivre à nouveau", gm_resume: "Relancer le suivi", gm_resume_tip: "Démarre une nouvelle session tout de suite pour ce programme.",
     gmm_t: "Mode gaming", gmm_lib: "Jeux", gmm_on: "Mode gaming actif", gmm_freed: "Libéré :", 
     gmm_desc: "Ferme les programmes inutiles pendant que tu joues. Le système, les pilotes, l'audio, les anti-triche et les antivirus ne sont jamais touchés.",
     gmm_restore: "Restaurer", gmm_restoring: "Relance…", gmm_more: "Fermer aussi la sélection",
@@ -749,7 +769,8 @@ const I18N = {
     gmm_v_tip: "RAM {r} % ({f} libres) · CPU {c} % · GPU {g} % · le boost libérerait {x}.",
     gmm_s_tip: "{k} partie(s) ({n}) · pics : RAM {r} %, CPU {c} %, GPU {g} % · le boost libérerait {x}.",
     drv_months: "il y a {n} mois", drv_recent: "récent",
-    pt_t: "Temps de jeu", pt_today: "Aujourd'hui", pt_week: "7 derniers jours", pt_7d: "7 jours", pt_total: "Total", pt_none: "Pas encore de partie enregistrée.",
+    pt_t: "Temps de jeu", pt_big: "Voir en grand, jeu par jeu", pt_noplay: "pas joué", pt_avg: "moyenne", pt_day: "jour", pt_days_on: "jours joués", pt_dshort: "j",
+    gl_open: "Voir la liste des jeux reconnus", pt_today: "Aujourd'hui", pt_week: "7 derniers jours", pt_7d: "7 jours", pt_total: "Total", pt_none: "Pas encore de partie enregistrée.",
     wk_t: "Bilan de la semaine", wk_wait: "Pas encore assez de mesures : reviens dans quelques heures (l'historique doit être activé).",
     wk_busy: "Ton PC a été le plus chargé {day} {part} (vers {h}).", wk_busy_game: "Ton PC a été le plus chargé {day} {part} (vers {h}), pendant {g}.",
     wk_night: "dans la nuit", wk_morning: "matin", wk_afternoon: "après-midi", wk_evening: "soir",
@@ -990,11 +1011,12 @@ const I18N = {
     tip_h_errors: "Errors the disk ran into. \"Uncorrected\" ones are the sign of a failing disk.",
     tab_analysis: "Analysis", tab_gaming: "Gaming", an_now: "Right now:", an_now_load: "heavy usage, this moment counts",
     an_now_idle: "light usage, nothing is loaded enough to limit you: not counted", an_how_t: "How it works",
-    gl_search: "Search a game…", gl_t: "Recognized games", gl_tn: "recognized games", gl_find: "Search the list", gl_scan: "Find installed games", gl_busy: "Searching…", gl_last: "Last search on",
+    gl_search: "Search a game…", gl_t: "Recognized games", gl_tn: "recognized games", gl_scan: "Find installed games", gl_busy: "Searching…", gl_last: "Last search on",
     gl_none: "Run a search: Pulse Monitor looks at Steam, Epic, GOG and installed games (Riot, Blizzard, EA, Ubisoft…). Well-known games (League of Legends, Valorant, Fortnite, WoW…) are already recognized.",
     gl_manual: "Add a game manually", gl_pick: "Pick an open program…", gl_add: "Add", gl_manual_hint: "Start the game, then pick it in the list. It will always count as a game.", gl_rm: "Remove",
     gm_stop: "Pause and see the summary", gm_stop_tip: "Ends the session now and shows its charts. The program isn't tracked until you resume tracking (or it's closed).",
-    gm_del: "Delete this session", gm_del_sure: "Delete?", gm_paused: "Paused:", gm_resume: "Resume tracking", gm_resume_tip: "Starts a new session right away for this program.",
+    gm_del: "Delete this session", gm_del_sure: "Delete?", gm_paused: "Paused:", gm_never: "Stop tracking", gm_never_sure: "Stop?", gm_never_tip: "This program will never be tracked again (it isn't a game). The current session isn't kept. Click twice to confirm; you can undo it in the recognized games card.",
+    gl_never: "Never tracked", gl_never_tip: "Programs you stopped tracking. Click ✕ to track them again.", gl_allow: "Track again", gm_resume: "Resume tracking", gm_resume_tip: "Starts a new session right away for this program.",
     gmm_t: "Gaming mode", gmm_lib: "Games", gmm_on: "Gaming mode on", gmm_freed: "Freed:", 
     gmm_desc: "Closes unneeded programs while you play. System, drivers, audio, anti-cheat and antivirus are never touched.",
     gmm_restore: "Restore", gmm_restoring: "Restarting…", gmm_more: "Also close the selection",
@@ -1026,7 +1048,8 @@ const I18N = {
     gmm_v_tip: "RAM {r} % ({f} free) · CPU {c} % · GPU {g} % · boost would free {x}.",
     gmm_s_tip: "{k} game(s) ({n}) · peaks: RAM {r} %, CPU {c} %, GPU {g} % · boost would free {x}.",
     drv_months: "{n} months ago", drv_recent: "recent",
-    pt_t: "Play time", pt_today: "Today", pt_week: "Last 7 days", pt_7d: "7 days", pt_total: "Total", pt_none: "No game recorded yet.",
+    pt_t: "Play time", pt_big: "Open large, game by game", pt_noplay: "no play", pt_avg: "average", pt_day: "day", pt_days_on: "days played", pt_dshort: "d",
+    gl_open: "See the list of recognized games", pt_today: "Today", pt_week: "Last 7 days", pt_7d: "7 days", pt_total: "Total", pt_none: "No game recorded yet.",
     wk_t: "Weekly summary", wk_wait: "Not enough measurements yet: come back in a few hours (history must be on).",
     wk_busy: "Your PC was busiest on {day} {part} (around {h}).", wk_busy_game: "Your PC was busiest on {day} {part} (around {h}), during {g}.",
     wk_night: "night", wk_morning: "morning", wk_afternoon: "afternoon", wk_evening: "evening",
@@ -1123,6 +1146,8 @@ const THEMES = ["dark", "light", "oled", "midnight", "terminal"];
 
 // =================== Réglages ===================
 // petites icônes (une seule couleur, celle du texte) pour les titres des Paramètres
+// icône des boutons qui ouvrent le panneau latéral (partout la même)
+const DET_ICO = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>';
 const SICO = {
   lang: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/>',
   theme: '<path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.8 1.6-1.6 0-.9-.6-1.3-.6-2.1 0-.9.7-1.6 1.6-1.6H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="14.5" cy="7" r="1"/>',
@@ -1361,8 +1386,7 @@ function card(id, parent, {title, color, body, tip, det}) {
   el.innerHTML = `<div class="c-head"${tipAttr("head")}><span class="grip" draggable="true" data-tip="${esc(T("drag"))}">⋮⋮</span>
       <span class="dot" style="background:${color}"></span>
       <span class="c-title" data-r="title">${esc(title)}</span><span class="c-sub" data-r="sub"></span>
-      <span class="hval" data-r="hval"${tipAttr(tip)}></span>${det ? `<button class="detbtn" data-det="${det}" data-tip="${esc(T("details"))}">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>` : ""}</div>
+      <span class="hval" data-r="hval"${tipAttr(tip)}></span>${det ? `<button class="detbtn" data-det="${det}" data-tip="${esc(T("details"))}">${DET_ICO}</button>` : ""}</div>
     <div class="crow"><span class="mini" data-r="mini"></span><canvas class="spark" data-r="spark"${tipAttr(tip)}></canvas></div>
     <div class="chartwrap"${tipAttr(tip)}><canvas class="chart" data-r="chart"></canvas>
       <div class="over"><span class="big" data-r="big">–</span><span class="state" data-r="state"></span></div></div>${body || ""}`;
@@ -2039,7 +2063,7 @@ document.addEventListener("mouseover", e => {
   if (!el) { if (tipEl) hideTip(); return; }
   if (el === tipEl) return;
   tipEl = el;
-  tipbox.textContent = el.dataset.tip;
+  if (el.dataset.ptd) tipbox.innerHTML = ptTip(el.dataset.ptd); else tipbox.textContent = el.dataset.tip;
   clearTimeout(tipTimer);
   if (tipShown) { placeTip(e.clientX, e.clientY); return; }
   tipTimer = setTimeout(() => { tipbox.classList.add("on"); tipShown = true; }, 350);
@@ -2512,44 +2536,67 @@ function gmVerdict(g) {
   const L = g.limit || {};
   return (L.vram || 0) >= .2 ? "vram" : (L.cpu || 0) >= .25 && (L.cpu || 0) > (L.gpu || 0) ? "cpu" : (L.ram || 0) >= .2 ? "ram" : (L.gpu || 0) >= .4 ? "gpu" : "none";
 }
-let glData = null, glApps = [], glTimer = null, glQuery = "", glSearch = false;
+let glData = null, glApps = [], glTimer = null, glQuery = "";
 async function loadLib(q) {
   clearTimeout(glTimer);
   try { glData = await stJ("/api/games/" + (q || "lib")); } catch (e) {}
   if (glData && glData.busy) glTimer = setTimeout(() => loadLib(), 1500);
   renderLib();
 }
+// carte « Jeux reconnus » : recherche + ajout manuel ; la liste s'ouvre dans le panneau latéral
+const libOn = () => drawer.classList.contains("on") && drawer.dataset.k === "lib";
+const glTitle = D => D && D.games.length ? D.games.length + " " + T("gl_tn") : T("gl_t");
+const glScanBtn = (D, id, ico) => `<button class="btn" id="${id}" style="width:100%;display:flex;gap:8px;justify-content:center;align-items:center" ${D.busy ? "disabled" : ""}>${D.busy ? `<span class="spinner" style="width:14px;height:14px;margin:0;border-width:2px"></span>` : ""}${esc(T(D.busy ? "gl_busy" : "gl_scan"))}${ico && !D.busy ? DET_ICO : ""}</button>`;
 function renderLib() {
   renderMode();
   const el = document.getElementById("gm-lib"), D = glData; if (!D || !el) return;
   const loc = lang === "fr" ? "fr-FR" : "en-GB";
-  const list = D.games.length ? `${glSearch ? `<input class="gl-search" id="gl-q" type="search" placeholder="${esc(T("gl_search"))}">` : ""}
-      <div class="gl-list" id="gl-list">${D.games.map(g => `<div title="${esc(g.dir)}" data-n="${esc(g.name.toLowerCase())}">${esc(g.name)} <small class="muted">${esc(g.src)}</small></div>`).join("")}</div>`
-    : `<div class="muted" style="font-size:13px">${esc(T("gl_none"))}</div>`;
   const opts = glApps.filter(a => !D.manual.includes(a.toLowerCase())).map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join("");
-  setHTML(el, `<button class="btn" id="gl-scan" style="width:100%;display:flex;gap:8px;justify-content:center;align-items:center" ${D.busy ? "disabled" : ""}>${D.busy ? `<span class="spinner" style="width:14px;height:14px;margin:0;border-width:2px"></span>` : ""}${esc(T(D.busy ? "gl_busy" : "gl_scan"))}</button>
-    <div style="display:flex;align-items:center;gap:8px"><h2 style="margin:0;font-size:16px;flex:1">${D.games.length ? D.games.length + " " + esc(T("gl_tn")) : esc(T("gl_t"))}</h2>
-      ${D.games.length ? `<button class="detbtn ${glSearch ? "on" : ""}" id="gl-find" data-tip="${esc(T("gl_find"))}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>` : ""}</div>
-      ${D.date ? `<small class="muted" style="margin-top:-6px" data-tip="${esc(T("gl_last"))} ${esc(new Date(D.date * 1000).toLocaleString(loc, {dateStyle: "short", timeStyle: "short"}))}">${esc(new Date(D.date * 1000).toLocaleDateString(loc))}</small>` : ""}
-    ${list}
+  setHTML(el, `<div class="h-pair" id="gl-head" style="display:flex;align-items:center;gap:8px"><h2 class="h-link" style="margin:0;font-size:16px">${esc(glTitle(D))}</h2><span style="flex:1"></span>
+      <button class="detbtn" id="gl-open" data-tip="${esc(T("gl_open"))}">${DET_ICO}</button></div>
+    ${glScanBtn(D, "gl-scan", true)}
+    ${D.games.length ? (D.date ? `<small class="muted" style="margin-top:-4px">${esc(T("gl_last"))} ${esc(new Date(D.date * 1000).toLocaleString(loc, {dateStyle: "short", timeStyle: "short"}))}</small>` : "")
+      : `<div class="muted" style="font-size:13px">${esc(T("gl_none"))}</div>`}
     <h3 style="margin:6px 0 0;font-size:14px;padding-top:10px;border-top:1px solid var(--line)">${esc(T("gl_manual"))}</h3>
     <div class="gl-man"><select id="gl-sel"><option value="">${esc(T("gl_pick"))}</option>${opts}</select>
       <button class="btn sm" id="gl-add">${esc(T("gl_add"))}</button></div><span class="muted" style="font-size:12px">${esc(T("gl_manual_hint"))}</span>
-    ${D.manual.length ? `<div class="gl-man">${D.manual.map(n => `<span class="gl-chip">${esc(n)}<button data-glrm="${esc(n)}" data-tip="${esc(T("gl_rm"))}">✕</button></span>`).join("")}</div>` : ""}`);
-  document.getElementById("gl-scan").onclick = () => loadLib("scan");
-  const fb = document.getElementById("gl-find");
-  if (fb) fb.onclick = e => { e.stopPropagation(); glSearch = !glSearch; if (!glSearch) glQuery = ""; renderLib(); const i = document.getElementById("gl-q"); if (i) i.focus(); };
-  const q = document.getElementById("gl-q");
-  if (!q) document.querySelectorAll("#gl-list [data-n]").forEach(d => d.style.display = "");
-  if (q) {
-    const apply = () => { const v = q.value.trim().toLowerCase(); glQuery = q.value;
-      document.querySelectorAll("#gl-list [data-n]").forEach(d => d.style.display = !v || d.dataset.n.includes(v) ? "" : "none"); };
-    if (q.value !== glQuery) q.value = glQuery;
-    q.oninput = apply; apply();
-  }
+    ${D.manual.length ? `<div class="gl-man">${D.manual.map(n => `<span class="gl-chip">${esc(n)}<button data-glrm="${esc(n)}" data-tip="${esc(T("gl_rm"))}">✕</button></span>`).join("")}</div>` : ""}
+    ${(D.never || []).length ? `<h3 style="margin:6px 0 0;font-size:14px;padding-top:10px;border-top:1px solid var(--line)" data-tip="${esc(T("gl_never_tip"))}">${esc(T("gl_never"))}</h3>
+      <div class="gl-man">${D.never.map(n => `<span class="gl-chip">${esc(n)}<button data-glallow="${esc(n)}" data-tip="${esc(T("gl_allow"))}">✕</button></span>`).join("")}</div>` : ""}`);
+  document.getElementById("gl-scan").onclick = e => { e.stopPropagation(); libOpen(); loadLib("scan"); };
+  document.getElementById("gl-head").onclick = e => { e.stopPropagation(); libOpen(); };
   const sel = document.getElementById("gl-sel");
   document.getElementById("gl-add").onclick = () => { if (sel.value) loadLib("add?name=" + encodeURIComponent(sel.value)); };
   el.querySelectorAll("[data-glrm]").forEach(b => b.onclick = () => loadLib("remove?name=" + encodeURIComponent(b.dataset.glrm)));
+  el.querySelectorAll("[data-glallow]").forEach(b => b.onclick = () => loadLib("allow?name=" + encodeURIComponent(b.dataset.glallow)));
+  if (libOn()) libRender();
+}
+function loadApps() { stJ("/api/games/apps").then(a => { glApps = a.apps || []; renderLib(); }).catch(() => {}); }
+// panneau latéral : liste des jeux reconnus (recherche dans la liste, relancer la recherche)
+function libOpen() {
+  drawerOpen(glTitle(glData), "", "", "var(--gpu)", false);
+  drawer.dataset.k = "lib";
+  libRender();
+}
+function libRender() {
+  const D = glData; if (!D) return;
+  const loc = lang === "fr" ? "fr-FR" : "en-GB";
+  setText(document.getElementById("d-title"), glTitle(D));
+  setText(document.getElementById("d-sub"), D.date ? T("gl_last") + " " + new Date(D.date * 1000).toLocaleString(loc, {dateStyle: "short", timeStyle: "short"}) : "");
+  const ex = document.getElementById("d-extra");
+  if (!ex.querySelector("#gl-q") || ex.dataset.busy !== String(!!D.busy)) {
+    ex.dataset.busy = String(!!D.busy);
+    ex.innerHTML = `<div style="display:grid;gap:8px;padding:4px 0">${glScanBtn(D, "gl-scan2")}${D.games.length ? `<input class="gl-search" id="gl-q" type="search" placeholder="${esc(T("gl_search"))}" value="${esc(glQuery)}">` : ""}</div>`;
+    document.getElementById("gl-scan2").onclick = e => { e.stopPropagation(); loadLib("scan"); };
+  }
+  document.getElementById("d-list").innerHTML = D.games.length
+    ? `<div class="gl-list" id="gl-list">${D.games.map(g => `<div title="${esc(g.dir)}" data-n="${esc(g.name.toLowerCase())}">${esc(g.name)} <small class="muted">${esc(g.src)}</small></div>`).join("")}</div>`
+    : `<div class="muted" style="font-size:13px;padding:8px 14px">${esc(T(D.busy ? "gl_busy" : "gl_none"))}</div>`;
+  const q = document.getElementById("gl-q");
+  const apply = () => { const v = (q ? q.value : "").trim().toLowerCase(); glQuery = q ? q.value : "";
+    document.querySelectorAll("#gl-list [data-n]").forEach(d => d.style.display = !v || d.dataset.n.includes(v) ? "" : "none"); };
+  if (q) q.oninput = apply;
+  apply();
 }
 // =================== Mode gaming ===================
 // Comme les « game boosters » : on analyse, on relit la liste, on optimise. Option automatique quand un jeu est détecté.
@@ -2703,7 +2750,7 @@ function renderMode() {
 }
 function drawerOpen(title, sub, note, color, wide) {
   closeDetails(true);
-  drawer.classList.toggle("wide", !!wide);
+  drawer.classList.toggle("wide", !!wide); drawer.classList.remove("xwide"); drawer.dataset.k = "";
   drawer.style.top = document.querySelector("header").offsetHeight + "px";
   document.getElementById("d-dot").style.background = color;
   setText(document.getElementById("d-title"), title); setText(document.getElementById("d-sub"), sub); setText(document.getElementById("d-note"), note);
@@ -2711,12 +2758,6 @@ function drawerOpen(title, sub, note, color, wide) {
   const dim = document.getElementById("dimmer");
   dim.style.top = drawer.style.top; dim.classList.add("on");
   drawer.classList.add("on"); hideTip();
-}
-function openLib() {
-  drawerOpen(T("gmm_lib"), "", "", "var(--gpu)", false);
-  document.getElementById("d-list").innerHTML = `<div id="gm-lib"></div>`;
-  renderLib();
-  if (!glApps.length) stJ("/api/games/apps").then(a => { glApps = a.apps || []; renderLib(); }).catch(() => {});
 }
 // =================== Pilotes : âge ===================
 function drvAge(d) {
@@ -2729,15 +2770,57 @@ function drvAge(d) {
 let ptData = null;
 const fmtHM = s => { s = Math.round(s / 60); const h = Math.floor(s / 60), m = s % 60; return h ? `${h} h ${String(m).padStart(2, "0")}` : `${m} min`; };
 async function loadPlay() { try { ptData = await stJ("/api/playtime"); } catch (e) {} renderPlay(); }
+// une couleur par jeu (ordre : temps total), « Autres » au-delà ; pas de rouge (réservé aux problèmes)
+const PT_PAL = ["#38bdf8", "#a78bfa", "#f59e0b", "#2dd4bf", "#f472b6", "#a3e635", "#818cf8", "#fde047", "#e879f9", "#94a3b8"];
+const ptCol = n => { const i = ((ptData || {}).order || []).indexOf(n); return i >= 0 && i < PT_PAL.length ? PT_PAL[i] : "var(--dim)"; };
+const ptDay = (d, opt) => new Date(d + "T12:00").toLocaleDateString(lang === "fr" ? "fr-FR" : "en-GB", opt);
+const ptDays = n => { const a = []; for (let i = n - 1; i >= 0; i--) { const t = new Date(Date.now() - i * 86400000);
+  a.push(`${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`); } return a; };
+const ptG = d => { const D = ptData || {}; return (D.hist || {})[d] || ((D.days || []).find(x => x.day === d) || {}).g || {}; };
+// barre empilée : un segment par jeu, le plus joué en bas
+function ptBar(d, mx, h) {
+  const g = Object.entries(ptG(d)).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1]), tot = g.reduce((t, x) => t + x[1], 0);
+  return `<i style="height:${Math.max(2, Math.round(tot / mx * h))}px">${g.map(([n, v]) => `<b style="height:${(v / Math.max(1, tot) * 100).toFixed(2)}%;background:${ptCol(n)}"></b>`).join("")}</i>`;
+}
+function ptTip(d) {
+  const g = Object.entries(ptG(d)).filter(x => x[1] >= 60).sort((a, b) => b[1] - a[1]), tot = g.reduce((t, x) => t + x[1], 0);
+  return `<b>${esc(ptDay(d, {weekday: "long", day: "numeric", month: "long"}))}</b> · ${tot ? fmtHM(tot) : esc(T("pt_noplay"))}` +
+    (g.length ? `<div class="pt-tip">${g.map(([n, v]) => `<span><i class="pt-dot" style="background:${ptCol(n)}"></i>${esc(n)}</span><span>${fmtHM(v)}</span>`).join("")}</div>` : "");
+}
 function renderPlay() {
   const el = document.getElementById("gm-play"), D = ptData; if (!el || !D) return;
-  const mx = Math.max(1, ...D.days.map(d => d.s)), loc = lang === "fr" ? "fr-FR" : "en-GB";
-  setHTML(el, `<h2 style="margin:0;font-size:16px">${esc(T("pt_t"))}</h2>
+  const mx = Math.max(1, ...D.days.map(d => d.s));
+  setHTML(el, `<div class="h-pair" id="pt-head" style="display:flex;align-items:center;gap:8px"><h2 class="h-link" style="margin:0;font-size:16px">${esc(T("pt_t"))}</h2><span style="flex:1"></span>
+      <button class="detbtn" id="pt-big" data-tip="${esc(T("pt_big"))}">${DET_ICO}</button></div>
     <div style="display:flex;gap:16px;font-size:13px"><span><span class="muted">${esc(T("pt_today"))}</span> <b>${fmtHM(D.today)}</b></span><span><span class="muted">${esc(T("pt_week"))}</span> <b>${fmtHM(D.week)}</b></span></div>
-    <div class="pt-bars">${D.days.map(d => `<div data-tip="${esc(new Date(d.day + "T12:00").toLocaleDateString(loc, {weekday: "long", day: "numeric", month: "short"}) + " · " + fmtHM(d.s))}"><i style="height:${Math.round(d.s / mx * 52)}px"></i>${esc(new Date(d.day + "T12:00").toLocaleDateString(loc, {weekday: "short"}).slice(0, 3))}</div>`).join("")}</div>
+    <div class="pt-bars">${D.days.map(d => `<div data-tip="" data-ptd="${esc(d.day)}">${ptBar(d.day, mx, 52)}${esc(ptDay(d.day, {weekday: "short"}).slice(0, 3))}</div>`).join("")}</div>
     ${D.games.length ? `<div><div class="pt-row muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.4px"><span>${esc(T("gm_game"))}</span><span>${esc(T("pt_7d"))}</span><span>${esc(T("pt_total"))}</span></div>
-      ${D.games.map(g => `<div class="pt-row"><span class="n" title="${esc(g.name)}">${esc(g.name)}</span><b>${g.week ? fmtHM(g.week) : "–"}</b><span class="muted">${fmtHM(g.total)}</span></div>`).join("")}</div>`
+      ${D.games.map(g => `<div class="pt-row"><span class="n" title="${esc(g.name)}"><i class="pt-dot" style="background:${ptCol(g.name)}"></i>${esc(g.name)}</span><b>${g.week ? fmtHM(g.week) : "–"}</b><span class="muted">${fmtHM(g.total)}</span></div>`).join("")}</div>`
       : `<div class="muted" style="font-size:12.5px">${esc(T("pt_none"))}</div>`}`);
+  document.getElementById("pt-head").onclick = e => { e.stopPropagation(); ptBigOpen(); };
+  if (ptBigOn()) ptBigRender();
+}
+// grand graphique du temps de jeu (panneau latéral large) : 7, 30 ou 90 jours
+let ptRange = 30;
+const ptBigOn = () => drawer.classList.contains("on") && drawer.classList.contains("xwide");
+function ptBigOpen() {
+  drawerOpen(T("pt_t"), "", "", "var(--gpu)", true);
+  drawer.classList.add("xwide");
+  ptBigRender();
+}
+function ptBigRender() {
+  const days = ptDays(ptRange), tot = days.map(d => Object.values(ptG(d)).reduce((a, b) => a + b, 0)), mx = Math.max(1, ...tot);
+  const sum = tot.reduce((a, b) => a + b, 0), played = tot.filter(x => x >= 60).length, per = {};
+  days.forEach(d => Object.entries(ptG(d)).forEach(([n, v]) => per[n] = (per[n] || 0) + v));
+  const step = ptRange <= 7 ? 1 : ptRange <= 30 ? 3 : 10;
+  document.getElementById("d-sub").textContent = `${fmtHM(sum)} · ${T("pt_avg")} ${fmtHM(sum / ptRange)} / ${T("pt_day")} · ${played} ${T("pt_days_on")}`;
+  document.getElementById("d-extra").innerHTML = `<div class="seg" id="pt-rng" style="margin:4px 0 0">${[7, 30, 90].map(n => `<button data-n="${n}" class="${n === ptRange ? "on" : ""}">${n} ${esc(T("pt_dshort"))}</button>`).join("")}</div>`;
+  const leg = Object.entries(per).filter(x => x[1] >= 60).sort((a, b) => b[1] - a[1]);
+  document.getElementById("d-list").innerHTML = `<div style="padding:4px 10px 14px;display:grid;gap:16px">
+    <div class="ptb-bars${ptRange > 30 ? " n90" : ""}">${days.map((d, i) => `<div data-tip="" data-ptd="${esc(d)}">${ptBar(d, mx, 230)}<span>${i % step === (days.length - 1) % step ? esc(ptRange <= 7 ? ptDay(d, {weekday: "short"}) : ptDay(d, {day: "numeric", month: "short"})) : ""}</span></div>`).join("")}</div>
+    ${leg.length ? `<div class="ptb-leg">${leg.map(([n, v]) => `<div title="${esc(n)}"><i class="pt-dot" style="background:${ptCol(n)}"></i><span class="n">${esc(n)}</span><b style="margin-left:8px">${fmtHM(v)}</b></div>`).join("")}</div>`
+      : `<div class="muted" style="font-size:13px">${esc(T("pt_none"))}</div>`}</div>`;
+  document.querySelectorAll("#pt-rng button").forEach(b => b.onclick = e => { e.stopPropagation(); ptRange = +b.dataset.n; ptBigRender(); });
 }
 // =================== Bilan de la semaine ===================
 async function loadWeek() {
@@ -2828,9 +2911,9 @@ function renderGames() {
       ${F.granted ? "" : `<button class="btn sm" id="gm-fps-ok" ${gmGranting ? "disabled" : ""}>🛡 ${esc(gmGranting ? "…" : T("gm_fps_btn"))}</button>`}</div>`
     : F.state === "error" ? `<div class="muted" style="font-size:12.5px;margin-bottom:8px">${esc(T("gm_fps_err"))}</div>` : "";
   const cur = (D.current || []).map(c => `<div class="gm-live"><span><span style="color:var(--ok);font-weight:600">● ${esc(T("gm_now"))}</span> ${esc(c.name)} · ${fmtD(c.dur)}${c.fps ? ` · <b style="color:#5fd38d">${c.fps} FPS</b>` : ""}</span>
-      <button class="btn sm" data-gstop="${esc(c.key)}" data-tip="${esc(T("gm_stop_tip"))}">⏸ ${esc(T("gm_stop"))}</button></div>`).join("")
+      <span style="display:flex;gap:6px"><button class="btn sm" data-gstop="${esc(c.key)}" data-tip="${esc(T("gm_stop_tip"))}">⏸ ${esc(T("gm_stop"))}</button><button class="btn sm" data-gnever="${esc(c.key)}" data-tip="${esc(T("gm_never_tip"))}">■ ${esc(T("gm_never"))}</button></span></div>`).join("")
     + (D.paused || []).map(c => `<div class="gm-live"><span><span class="muted" style="font-weight:600">⏸ ${esc(T("gm_paused"))}</span> ${esc(c.name)}</span>
-      <button class="btn sm" data-gres="${esc(c.key)}" data-tip="${esc(T("gm_resume_tip"))}">▶ ${esc(T("gm_resume"))}</button></div>`).join("");
+      <span style="display:flex;gap:6px"><button class="btn sm" data-gres="${esc(c.key)}" data-tip="${esc(T("gm_resume_tip"))}">▶ ${esc(T("gm_resume"))}</button><button class="btn sm" data-gnever="${esc(c.key)}" data-tip="${esc(T("gm_never_tip"))}">■ ${esc(T("gm_never"))}</button></span></div>`).join("");
   setHTML(el, `<div class="hist-head"><h2 style="margin:0;font-size:16px">${esc(T("gm_t"))}</h2><span style="flex:1"></span>
       ${D.sessions.length ? `<button class="btn sm btn-danger" id="gm-clear"><svg class="bi" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span>${esc(T("gm_clear"))}</span></button>` : ""}
       <label class="check" style="font-weight:400;font-size:12.5px"><input type="checkbox" id="gm-cb" ${D.on ? "checked" : ""}><span>${esc(T("gm_opt"))}</span></label>
@@ -2853,6 +2936,11 @@ function renderGames() {
     const st = +b.dataset.gdel; if (gmOpen === st) gmOpen = null;
     try { gmData = await stJ("/api/games/delete?start=" + st); gmT = Date.now(); } catch (e) {}
     renderGames(); });
+  el.querySelectorAll("[data-gnever]").forEach(b => b.onclick = async e => { e.stopPropagation();
+    if (!b.dataset.ok) { armConfirm(b, "■ " + T("gm_never_sure")); return; }
+    b.disabled = true;
+    try { gmData = await stJ("/api/games/never?key=" + encodeURIComponent(b.dataset.gnever)); gmT = Date.now(); } catch (e) {}
+    renderGames(); loadLib(); });
   el.querySelectorAll("[data-gres]").forEach(b => b.onclick = async () => { b.disabled = true;
     try { gmData = await stJ("/api/games/resume?key=" + encodeURIComponent(b.dataset.gres)); gmT = Date.now(); } catch (e) {}
     renderGames(); });
@@ -3227,7 +3315,7 @@ document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
   schedule();             // rythme des mesures : 1 s sur Performances, 2 s ailleurs
   if (b.dataset.tab === "storage") stOpen();
   if (b.dataset.tab === "analysis") { renderAnalysis(true); loadWeek(); loadStartup(); }
-  if (b.dataset.tab === "gaming") { loadGames(); loadMode(false); glApps = []; loadLib(); stJ("/api/games/apps").then(a => { glApps = a.apps || []; renderLib(); }).catch(() => {}); }
+  if (b.dataset.tab === "gaming") { loadGames(); loadMode(false); glApps = []; loadLib(); loadApps(); }
   if (b.dataset.tab === "custom") fetch("/api/settings", {cache: "no-store"}).then(r => r.json()).then(st => {
     widgetOn = !!st.widget; widgetStyle = st.widget_style === "bars" ? "bars" : "compact"; autostart = !!st.autostart; renderCustom();
   }).catch(() => {});

@@ -6,7 +6,7 @@
 
 Tableau de bord simple et léger pour Windows : performances du PC en temps réel (façon Gestionnaire des tâches), fiche des composants utile pour changer des pièces, analyse du stockage, santé des disques et rapports de sessions de jeu. 100 % local, aucune télémétrie.
 
-Version actuelle : **v0.9.0**
+Version actuelle : **v0.9.8**
 
 ## Télécharger
 
@@ -59,7 +59,7 @@ Dans les [Releases](https://github.com/leclodo/Pulse-Monitor/releases/latest) :
 
 **Gaming**
 - **Mode gaming** : ferme les programmes inutiles pendant que tu joues (synchro cloud, launchers, messageries, navigateurs…) et indique la RAM, le CPU, le disque et le GPU libérés. L'impact de chaque programme est calculé selon la puissance du PC. Scan, verdict clair (le boost n'est proposé que s'il sert vraiment), liste à vérifier (impact de chaque programme), optimisation ; mode automatique en option quand un jeu est détecté. Le système, les pilotes, l'audio, les anti-triche et les antivirus ne sont jamais touchés. « Restaurer » relance tout ensuite
-- Temps de jeu par jour, par semaine et par jeu ; signal ⚠ de température dans le widget quand la carte graphique chauffe en jeu
+- Temps de jeu par jour, par semaine et par jeu (une couleur par jeu, grand graphique sur 7 / 30 / 90 jours) ; signal ⚠ de température dans le widget quand la carte graphique chauffe en jeu
 - Jeu reconnu en 10 à 30 s (Steam, Epic, GOG, Battle.net, Riot… ou plein écran avec la carte graphique chargée)
 - Rapport de chaque session : durée, CPU / GPU (moyenne / max), température du GPU, VRAM / RAM, **FPS (moyenne / 1 % low)**, ce qui limitait, et graphiques (survol = valeurs, clic = les programmes les plus gourmands)
 - FPS lus dans les événements d'affichage de Windows, sans programme ajouté (autorisation unique si besoin : groupe « Utilisateurs du journal de performances »)

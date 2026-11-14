@@ -24,7 +24,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import psutil
 
 APP_NAME = "Pulse Monitor"
-APP_VERSION = "0.9.0"
+APP_VERSION = "0.9.8"
 IS_WIN = os.name == "nt"
 FROZEN = bool(getattr(sys, "frozen", False))      # version .exe (PyInstaller)
 # données (réglages, historique…) : à côté du .exe ou du script ; fichiers de l'appli (page, icônes) : dans le paquet
@@ -2901,12 +2901,14 @@ def windowed_apps():
 class GameLib:
     def __init__(self):
         self.games, self.manual, self.date, self.busy = [], [], None, False
+        self.never = []      # programmes qu'on ne suit plus jamais (« Arrêter le suivi »)
         self.dirs, self.exes = (), set()
         try:
             with open(GAMELIB_FILE, encoding="utf-8") as f:
                 d = json.load(f)
             self.games = [g for g in d.get("games", []) if isinstance(g, dict)]
             self.manual = [str(x).lower() for x in d.get("manual", [])][:100]
+            self.never = [str(x).lower() for x in d.get("never", [])][:200]
             self.date = d.get("date")
         except Exception:
             pass
@@ -2920,7 +2922,7 @@ class GameLib:
         try:
             tmp = GAMELIB_FILE + ".tmp"
             with open(tmp, "w", encoding="utf-8") as f:
-                json.dump({"games": self.games, "manual": self.manual, "date": self.date}, f, ensure_ascii=False)
+                json.dump({"games": self.games, "manual": self.manual, "never": self.never, "date": self.date}, f, ensure_ascii=False)
             os.replace(tmp, GAMELIB_FILE)
         except Exception:
             log.exception("games_lib.json")
@@ -2945,7 +2947,21 @@ class GameLib:
         n = name.strip().lower()[:80]
         if n and n not in self.manual:
             self.manual.append(n)
+            if n in self.never:
+                self.never.remove(n)
             self._save()
+
+    def set_never(self, name, on):
+        n = name.strip().lower()[:80]
+        if not n:
+            return
+        if on and n not in self.never:
+            self.never.append(n)
+            if n in self.manual:
+                self.manual.remove(n)
+        elif not on and n in self.never:
+            self.never.remove(n)
+        self._save()
 
     def remove(self, name):
         n = name.strip().lower()
@@ -2955,7 +2971,7 @@ class GameLib:
 
     def data(self):
         return {"games": [{k: g[k] for k in ("name", "src", "dir")} for g in self.games], "manual": self.manual,
-                "date": self.date, "busy": self.busy}
+                "never": self.never, "date": self.date, "busy": self.busy}
 
 
 GAMELIB = GameLib()
@@ -3030,6 +3046,8 @@ class GameTracker:
             return False
         name, exe = self._info(pid)
         nl = name.lower()
+        if nl in GAMELIB.never:                             # « Arrêter le suivi » : plus jamais suivi
+            return False
         if nl and nl in GAMELIB.manual:                     # ajouté à la main : toujours un jeu
             return 2
         if nl in KNOWN_GAMES:                                # jeux connus (même protégés par un anti-triche)
@@ -3174,6 +3192,18 @@ class GameTracker:
             self._end(key, time.time(), force=True)
             return int(c["start"])
 
+    def forget(self, key):
+        """Arrêter le suivi : le programme n'est plus jamais suivi, la session en cours n'est pas gardée."""
+        with self.tick_lock:
+            key = (key or "").lower()
+            if not key:
+                return
+            GAMELIB.set_never(key, True)
+            self.curs.pop(key, None)
+            self.ignore.pop(key, None)
+            self.cand.pop(key, None)
+            log.info("Game tracking: %s will no longer be tracked", key)
+
     def resume(self, key):
         """Relance le suivi : nouvelle session tout de suite."""
         with self.tick_lock:
@@ -3238,13 +3268,24 @@ class GameTracker:
 
     def clear(self):
         with self.lock:
-            self.sessions = []
+            gone, self.sessions = self.sessions, []
         self._save()
+        for g in gone:                                  # le temps de jeu suit la liste : on retire aussi ce temps
+            try:
+                PLAYTIME.remove(g["name"], g["start"], g["dur"])
+            except Exception:
+                log.exception("Play time: remove")
 
     def delete(self, start):
         with self.lock:
+            gone = [g for g in self.sessions if g.get("start") == start]
             self.sessions = [g for g in self.sessions if g.get("start") != start]
         self._save()
+        for g in gone:
+            try:
+                PLAYTIME.remove(g["name"], g["start"], g["dur"])
+            except Exception:
+                log.exception("Play time: remove")
 
 
 def game_verdict(g):
@@ -4221,7 +4262,8 @@ class PlayTime:
         try:
             with open(PLAYTIME_FILE, encoding="utf-8") as f:
                 d = json.load(f)
-            if isinstance(d, dict):
+            # avant la v0.9.8, supprimer une session laissait son temps : on reconstruit une fois depuis les sessions
+            if isinstance(d, dict) and d.get("v") == 2:
                 self.days = {k: v for k, v in d.get("days", {}).items() if isinstance(v, dict)}
         except Exception:
             pass
@@ -4230,7 +4272,7 @@ class PlayTime:
     def _save(self):
         try:
             with open(PLAYTIME_FILE, "w", encoding="utf-8") as f:
-                json.dump({"days": self.days}, f, separators=(",", ":"))
+                json.dump({"v": 2, "days": self.days}, f, separators=(",", ":"))
         except OSError:
             log.exception("Play time: save")
 
@@ -4246,6 +4288,19 @@ class PlayTime:
             self.days = {k: v for k, v in self.days.items() if k >= keep}
             self._save()
 
+    def remove(self, name, start, dur):
+        """Session supprimée à la main : on retire aussi son temps de jeu."""
+        with self.lock:
+            day = time.strftime("%Y-%m-%d", time.localtime(start))
+            dd = self.days.get(day, {})
+            if name in dd:
+                dd[name] = int(dd[name] - dur)
+                if dd[name] < 60:
+                    del dd[name]
+                if not dd:
+                    self.days.pop(day, None)
+                self._save()
+
     def data(self):
         with self.lock:
             if not self.filled and GAMES[0]:          # 1re fois : on reprend les sessions déjà enregistrées
@@ -4258,6 +4313,9 @@ class PlayTime:
         for c in (GAMES[0].curs.values() if GAMES[0] else []):        # partie en cours
             day = time.strftime("%Y-%m-%d", time.localtime(c["start"]))
             days.setdefault(day, {})[c["name"]] = days.get(day, {}).get(c["name"], 0) + int(now - c["start"])
+        # moins d'1 min dans la journée, ou programme dont on a arrêté le suivi : pas compté
+        never = set(GAMELIB.never)
+        days = {k: {n: x for n, x in v.items() if x >= 60 and n.lower() not in never and n.lower() + ".exe" not in never} for k, v in days.items()}
         last7 = [time.strftime("%Y-%m-%d", time.localtime(now - i * 86400)) for i in range(6, -1, -1)]
         week, total = {}, {}
         for k, v in days.items():
@@ -4265,7 +4323,10 @@ class PlayTime:
                 total[n] = total.get(n, 0) + s
                 if k in last7:
                     week[n] = week.get(n, 0) + s
-        return {"days": [{"day": d, "s": sum(days.get(d, {}).values())} for d in last7],
+        since = time.strftime("%Y-%m-%d", time.localtime(now - 89 * 86400))   # 90 jours, détail par jeu (grand graphique)
+        return {"days": [{"day": d, "s": sum(days.get(d, {}).values()), "g": days.get(d, {})} for d in last7],
+                "hist": {k: v for k, v in days.items() if k >= since},
+                "order": [n for n, _ in sorted(total.items(), key=lambda x: -x[1])],
                 "today": sum(days.get(last7[-1], {}).values()), "week": sum(week.values()),
                 "games": sorted(({"name": n, "week": week.get(n, 0), "total": s} for n, s in total.items()),
                                 key=lambda x: (-x["week"], -x["total"]))[:12]}
@@ -4517,11 +4578,15 @@ def make_handler(sampler, details):
                     GAMELIB.add(q.get("name", ""))
                 elif act == "remove":
                     GAMELIB.remove(q.get("name", ""))
-                elif act in ("stop", "resume"):
+                elif act == "allow":
+                    GAMELIB.set_never(q.get("name", ""), False)
+                elif act in ("stop", "resume", "never"):
                     key = (q.get("key") or "").lower() or None
                     st = None
                     if GAMES[0] and act == "stop":
                         st = GAMES[0].stop(key)
+                    elif GAMES[0] and act == "never" and key:
+                        GAMES[0].forget(key)
                     elif GAMES[0] and key:
                         GAMES[0].resume(key)
                     data = GAMES[0].data() if GAMES[0] else {}

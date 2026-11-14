@@ -36,7 +36,9 @@ Dans les [Releases](https://github.com/leclodo/Pulse-Monitor/releases/latest) :
 - Réseau : réception / envoi
 
 **Composants**
-- Processeur, carte mère + BIOS, barrettes de RAM (emplacements, vitesse, référence), cartes graphiques, disques (HDD/SSD, SATA/NVMe, santé), Windows, réseau, écrans
+- Scan lancé quand tu le décides (bouton « Scanner les composants », puis « Actualiser ») ; le résultat est gardé entre deux lancements
+- Processeur (nom de code, cœurs P / E, caches, instructions, virtualisation), carte mère + BIOS (chipset, UEFI, Secure Boot), barrettes de RAM (emplacements, canaux, vitesse, latence, référence, alerte si le profil XMP / EXPO n'est pas activé), cartes graphiques (puce, type de mémoire, PCIe, âge du pilote), disques (HDD/SSD, SATA/NVMe, santé), Windows, réseau, écrans
+- Aucun pilote installé : tout est lu avec les outils de Windows
 - **Infos à compléter** : alimentation, boîtier, refroidissement, ports M.2/SATA (listes pré-remplies)
 - Bouton « Copier le résumé de ma config » pour demander conseil sur un forum
 
@@ -56,7 +58,7 @@ Dans les [Releases](https://github.com/leclodo/Pulse-Monitor/releases/latest) :
 - Quel composant te limite le plus (après 10 min d'usage intensif)
 
 **Gaming**
-- **Mode gaming** : ferme les programmes inutiles pendant que tu joues (synchro cloud, launchers, messageries, navigateurs…) et indique la RAM, le CPU, le disque et le GPU libérés. Scan, verdict clair (le boost n'est proposé que s'il sert vraiment), liste à vérifier (impact de chaque programme), optimisation ; mode automatique en option quand un jeu est détecté. Le système, les pilotes, l'audio, les anti-triche et les antivirus ne sont jamais touchés. « Restaurer » relance tout ensuite
+- **Mode gaming** : ferme les programmes inutiles pendant que tu joues (synchro cloud, launchers, messageries, navigateurs…) et indique la RAM, le CPU, le disque et le GPU libérés. L'impact de chaque programme est calculé selon la puissance du PC. Scan, verdict clair (le boost n'est proposé que s'il sert vraiment), liste à vérifier (impact de chaque programme), optimisation ; mode automatique en option quand un jeu est détecté. Le système, les pilotes, l'audio, les anti-triche et les antivirus ne sont jamais touchés. « Restaurer » relance tout ensuite
 - Temps de jeu par jour, par semaine et par jeu ; signal ⚠ de température dans le widget quand la carte graphique chauffe en jeu
 - Jeu reconnu en 10 à 30 s (Steam, Epic, GOG, Battle.net, Riot… ou plein écran avec la carte graphique chargée)
 - Rapport de chaque session : durée, CPU / GPU (moyenne / max), température du GPU, VRAM / RAM, **FPS (moyenne / 1 % low)**, ce qui limitait, et graphiques (survol = valeurs, clic = les programmes les plus gourmands)

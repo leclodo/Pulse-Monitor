@@ -36,7 +36,9 @@ From the [Releases](https://github.com/leclodo/Pulse-Monitor/releases/latest) pa
 - Network: download / upload
 
 **Components**
-- CPU, motherboard + BIOS, RAM sticks (slots, speed, part number), graphics cards, disks (HDD/SSD, SATA/NVMe, health), Windows, network, displays
+- Scan when you decide ("Scan components" button, then "Refresh"); results are kept between launches
+- CPU (codename, P / E cores, caches, instruction sets, virtualization), motherboard + BIOS (chipset, UEFI, Secure Boot), RAM sticks (slots, channels, speed, timings, part number, warning if XMP / EXPO is off), graphics cards (chip, memory type, PCIe, driver age), disks (HDD/SSD, SATA/NVMe, health), Windows, network, displays
+- No driver installed: everything is read with Windows' own tools
 - **Fill in**: power supply, case, cooling, M.2/SATA ports (pre-filled lists)
 - "Copy my specs summary" button to ask for advice on a forum
 
@@ -56,7 +58,7 @@ From the [Releases](https://github.com/leclodo/Pulse-Monitor/releases/latest) pa
 - Which component holds you back the most (after 10 min of heavy usage)
 
 **Gaming**
-- **Gaming mode**: closes unneeded programs while you play (cloud sync, launchers, chat, browsers…) and shows the RAM, CPU, disk and GPU it frees. Scan, a clear verdict (boost is only offered when it really helps), review the list (impact of each program), optimize; optional automatic mode when a game is detected. System, drivers, audio, anti-cheat and antivirus are never touched. "Restore" restarts everything afterwards
+- **Gaming mode**: closes unneeded programs while you play (cloud sync, launchers, chat, browsers…) and shows the RAM, CPU, disk and GPU it frees. Each program's impact is relative to your PC's hardware. Scan, a clear verdict (boost is only offered when it really helps), review the list (impact of each program), optimize; optional automatic mode when a game is detected. System, drivers, audio, anti-cheat and antivirus are never touched. "Restore" restarts everything afterwards
 - Play time per day, per week and per game; a ⚠ temperature warning in the desktop widget when the graphics card runs hot during a game
 - Games recognized within 10 to 30 s (Steam, Epic, GOG, Battle.net, Riot… or full screen with the graphics card under load)
 - Report for each session: duration, CPU / GPU (average / max), GPU temperature, VRAM / RAM, **FPS (average / 1% low)**, what limited, and charts (hover for values, click for the most demanding programs)

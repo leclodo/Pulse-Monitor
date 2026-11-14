@@ -24,7 +24,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import psutil
 
 APP_NAME = "Pulse Monitor"
-APP_VERSION = "0.8.31"
+APP_VERSION = "0.8.32"
 IS_WIN = os.name == "nt"
 FROZEN = bool(getattr(sys, "frozen", False))      # version .exe (PyInstaller)
 # données (réglages, historique…) : à côté du .exe ou du script ; fichiers de l'appli (page, icônes) : dans le paquet
@@ -940,7 +940,9 @@ def specs_extra(s):
         loc = "%s %s" % (r.get("DeviceLocator") or m["slot"], r.get("BankLabel") or "")
         ch = re.search(r"channel\s*([a-h])|chan(?:nel)?([a-h])\b|-ch([a-h])", loc, re.I)
         if ch:
-            chans.add((ch.group(1) or ch.group(2) or ch.group(3)).upper())
+            # Intel : « Controller0-ChannelA » et « Controller1-ChannelA » = 2 canaux différents
+            ctl = re.search(r"controller\s*(\d+)", loc, re.I)
+            chans.add((ctl.group(1) if ctl else "", (ch.group(1) or ch.group(2) or ch.group(3)).upper()))
     mods = s["ram"].get("modules", [])
     if chans:
         s["ram"]["channels"] = len(chans)

@@ -6,7 +6,7 @@
 
 A simple, lightweight dashboard for Windows: real-time PC performance (like Task Manager), a hardware sheet with what you need to know when upgrading parts, storage analysis, disk health and gaming session reports. 100% local, no telemetry.
 
-Current version: **v0.8.32**
+Current version: **v0.9.0**
 
 ## Download
 
@@ -70,7 +70,7 @@ From the [Releases](https://github.com/leclodo/Pulse-Monitor/releases/latest) pa
 - **Bell 🔔**: live tips (saturated component, program responsible, startup programs…). ✕ to dismiss a tip.
 - **Click a card title** (Performance): programs using that resource. **Ctrl + click**: hide the card (restore it in Settings).
 - **Cards: Collapsed / Small / Large** buttons at the top of Performance; **⋮⋮** handle to reorder by drag and drop.
-- **Settings**: FR / EN language (Windows language by default), 5 themes, start with Windows, keep in tray when closed, daily update check.
+- **Settings**: FR / EN language (Windows language by default), 5 themes, eco mode, start with Windows, keep in tray when closed, daily update check.
 - **Close the window (✕)**: the app stays near the clock with a small icon (~30 MB). Click = reopen, right-click = Quit.
 - **Desktop widget**: CPU, GPU + temperature, VRAM, RAM on one line (compact or bars), plus ● and the FPS while gaming. 📌 = pinned on top with click-through (hold Ctrl to move it), 🧲 snaps to screen edges. Adjustable opacity and size, configurable keyboard shortcut.
 - **Updates**: click the version number → "Check for updates".
@@ -82,7 +82,7 @@ Everything stays on your PC: no account, no ads, no telemetry, nothing is sold o
 
 ## Lightweight
 
-The window is fully closed when you close it, measurements slow down when it's minimized or on a tab other than Performance, and WebView2 runs in lean mode (single render process, no GPU acceleration).
+The window is fully closed when you close it, measurements slow down when it's minimized or on a tab other than Performance, and WebView2 runs in lean mode (single render process, no GPU acceleration). An **Eco mode** (Settings) slows everything down further: measurements every 3 s, widget every 3 s, no animations.
 
 ## From source
 

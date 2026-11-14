@@ -150,7 +150,7 @@
   .bdot { position: absolute; top: 4px; right: 5px; width: 8px; height: 8px; border-radius: 50%; background: var(--bad); display: none;
     box-shadow: 0 0 0 2px var(--panel); }
   .bdot.on { display: block; }
-  .bdot.pulse { animation: bpulse 2s ease-in-out infinite; }
+  .bdot.pulse { animation: bpulse 2s ease-in-out 4; }   /* 4 fois puis s'arrête : pas d'animation sans fin (coûte du processeur) */
   .bdot.info { background: var(--warn); }
   @keyframes bpulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.75); } }
   .bellpop { width: 430px; max-width: 92vw; padding: 14px 16px; cursor: default; }
@@ -482,6 +482,7 @@
   .theme .pv i { display: block; height: 7px; border-radius: 4px; }
   .theme .nm { font-weight: 600; margin-top: 7px; font-size: 13px; }
   .orderlist { display: grid; gap: 6px; }
+  html.eco *:not(.spinner), html.eco *::before, html.eco *::after { animation: none !important; transition: none !important; }
   .check { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; font-weight: 600; }
   .check input { width: 17px; height: 17px; margin: 2px 0 0; accent-color: var(--cpu); flex: none; }
   .orow { display: flex; align-items: center; gap: 10px; background: var(--panel2); border: 1px solid var(--line); border-radius: 9px; padding: 6px 10px; }
@@ -807,6 +808,9 @@ const I18N = {
     sh_tip: "Part du temps de charge où ce composant était saturé.",
     cat_disk: "Disque", cat_startup: "Démarrage", cat_play: "Jeu",
     bg_opt: "Analyser l'usage en arrière-plan (même fenêtre fermée)",
+    eco_t: "Consommation de l'appli", eco_opt: "Mode économie",
+    eco_tip: "Mesures toutes les 3 s au lieu de 1 s (5 s dans les autres onglets), widget mis à jour toutes les 3 s, analyse en arrière-plan toutes les 5 s et animations coupées. L'appli utilise encore moins de processeur ; les graphiques bougent moins souvent.",
+    eco_hint: "Pour les petits PC ou pendant les jeux.",
     bg_hint: "Pour compter aussi tes sessions de jeu quand la fenêtre est fermée. Coût : ~0,1 % de processeur, rien en RAM.",
     cards_lbl: "Cartes :", sz_collapsed: "Repliées", sz_small: "Petites", sz_large: "Grandes",
     hidden_t: "Cartes masquées", hidden_none: "Aucune carte masquée.", show: "Afficher", show_all: "Tout réafficher",
@@ -1081,6 +1085,9 @@ const I18N = {
     sh_tip: "Share of load time when this component was maxed out.",
     cat_disk: "Disk", cat_startup: "Startup", cat_play: "Game",
     bg_opt: "Analyze usage in the background (even with the window closed)",
+    eco_t: "App resource use", eco_opt: "Eco mode",
+    eco_tip: "Measurements every 3 s instead of 1 s (5 s on the other tabs), widget updated every 3 s, background analysis every 5 s and animations turned off. The app uses even less CPU; charts update less often.",
+    eco_hint: "For small PCs or while gaming.",
     bg_hint: "So your gaming sessions count even with the window closed. Cost: ~0.1% CPU, no RAM.",
     cards_lbl: "Cards:", sz_collapsed: "Collapsed", sz_small: "Small", sz_large: "Large",
     hidden_t: "Hidden cards", hidden_none: "No hidden cards.", show: "Show", show_all: "Show all",
@@ -1124,12 +1131,13 @@ const SICO = {
   power: '<path d="M12 3v8"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/>',
   bell: '<path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
   widget: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 15l3-4 3 2.5 4-5"/>',
+  eco: '<path d="M5 19c0-8 5-13 15-14-1 10-6 15-14 15"/><path d="M5 19c3-4 6-6 9-8"/>',
   shield: '<path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/><path d="m9 12 2 2 4-4"/>',
 };
 const sh2 = (ico, text) => `<h2 class="sh2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${SICO[ico]}</svg>${text}</h2>`;
 let bellOff = new Set();
 const BELL_CATS = ["cpu", "ram", "gpu", "disk", "startup", "play", "update"];
-let collapsed = new Set(), order = {}, theme = "dark", manual = {}, hidden = {}, bigMode = false, trayMode = true, bgMode = true, dismissed = {}, widgetOn = false, widgetStyle = "compact", widgetAlpha = 86, widgetScale = 100, widgetPatch = {}, autostart = false, histOn = true, hotkey = null, wgLock = 0;
+let collapsed = new Set(), order = {}, theme = "dark", manual = {}, hidden = {}, bigMode = false, trayMode = true, bgMode = true, ecoMode = false, dismissed = {}, widgetOn = false, widgetStyle = "compact", widgetAlpha = 86, widgetScale = 100, widgetPatch = {}, autostart = false, histOn = true, hotkey = null, wgLock = 0;
 async function loadSettings() {
   try {
     const s = await (await fetch("/api/settings", {cache: "no-store"})).json();
@@ -1143,6 +1151,7 @@ async function loadSettings() {
     bigMode = !!s.big;
     trayMode = s.tray !== false;
     bgMode = s.bg !== false;
+    ecoMode = !!s.eco;
     dismissed = s.dismissed && typeof s.dismissed === "object" ? s.dismissed : {};
     bellOff = new Set(Array.isArray(s.bell_off) ? s.bell_off : []);
     histOn = s.history !== false;
@@ -1159,7 +1168,7 @@ function saveSettings() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     // le widget n'est envoyé que si on vient de le changer ici (il peut aussi changer depuis l'icône ou sa croix)
-    const body = {lang, theme, collapsed: [...collapsed], order, manual, hidden, big: bigMode, tray: trayMode, bg: bgMode, dismissed, bell_off: [...bellOff], hist_range: histRange, hist_compact: histCompact, ...widgetPatch,
+    const body = {lang, theme, collapsed: [...collapsed], order, manual, hidden, big: bigMode, tray: trayMode, bg: bgMode, eco: ecoMode, dismissed, bell_off: [...bellOff], hist_range: histRange, hist_compact: histCompact, ...widgetPatch,
                   history: histPatch != null ? histPatch : histOn};
     if (histPatch != null) { histOn = histPatch; histPatch = null; }
     widgetPatch = {};
@@ -1789,6 +1798,9 @@ function renderCustom() {
       <label class="check" data-tip="${esc(T("as_tip"))}"><input type="checkbox" id="as-cb" ${autostart ? "checked" : ""}><span>${esc(T("autostart_opt"))}</span></label>
       <label class="check" data-tip="${esc(T("tray_hint"))}"><input type="checkbox" id="tray-cb" ${trayMode ? "checked" : ""}><span>${esc(T("tray_opt"))}</span></label>
       <label class="check" data-tip="${esc(T("au_tip"))}"><input type="checkbox" id="au-cb" ${autoUpdate ? "checked" : ""}><span>${esc(T("au_opt"))}</span></label></div>
+    <div class="card c-order">${sh2("eco", esc(T("eco_t")))}
+      <label class="check" data-tip="${esc(T("eco_tip"))}"><input type="checkbox" id="eco-cb" ${ecoMode ? "checked" : ""}><span>${esc(T("eco_opt"))}</span></label>
+      <p class="muted" style="margin:0;font-size:12.5px">${esc(T("eco_hint"))}</p></div>
     <div class="card c-order">${sh2("bell", esc(T("bell_types_t")))}
       <div class="bell-types">${BELL_CATS.map(c => `<label class="check" data-tip="${esc(T("bt_tip_" + c))}"><input type="checkbox" data-bt="${c}" ${bellOff.has(c) ? "" : "checked"}><span>${esc(T("bt_" + c))}</span></label>`).join("")}</div></div>
     <div class="card c-order">${sh2("widget", esc(T("widget_t")))}
@@ -1825,6 +1837,7 @@ function renderCustom() {
   document.getElementById("au-cb").onchange = e => { autoUpdate = e.target.checked; fetch("/api/update/auto?on=" + (autoUpdate ? 1 : 0)).catch(() => {}); };
   document.getElementById("as-cb").onchange = e => { autostart = e.target.checked; widgetPatch.autostart = autostart; saveSettings(); };
   document.getElementById("tray-cb").onchange = e => { trayMode = e.target.checked; saveSettings(); };
+  document.getElementById("eco-cb").onchange = e => { ecoMode = e.target.checked; applyEco(); saveSettings(); schedule(); };
   el.querySelectorAll("[data-unhide]").forEach(b => b.onclick = () => unhide([b.dataset.unhide]));
   const ua = document.getElementById("unhide-all"); if (ua) ua.onclick = () => unhide(Object.keys(hidden));
   el.querySelectorAll("[data-theme-pick]").forEach(b => b.onclick = () => setTheme(b.dataset.themePick));
@@ -1944,7 +1957,7 @@ async function loadDetails() {
       if (kind === detKind) renderDetails(d);
     }
   } catch (e) {}
-  if (kind === detKind) detTimer = setTimeout(loadDetails, 2000);
+  if (kind === detKind) detTimer = setTimeout(loadDetails, ecoMode ? 5000 : 2000);
 }
 function renderDetails(d) {
   const ramTotal = last && last.ram ? last.ram.total : 0;
@@ -3222,11 +3235,14 @@ document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
 let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { redrawAll(); drawHistory(); }, 150); });
 
 // Boucle : 1 s sur Performances, 2 s sur les autres onglets (pas de graphique en direct), 20 s fenêtre réduite.
+// Mode économie : 3 s, 5 s et 60 s.
 let timer = null;
 function schedule() {
   clearTimeout(timer);
-  timer = setTimeout(async () => { await tick(); schedule(); }, document.hidden ? 20000 : tabOn() ? 1000 : 2000);
+  timer = setTimeout(async () => { await tick(); schedule(); },
+    document.hidden ? (ecoMode ? 60000 : 20000) : tabOn() ? (ecoMode ? 3000 : 1000) : (ecoMode ? 5000 : 2000));
 }
+function applyEco() { document.documentElement.classList.toggle("eco", ecoMode); }
 // Fenêtre réduite : après 3 s, on demande à Windows de reprendre la RAM inutilisée.
 let trimTimer = null;
 document.addEventListener("visibilitychange", () => {
@@ -3241,6 +3257,7 @@ document.addEventListener("visibilitychange", () => {
   document.documentElement.dataset.theme = theme;
   readColors();
   applyBig();
+  applyEco();
   applyOrder(sectionsEl);
   applyCollapsed();
   applyLang();

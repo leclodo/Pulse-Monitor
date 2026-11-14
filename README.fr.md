@@ -6,7 +6,7 @@
 
 Tableau de bord simple et léger pour Windows : performances du PC en temps réel (façon Gestionnaire des tâches), fiche des composants utile pour changer des pièces, analyse du stockage, santé des disques et rapports de sessions de jeu. 100 % local, aucune télémétrie.
 
-Version actuelle : **v0.8.32**
+Version actuelle : **v0.9.0**
 
 ## Télécharger
 
@@ -70,7 +70,7 @@ Dans les [Releases](https://github.com/leclodo/Pulse-Monitor/releases/latest) :
 - **Cloche 🔔** : conseils en direct (composant saturé, programme en cause, programmes au démarrage…). ✕ pour masquer un conseil.
 - **Clic sur le titre d'une carte** (Performances) : liste des programmes qui utilisent la ressource. **Ctrl + clic** : masquer la carte (à réafficher dans Paramètres).
 - Boutons **Cartes : Repliées / Petites / Grandes** en haut de Performances ; poignée **⋮⋮** pour réorganiser par glisser-déposer.
-- **Paramètres** : langue FR / EN (celle de Windows par défaut), 5 thèmes, lancement avec Windows, garder en fond à la fermeture, vérification quotidienne des mises à jour.
+- **Paramètres** : langue FR / EN (celle de Windows par défaut), 5 thèmes, mode économie, lancement avec Windows, garder en fond à la fermeture, vérification quotidienne des mises à jour.
 - **Fermer la fenêtre (✕)** : l'appli reste près de l'horloge avec une petite icône (~30 Mo). Clic = rouvrir, clic droit = Quitter.
 - **Widget de bureau** : CPU, GPU + température, VRAM, RAM sur une ligne (compact ou barres), plus ● et les FPS en jeu. 📌 = épinglé au-dessus de tout avec clics à travers (maintenir Ctrl pour le déplacer), 🧲 = aimanté aux bords de l'écran. Opacité et taille réglables, raccourci clavier configurable.
 - **Mises à jour** : clic sur le numéro de version → « Vérifier les mises à jour ».
@@ -82,7 +82,7 @@ Tout reste sur ton PC : pas de compte, pas de publicité, pas de télémétrie, 
 
 ## Léger
 
-La fenêtre se ferme complètement quand on la quitte, les mesures ralentissent quand elle est réduite ou sur un autre onglet que Performances, et WebView2 tourne en mode allégé (un seul processus d'affichage, sans accélération GPU).
+La fenêtre se ferme complètement quand on la quitte, les mesures ralentissent quand elle est réduite ou sur un autre onglet que Performances, et WebView2 tourne en mode allégé (un seul processus d'affichage, sans accélération GPU). Un **mode économie** (Paramètres) ralentit encore tout : mesures toutes les 3 s, widget toutes les 3 s, sans animations.
 
 ## Depuis le code source
 

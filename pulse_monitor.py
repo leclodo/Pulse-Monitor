@@ -24,7 +24,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import psutil
 
 APP_NAME = "Pulse Monitor"
-APP_VERSION = "0.8.32"
+APP_VERSION = "0.9.0"
 IS_WIN = os.name == "nt"
 FROZEN = bool(getattr(sys, "frozen", False))      # version .exe (PyInstaller)
 # données (réglages, historique…) : à côté du .exe ou du script ; fichiers de l'appli (page, icônes) : dans le paquet
@@ -137,10 +137,12 @@ QUIT_HOOK = [None]   # ferme proprement l'appli (utilisé après une mise à jou
 # Dépôt GitHub des mises à jour (« propriétaire/nom »). Seule connexion Internet de l'appli, et seulement à ta demande.
 UPDATE_REPO = "leclodo/Pulse-Monitor"
 IDLE_AFTER = 6.0
+ECO = [False]        # mode économie (réglage « eco ») : mesures et affichage moins fréquents
 
 
 def ui_idle():
-    return time.time() - LAST_PING[0] > IDLE_AFTER
+    # en mode économie, la page ne demande des mesures que toutes les 3 à 5 s
+    return time.time() - LAST_PING[0] > (IDLE_AFTER * 2 if ECO[0] else IDLE_AFTER)
 
 
 # --------------------------------------------------------------------------
@@ -512,7 +514,7 @@ class CounterReader(threading.Thread):
             if ui_idle():
                 # fenêtre fermée : toutes les 2 s pour l'analyse ou le widget, toutes les 5 s pour l'historique / les jeux, sinon rien
                 if BG[0] or WIDGET_ON[0]:
-                    if n % 2:
+                    if n % (5 if ECO[0] else 2):
                         continue
                 elif HIST_ON[0] or GAMES_ON[0]:
                     if n % 5:
@@ -582,7 +584,7 @@ class SelfUsage:
         self.t_list = 0.0
         self.ncpu = psutil.cpu_count() or 1
         self.window_pid = lambda: None
-        self.ram_cache = {}   # pid -> mémoire (relue toutes les 5 s, c'est un peu plus coûteux)
+        self.ram_cache = {}   # pid -> mémoire (relue toutes les 10 s, c'est un peu plus coûteux)
         self.t_ram = 0.0
 
     def _ram(self, p, refresh):
@@ -597,7 +599,7 @@ class SelfUsage:
 
     def sample(self):
         now = time.time()
-        refresh = now - self.t_ram > 5
+        refresh = now - self.t_ram > (30 if ECO[0] else 10)   # lecture précise de la mémoire : un peu coûteuse
         if refresh:
             self.t_ram = now
         if now - self.t_list > 5:
@@ -674,9 +676,12 @@ LEAN_BROWSER_ARGS = [
     "--disable-gpu", "--disable-gpu-compositing", "--in-process-gpu", "--disable-software-rasterizer",
     "--renderer-process-limit=1", "--process-per-site", "--disable-extensions",
     "--disable-background-networking", "--disable-component-update", "--disable-sync",
+    "--no-first-run", "--disable-breakpad", "--disable-domain-reliability", "--disable-client-side-phishing-detection",
     "--disable-features=Translate,OptimizationHints,MediaRouter,SpareRendererForSitePerProcess,"
-    "msSmartScreenProtection,AutofillServerCommunication,CalculateNativeWinOcclusion",
-    "--js-flags=--max-old-space-size=96",
+    "msSmartScreenProtection,AutofillServerCommunication,CalculateNativeWinOcclusion,BackForwardCache,"
+    "InterestFeedContentSuggestions,PrivacySandboxSettings4,Prerender2",
+    # moteur JavaScript : privilégie la mémoire à la vitesse (la page est légère, la différence ne se voit pas)
+    '--js-flags="--max-old-space-size=96 --optimize-for-size"',
 ]
 
 
@@ -1559,6 +1564,8 @@ class Sampler(threading.Thread):
         while True:
             time.sleep(1)
             n += 1
+            if n % 60 == 0 and DISKSCAN.forget_idle(0 if ui_idle() else 180):
+                trim_memory()
             if not ui_idle():
                 # on ne mesure qu'au rythme où la page demande (1 s sur Performances, 2 s ailleurs)
                 if LAST_PING[0] == seen:
@@ -1566,7 +1573,7 @@ class Sampler(threading.Thread):
                 seen = LAST_PING[0]
             if ui_idle():
                 self._t_prev = None  # on repart proprement au retour
-                if BG[0] and n % 2 == 0:
+                if BG[0] and n % (5 if ECO[0] else 2) == 0:
                     try:
                         self.insights.on_background()
                     except Exception:
@@ -1727,7 +1734,8 @@ class DiskScan:
         self.lock = threading.Lock()
         self.status = {"running": False}
         self.stop = False
-        self.results = {}          # racine -> résultat (gardé tant que l'appli tourne)
+        self.results = {}          # racine -> résultat (libéré après 3 min sans consultation : jusqu'à ~30 Mo pour C:)
+        self.used = {}             # racine -> dernière consultation
         os.makedirs(SCANS_DIR, exist_ok=True)
 
     @staticmethod
@@ -1846,6 +1854,7 @@ class DiskScan:
                    "big": sorted(big, reverse=True),
                    "cats": {c: {"size": v[0], "count": v[1], "top": sorted(v[2], reverse=True)} for c, v in cats.items()}}
             self.results[root] = res
+            self.used[root] = time.time()
             try:
                 import gzip
                 with gzip.open(os.path.join(SCANS_DIR, self._key(root) + ".json.gz"), "wt", encoding="utf-8") as f:
@@ -1861,7 +1870,16 @@ class DiskScan:
         finally:
             trim_memory()
 
+    def forget_idle(self, after=180):
+        """Libère les analyses qu'on ne consulte plus (elles restent sur le disque et se relisent vite)."""
+        old = [r for r in list(self.results) if time.time() - self.used.get(r, 0) > after]
+        for r in old:
+            self.results.pop(r, None)
+            self.used.pop(r, None)
+        return bool(old)
+
     def result(self, root):
+        self.used[root] = time.time()
         if root in self.results:
             return self.results[root]
         f = os.path.join(SCANS_DIR, self._key(root) + ".json.gz")
@@ -3633,13 +3651,26 @@ def windows_lang():
     return _WIN_LANG[0]
 
 
+_settings_cache = [None, None]   # (date et taille du fichier, réglages) : relus seulement s'ils ont changé
+
+
 def load_settings():
     try:
-        with open(SETTINGS_FILE, encoding="utf-8") as f:
-            d = json.load(f)
+        st = os.stat(SETTINGS_FILE)
+        sig = (st.st_mtime_ns, st.st_size)
+    except OSError:
+        sig = None
+    if sig is not None and _settings_cache[0] == sig:
+        d = json.loads(_settings_cache[1])
+    else:
+        try:
+            with open(SETTINGS_FILE, encoding="utf-8") as f:
+                txt = f.read()
+            d = json.loads(txt)
             d = d if isinstance(d, dict) else {}
-    except Exception:
-        d = {}
+            _settings_cache[0], _settings_cache[1] = sig, json.dumps(d)
+        except Exception:
+            d = {}
     if d.get("lang") not in ("fr", "en"):      # pas encore choisie : langue de Windows
         d["lang"] = windows_lang()
     return d
@@ -3715,6 +3746,7 @@ def clean_settings(d):
         "big": bool(d.get("big")),
         "tray": d.get("tray") is not False,
         "bg": d.get("bg") is not False,
+        "eco": bool(d.get("eco")),
         "history": d.get("history") is not False,
         "hist_range": d.get("hist_range") if d.get("hist_range") in (1, 6, 12, 24, 168) else 24,
         "hist_compact": d.get("hist_compact") is not False,
@@ -4669,6 +4701,7 @@ def make_handler(sampler, details):
                         cur.update(cs)
                         save_settings(cur)
                     BG[0] = cs["bg"]
+                    ECO[0] = cs["eco"]
                     HIST_ON[0] = cs["history"]
                     if ("widget" in cs or "widget_style" in cs or "widget_alpha" in cs or "widget_scale" in cs) and WIDGET_HOOK[0]:
                         WIDGET_HOOK[0]()
@@ -4894,7 +4927,7 @@ class WindowManager:
             else:
                 exe = find_app_browser()
                 if exe:
-                    subprocess.Popen([exe, "--app=" + self.url, "--window-size=1320,860"] + LEAN_BROWSER_ARGS)
+                    subprocess.Popen([exe, "--app=" + self.url, "--window-size=1320,860"] + [a.replace('"', "") for a in LEAN_BROWSER_ARGS])
                 else:
                     webbrowser.open(self.url)
 
@@ -5488,7 +5521,7 @@ class DesktopWidget:
                     self._fit()
             except Exception:
                 log.exception("Widget: measurement")
-        self.root.after(1500, self._update)
+        self.root.after(3000 if ECO[0] else 1500, self._update)
 
 
 # --------------------------------------------------------------------------
@@ -5551,7 +5584,7 @@ class HealthWatch(threading.Thread):
     d'exécution. Note dans le journal ce qui sort de l'ordinaire (une fois par heure au plus pour chaque problème)
     et un bilan toutes les 6 h."""
     CPU_WARN = 5.0          # % du processeur entier, en moyenne sur 3 minutes de suite
-    RAM_WARN = 450          # Mo (appli + fenêtre)
+    RAM_WARN = 350          # Mo de mémoire propre (appli + fenêtre)
     GPU_WARN = 15.0         # % de la carte graphique, 3 minutes de suite
     THREADS_WARN = 90
 
@@ -5571,6 +5604,16 @@ class HealthWatch(threading.Thread):
             self.last_warn[key] = time.time()
             log.warning(msg, *a)
 
+    @staticmethod
+    def _mem(p):
+        """Mémoire propre au processus, comme la colonne « Mémoire » du Gestionnaire des tâches.
+        (Avant la v0.9.0, on additionnait la mémoire partagée de chaque processus de la fenêtre : chiffre gonflé.)"""
+        try:
+            return p.memory_full_info().uss
+        except (psutil.Error, AttributeError):
+            m = p.memory_info()
+            return getattr(m, "private", 0) or m.rss
+
     def _procs(self):
         try:
             return [self.me] + self.me.children(recursive=True)
@@ -5589,7 +5632,7 @@ class HealthWatch(threading.Thread):
                     try:
                         t = p.cpu_times()
                         cur[p.pid] = (now, t.user + t.system)
-                        ram += p.memory_info().rss
+                        ram += self._mem(p)
                     except psutil.Error:
                         continue
                     old = prev.get(p.pid)
@@ -5597,7 +5640,7 @@ class HealthWatch(threading.Thread):
                         cpu += (cur[p.pid][1] - old[1]) / max(1, now - old[0]) / self.ncpu * 100
                 prev = cur
                 ram_mb = ram / 1048576
-                py_mb = self.me.memory_info().rss / 1048576
+                py_mb = self._mem(self.me) / 1048576
                 gpu = sum(v for pid, v in self.counters.gpu_by_pid(None).items() if pid in cur) if self.counters else 0.0
                 threads = self.me.num_threads()
                 n += 1
@@ -5610,6 +5653,8 @@ class HealthWatch(threading.Thread):
                     self._warn("ram", "App health: high RAM (%.0f MB, app + window)", ram_mb)
                 if n == 10:
                     self.base_py = py_mb                        # référence après le démarrage
+                    log.info("App health: memory after 10 min: %.0f MB (program %.0f MB, window and helpers %.0f MB)%s",
+                             ram_mb, py_mb, ram_mb - py_mb, " - eco mode" if ECO[0] else "")
                 elif self.base_py and py_mb > self.base_py * 1.8 and py_mb - self.base_py > 80:
                     self._warn("leak", "App health: program memory keeps growing (%.0f MB, %.0f MB at start): possible leak", py_mb, self.base_py)
                 if threads >= self.THREADS_WARN:
@@ -5657,6 +5702,7 @@ def main():
     log.info("Starting Pulse Monitor v%s (Python %s, %s)", APP_VERSION, platform.python_version(), platform.platform())
 
     BG[0] = load_settings().get("bg", True) is not False
+    ECO[0] = bool(load_settings().get("eco"))
     kmt = D3DKMT()
     counters = CounterReader()
     counters.start()

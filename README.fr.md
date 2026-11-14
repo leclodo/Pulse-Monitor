@@ -6,7 +6,7 @@
 
 Tableau de bord simple et léger pour Windows : performances du PC en temps réel (façon Gestionnaire des tâches), fiche des composants utile pour changer des pièces, analyse du stockage, santé des disques et rapports de sessions de jeu. 100 % local, aucune télémétrie.
 
-Version actuelle : **v0.9.8**
+Version actuelle : **v0.9.9**
 
 ## Télécharger
 
@@ -59,16 +59,16 @@ Dans les [Releases](https://github.com/leclodo/Pulse-Monitor/releases/latest) :
 
 **Gaming**
 - **Mode gaming** : ferme les programmes inutiles pendant que tu joues (synchro cloud, launchers, messageries, navigateurs…) et indique la RAM, le CPU, le disque et le GPU libérés. L'impact de chaque programme est calculé selon la puissance du PC. Scan, verdict clair (le boost n'est proposé que s'il sert vraiment), liste à vérifier (impact de chaque programme), optimisation ; mode automatique en option quand un jeu est détecté. Le système, les pilotes, l'audio, les anti-triche et les antivirus ne sont jamais touchés. « Restaurer » relance tout ensuite
-- Temps de jeu par jour, par semaine et par jeu (une couleur par jeu, grand graphique sur 7 / 30 / 90 jours) ; signal ⚠ de température dans le widget quand la carte graphique chauffe en jeu
+- Temps de jeu par jour, par semaine et par jeu : une couleur par jeu, survol d'un jour pour voir le temps par jeu, grand graphique sur 7 / 30 / 90 jours dans le panneau latéral. Supprimer une session retire aussi son temps de jeu ; signal ⚠ de température dans le widget quand la carte graphique chauffe en jeu
 - Jeu reconnu en 10 à 30 s (Steam, Epic, GOG, Battle.net, Riot… ou plein écran avec la carte graphique chargée)
 - Rapport de chaque session : durée, CPU / GPU (moyenne / max), température du GPU, VRAM / RAM, **FPS (moyenne / 1 % low)**, ce qui limitait, et graphiques (survol = valeurs, clic = les programmes les plus gourmands)
 - FPS lus dans les événements d'affichage de Windows, sans programme ajouté (autorisation unique si besoin : groupe « Utilisateurs du journal de performances »)
-- Recherche des jeux installés, ajout manuel de n'importe quel programme, pause / reprise du suivi
+- Recherche des jeux installés (la liste s'ouvre dans le panneau latéral), ajout manuel de n'importe quel programme, pause / reprise du suivi, ou **arrêt du suivi** d'un programme qui n'est pas un jeu (annulable dans « Jamais suivis »)
 
 ## Utilisation
 
 - **Cloche 🔔** : conseils en direct (composant saturé, programme en cause, programmes au démarrage…). ✕ pour masquer un conseil.
-- **Clic sur le titre d'une carte** (Performances) : liste des programmes qui utilisent la ressource. **Ctrl + clic** : masquer la carte (à réafficher dans Paramètres).
+- **Clic sur le titre d'une carte** ou sur son icône ☰ : ouvre le panneau latéral (programmes qui utilisent la ressource dans Performances, liste des jeux ou grand graphique du temps de jeu dans Gaming). **Ctrl + clic** : masquer la carte (à réafficher dans Paramètres).
 - Boutons **Cartes : Repliées / Petites / Grandes** en haut de Performances ; poignée **⋮⋮** pour réorganiser par glisser-déposer.
 - **Paramètres** : langue FR / EN (celle de Windows par défaut), 5 thèmes, mode économie, lancement avec Windows, garder en fond à la fermeture, vérification quotidienne des mises à jour.
 - **Fermer la fenêtre (✕)** : l'appli reste près de l'horloge avec une petite icône (~30 Mo). Clic = rouvrir, clic droit = Quitter.
@@ -82,7 +82,7 @@ Tout reste sur ton PC : pas de compte, pas de publicité, pas de télémétrie, 
 
 ## Léger
 
-La fenêtre se ferme complètement quand on la quitte, les mesures ralentissent quand elle est réduite ou sur un autre onglet que Performances, et WebView2 tourne en mode allégé (un seul processus d'affichage, sans accélération GPU). Un **mode économie** (Paramètres) ralentit encore tout : mesures toutes les 3 s, widget toutes les 3 s, sans animations.
+La fenêtre se ferme complètement quand on la quitte, les mesures ralentissent quand elle est réduite ou sur un autre onglet que Performances, et WebView2 tourne en mode allégé (un seul processus d'affichage, sans accélération GPU). Un **mode économie** (Paramètres) ralentit encore tout : mesures toutes les 3 s, widget toutes les 3 s, analyse en arrière-plan toutes les 5 s, sans animations. Les analyses du stockage sont libérées de la mémoire après quelques minutes.
 
 ## Depuis le code source
 

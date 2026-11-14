@@ -348,9 +348,12 @@
   .gm-charts canvas { cursor: crosshair; width: 100%; height: 64px; display: block; border-radius: 6px; background: var(--chart); border: 1px solid var(--line); box-sizing: border-box; }
   .gm-col { display: grid; gap: 12px; }
   .gm-band { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .gm-wrap { display: grid; grid-template-columns: 280px 300px minmax(0, 1fr); gap: 12px; align-items: start; }
-  @media (max-width: 1180px) { .gm-wrap { grid-template-columns: 280px minmax(0, 1fr); } .gm-wrap #an-games { grid-column: 1 / -1; } }
-  @media (max-width: 900px) { .gm-wrap { grid-template-columns: 1fr; } }
+  /* 3 colonnes (jeux, temps de jeu, sessions) ; fenêtre plus étroite : jeux et temps de jeu l'un sous l'autre,
+     pour que le tableau des sessions garde toute sa largeur */
+  .gm-wrap { display: grid; grid-template-columns: 280px 300px minmax(0, 1fr); grid-template-areas: "lib play ses"; gap: 12px; align-items: start; }
+  #gm-lib { grid-area: lib; } #gm-play { grid-area: play; } .gm-wrap #an-games { grid-area: ses; }
+  @media (max-width: 1499px) { .gm-wrap { grid-template-columns: 300px minmax(0, 1fr); grid-template-rows: auto 1fr; grid-template-areas: "lib ses" "play ses"; } }
+  @media (max-width: 900px) { .gm-wrap { grid-template-columns: 1fr; grid-template-rows: none; grid-template-areas: "lib" "play" "ses"; } }
   /* en-tête de carte qui ouvre le panneau (comme les cartes Performances) : toute la largeur est cliquable,
      au survol le titre est souligné et le bouton s'éclaire */
   .h-pair { cursor: pointer; }

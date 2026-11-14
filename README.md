@@ -6,7 +6,7 @@
 
 A simple, lightweight dashboard for Windows: real-time PC performance (like Task Manager), a hardware sheet with what you need to know when upgrading parts, storage analysis, disk health and gaming session reports. 100% local, no telemetry.
 
-Current version: **v0.7.39**
+Current version: **v0.8.31**
 
 ## Download
 
@@ -46,6 +46,9 @@ From the [Releases](https://github.com/leclodo/Pulse-Monitor/releases/latest) pa
 - **Temporary files**: Windows temp files, updates, browser / app / shader caches, thumbnails, crash reports, Recycle Bin. Nothing is deleted.
 
 **Analysis**
+- Weekly summary (when the PC was busiest and during which game, peaks of CPU / GPU / VRAM / RAM)
+- Startup programs: what starts with Windows, the RAM each one uses, and a switch to turn it off (like Task Manager)
+- Useful alerts in the bell: disk almost full, declining disk health, RAM often maxed out, old graphics driver
 - **1 h / 6 h / 12 h / 24 h / 7 days** history (kept 8 days): CPU, GPU + temperature, VRAM, RAM
 - Hover = values, click = the most demanding programs (CPU, RAM, GPU) at that moment
 - Drag a chart (or ◀ ▶) to go back in time; changing the range zooms around the middle
@@ -53,6 +56,8 @@ From the [Releases](https://github.com/leclodo/Pulse-Monitor/releases/latest) pa
 - Which component holds you back the most (after 10 min of heavy usage)
 
 **Gaming**
+- **Gaming mode**: closes unneeded programs while you play (cloud sync, launchers, chat, browsers…) and shows the RAM, CPU, disk and GPU it frees. Scan, a clear verdict (boost is only offered when it really helps), review the list (impact of each program), optimize; optional automatic mode when a game is detected. System, drivers, audio, anti-cheat and antivirus are never touched. "Restore" restarts everything afterwards
+- Play time per day, per week and per game; a ⚠ temperature warning in the desktop widget when the graphics card runs hot during a game
 - Games recognized within 10 to 30 s (Steam, Epic, GOG, Battle.net, Riot… or full screen with the graphics card under load)
 - Report for each session: duration, CPU / GPU (average / max), GPU temperature, VRAM / RAM, **FPS (average / 1% low)**, what limited, and charts (hover for values, click for the most demanding programs)
 - FPS read from Windows display events, no extra program (one-time permission if needed: "Performance Log Users" group)

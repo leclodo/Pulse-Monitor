@@ -3,6 +3,9 @@ settings.json
 stats.json
 games.json
 games_lib.json
+gamemode.json
+specs.json
+playtime.json
 pulse_monitor.log*
 running.flag
 history/
@@ -16,3 +19,4 @@ dist/
 *.spec
 release/
 version_info.txt
+pulse-monitor-etat.md

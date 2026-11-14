@@ -6,7 +6,7 @@
 
 Tableau de bord simple et léger pour Windows : performances du PC en temps réel (façon Gestionnaire des tâches), fiche des composants utile pour changer des pièces, analyse du stockage, santé des disques et rapports de sessions de jeu. 100 % local, aucune télémétrie.
 
-Version actuelle : **v0.7.39**
+Version actuelle : **v0.8.31**
 
 ## Télécharger
 
@@ -46,6 +46,9 @@ Dans les [Releases](https://github.com/leclodo/Pulse-Monitor/releases/latest) :
 - **Fichiers temporaires** : fichiers temporaires Windows, mises à jour, caches des navigateurs / applis / shaders, miniatures, rapports de plantage, corbeille. Rien n'est supprimé.
 
 **Analyse**
+- Bilan de la semaine (moment le plus chargé et pendant quel jeu, pics de CPU / GPU / VRAM / RAM)
+- Programmes au démarrage : ce qui se lance avec Windows, la RAM utilisée par chacun, et un interrupteur pour le désactiver (comme le Gestionnaire des tâches)
+- Alertes utiles dans la cloche : disque presque plein, santé d'un disque en baisse, RAM souvent saturée, pilote graphique ancien
 - Historique **1 h / 6 h / 12 h / 24 h / 7 jours** (gardé 8 jours) : CPU, GPU + température, VRAM, RAM
 - Survol = valeurs, clic = les programmes les plus gourmands (CPU, RAM, GPU) à ce moment-là
 - Glisser un graphique (ou ◀ ▶) pour remonter dans le temps ; changer de durée zoome autour du milieu
@@ -53,6 +56,8 @@ Dans les [Releases](https://github.com/leclodo/Pulse-Monitor/releases/latest) :
 - Quel composant te limite le plus (après 10 min d'usage intensif)
 
 **Gaming**
+- **Mode gaming** : ferme les programmes inutiles pendant que tu joues (synchro cloud, launchers, messageries, navigateurs…) et indique la RAM, le CPU, le disque et le GPU libérés. Scan, verdict clair (le boost n'est proposé que s'il sert vraiment), liste à vérifier (impact de chaque programme), optimisation ; mode automatique en option quand un jeu est détecté. Le système, les pilotes, l'audio, les anti-triche et les antivirus ne sont jamais touchés. « Restaurer » relance tout ensuite
+- Temps de jeu par jour, par semaine et par jeu ; signal ⚠ de température dans le widget quand la carte graphique chauffe en jeu
 - Jeu reconnu en 10 à 30 s (Steam, Epic, GOG, Battle.net, Riot… ou plein écran avec la carte graphique chargée)
 - Rapport de chaque session : durée, CPU / GPU (moyenne / max), température du GPU, VRAM / RAM, **FPS (moyenne / 1 % low)**, ce qui limitait, et graphiques (survol = valeurs, clic = les programmes les plus gourmands)
 - FPS lus dans les événements d'affichage de Windows, sans programme ajouté (autorisation unique si besoin : groupe « Utilisateurs du journal de performances »)

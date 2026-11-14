@@ -345,14 +345,73 @@
   .gm-charts { display: grid; gap: 0; }
   .gm-charts .hist-row, .gm-charts .hist-axis { grid-template-columns: 160px minmax(0, 1fr); }
   .gm-charts canvas { cursor: crosshair; width: 100%; height: 64px; display: block; border-radius: 6px; background: var(--chart); border: 1px solid var(--line); box-sizing: border-box; }
+  .gm-col { display: grid; gap: 12px; }
+  .gm-band { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .gm-wrap { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 12px; align-items: start; }
+  @media (max-width: 900px) { .gm-wrap { grid-template-columns: 1fr; } }
   /* colonne des jeux : tient toujours dans la fenêtre (la liste rétrécit, l'ajout manuel reste visible) */
-  #gm-lib { position: sticky; top: calc(var(--hdr-h, 57px) + 14px); max-height: calc(100vh - var(--hdr-h, 57px) - 14px - 30px); display: flex; flex-direction: column; }
+  .gm-left { display: grid; gap: 12px; }
+  .pt-bars { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; align-items: end; height: 70px; }
+  .pt-bars div { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; font-size: 10.5px; color: var(--muted); gap: 3px; }
+  .pt-bars i { width: 100%; border-radius: 4px 4px 0 0; background: color-mix(in srgb, var(--gpu) 70%, transparent); min-height: 2px; }
+  .pt-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; font-size: 12.5px; padding: 3px 0; }
+  .pt-row .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .su-t td { vertical-align: middle; } .su-t td.n { max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sw2 { width: 30px; height: 17px; border-radius: 9px; background: var(--line); position: relative; cursor: pointer; border: 0; padding: 0; transition: background .2s; }
+  .sw2::after { content: ""; position: absolute; left: 2px; top: 2px; width: 13px; height: 13px; border-radius: 50%; background: var(--muted); transition: all .2s; }
+  .sw2.on { background: color-mix(in srgb, var(--ok) 65%, transparent); } .sw2.on::after { left: 15px; background: #fff; }
+  .sw2:disabled { opacity: .5; cursor: wait; }
+  #gm-lib { position: static; top: calc(var(--hdr-h, 57px) + 14px); max-height: calc(100vh - var(--hdr-h, 57px) - 14px - 30px); }
   #gm-lib > * { flex-shrink: 0; }
   #gm-lib .gl-list { flex: 0 1 auto; min-height: 60px; }
+  /* mode gaming : cadrans façon tableau de bord de voiture */
+  #gm-mode { background: radial-gradient(ellipse 70% 90% at 50% 10%, color-mix(in srgb, var(--cpu) 9%, var(--panel)), var(--panel) 70%); }
+  .gmm-main { display: grid; grid-template-columns: minmax(560px, 1fr) minmax(0, 1.15fr); gap: 12px; align-items: stretch; }
+  /* la carte des programmes prend la hauteur de celle des cadrans : la liste défile à l'intérieur */
+  #gmm-listc { contain: size; overflow: hidden; }
+  .gmm-scroll { flex: 1 1 0; min-height: 0; overflow-y: auto; }
+  .gmm-t th { position: sticky; top: 0; background: var(--panel); z-index: 1; }
+  @media (max-width: 1350px) { #gmm-listc { contain: none; max-height: 480px; } }
+  @media (max-width: 1350px) { .gmm-main { grid-template-columns: 1fr; } }
+  .gmm-left { display: flex; flex-direction: column; gap: 10px; }
+  .gmm-right { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+  .gmm-dash { display: flex; justify-content: center; align-items: flex-end; padding: 4px 0 0; }
+  .gmm-dial { width: 225px; max-width: 34%; position: relative; text-align: center; margin: 0 -8px; }
+  .gmm-dial .face { fill: color-mix(in srgb, #000 28%, transparent); }
+  [data-theme="light"] .gmm-dial .face { fill: color-mix(in srgb, #000 6%, transparent); }
+  .gmm-dial svg { width: 100%; height: auto; display: block; overflow: visible; }
+  .gmm-dial .arc { filter: drop-shadow(0 0 5px var(--c)); }
+  .gmm-verdict { text-align: center; font-size: 13.5px; padding: 8px 12px; border-radius: 9px; margin: 10px auto 0; max-width: 560px; }
+  .gmm-verdict.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, transparent); }
+  .gmm-verdict.go { color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); }
+  .gmm-go { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; margin: 16px 0 16px; }
+  .gmm-go .l { display: flex; justify-content: flex-end; gap: 8px; } .gmm-go .r { display: flex; justify-content: flex-start; }
+  .gmm-auto { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 999px; cursor: pointer; white-space: nowrap; font-size: 13px; font-weight: 600;
+    border: 1px solid color-mix(in srgb, var(--cpu) 35%, var(--line)); background: color-mix(in srgb, var(--cpu) 8%, var(--panel2)); user-select: none; }
+  .gmm-auto:hover { background: color-mix(in srgb, var(--cpu) 16%, var(--panel2)); }
+  .gmm-auto input { display: none; }
+  .gmm-auto .sw { width: 28px; height: 16px; border-radius: 9px; background: var(--line); position: relative; transition: background .2s; flex: none; }
+  .gmm-auto .sw::after { content: ""; position: absolute; left: 2px; top: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--muted); transition: all .2s; }
+  .gmm-auto.on { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, var(--panel2)); box-shadow: 0 0 14px color-mix(in srgb, var(--ok) 25%, transparent); }
+  .gmm-auto.on .sw { background: color-mix(in srgb, var(--ok) 60%, transparent); } .gmm-auto.on .sw::after { left: 14px; background: #fff; }
+  .btn.gmm-boost { font-size: 18px; font-weight: 800; letter-spacing: .5px; padding: 12px 38px; border-radius: 999px; border-color: var(--ok); color: var(--text);
+    background: color-mix(in srgb, var(--ok) 22%, var(--panel2)); box-shadow: 0 0 18px color-mix(in srgb, var(--ok) 35%, transparent); }
+  .btn.gmm-boost:hover { background: color-mix(in srgb, var(--ok) 32%, var(--panel2)); }
+  .btn.gmm-boost:disabled { box-shadow: none; opacity: .55; }
+  #gm-mode { gap: 10px; }
+  .gmm-t th.r, .gmm-t td.r { text-align: right; } .gmm-t td.r:last-child, .gmm-t th.r:last-child { padding-right: 4px; }
+  .gmm-t .cb { width: 22px; } .gmm-t tr.gmm-g { cursor: pointer; } .gmm-t tr.gmm-g:hover td { background: var(--panel2); }
+  .gmm-t td.n { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gmm-t .car { display: inline-block; width: 16px; color: var(--muted); } .gmm-t .car[data-exp]:hover { color: var(--text); }
+  .gmm-t tr.gmm-p td { border-top: 0; padding-top: 2px; padding-bottom: 2px; font-size: 12px; } .gmm-t tr.gmm-p td.n { padding-left: 14px; }
+  .gmm-row { display: grid; grid-template-columns: 20px minmax(0, 1fr) 76px 58px 58px; gap: 6px; align-items: center; padding: 5px 6px; border-radius: 6px; font-size: 13px; cursor: pointer; font-weight: 400; }
+  .gmm-row:hover { background: var(--panel2); }
+  .gmm-row .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gmm-row .v { text-align: right; font-variant-numeric: tabular-nums; }
+  .gmm-row.hd { cursor: default; font-size: 11.5px; color: var(--muted); } .gmm-row.hd:hover { background: none; }
+  .gmm-h { font-size: 12.5px; color: var(--muted); margin: 12px 6px 2px; font-weight: 600; }
   .gl-search { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 7px; padding: 6px 9px; font: inherit; font-size: 13px; width: 100%; box-sizing: border-box; }
   .gl-search:focus { outline: 2px solid color-mix(in srgb, var(--cpu) 50%, transparent); border-color: transparent; }
-  @media (max-width: 900px) { .gm-wrap { grid-template-columns: 1fr; } }
   .gl-list { font-size: 13px; overflow-y: auto; margin: 0 -4px; }
   .gl-list div { padding: 4px; border-radius: 6px; } .gl-list div:hover { background: var(--panel2); }
   .gl-list div { break-inside: avoid; padding: 3px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -479,9 +538,12 @@
   <section id="comp" class="tab"><div id="comp-body"></div></section>
   <section id="storage" class="tab"><div id="st-body"></div></section>
   <section id="analysis" class="tab">
+    <div class="card" id="an-week" style="margin-bottom:12px"></div>
     <div class="card hist" id="an-hist"></div>
-    <div id="an-body" class="st-grid" style="margin-top:12px"></div></section>
-  <section id="gaming" class="tab"><div class="gm-wrap"><div class="card gm" id="gm-lib"></div><div class="card gm" id="an-games"></div></div></section>
+    <div id="an-body" class="st-grid" style="margin-top:12px"></div>
+    <div class="card" id="an-startup" style="margin-top:12px"></div></section>
+  <section id="gaming" class="tab"><div class="gm-col"><div class="gmm-main"><div class="card gm" id="gm-mode"></div><div class="card gm" id="gmm-listc"></div></div>
+    <div class="gm-wrap"><div class="gm-left"><div class="card gm" id="gm-play"></div><div class="card gm" id="gm-lib"></div></div><div class="card gm" id="an-games"></div></div></div></section>
   <section id="custom" class="tab"><div id="custom-body" class="custom"></div></section>
 </main>
 <div class="toast" id="toast"></div>
@@ -539,16 +601,23 @@ const I18N = {
     usage: "Utilisation", freq: "Fréquence", ct: "Cœurs / threads", maxcore: "Cœur le + chargé", threads: "threads",
     used: "Utilisée", avail: "Disponible", swap: "Fichier d'échange",
     temp: "Température", vram: "Mémoire vidéo", shared: "partagée", na: "N/D",
-    read: "Lecture", write: "Écriture", type: "Type", active: "% actif", activity: "Activité", free: "libres", space: "Espace libre",
+    read: "Lecture", write: "Écriture", type: "Type", active: "% actif", free: "libres", space: "Espace libre",
     down: "Réception", up: "Envoi", link: "Vitesse du lien",
     idle: "Calme", moderate: "Modéré", busy: "Chargé", maxed: "Saturé",
     loading: "Analyse des composants…", spec_err: "Impossible de lire les composants (voir pulse_monitor.log).",
     copy_hint: "Pratique pour demander conseil sur un forum ou à un vendeur →", copy_btn: "Copier le résumé de ma config",
-    copied: "Résumé copié dans le presse-papiers", expand_all: "Tout déplier", collapse_all: "Tout replier",
-    tips_title: "Conseils pour changer des pièces", tips_lead: "Générés automatiquement à partir de ce qui est détecté sur ce PC.",
-    no_tips: "Rien de particulier à signaler.",
+    copied: "Résumé copié dans le presse-papiers", 
+    
     cat_ram: "RAM", cat_cpu: "CPU", cat_gpu: "GPU", cat_storage: "Stockage", cat_board: "Carte mère",
     board: "Carte mère", bios_ver: "Version BIOS", bios_date: "Date du BIOS", ram_slots: "Emplacements RAM", ram_max: "RAM max supportée",
+    comp_none_t: "Composants pas encore scannés", comp_none: "Le scan lit les infos détaillées de ton processeur, ta RAM, ta carte mère, tes cartes graphiques et tes disques (quelques secondes). Le résultat est gardé : pas de nouveau scan à chaque démarrage.",
+    comp_scan: "Scanner les composants", comp_scanning: "Scan des composants…", comp_refresh: "Actualiser", comp_last: "Dernier scan :",
+    codename: "Nom de code", pe_cores: "Cœurs P / E", bus: "Bus (BCLK)", caches: "Caches", isa: "Instructions", virt: "Virtualisation",
+    fms: "Famille / modèle / révision", microcode: "Microcode", gpu_chip: "Puce", pcie: "Lien PCIe", vbios: "VBIOS", chipset: "Chipset",
+    board_rev: "Révision", firmware: "Mode de démarrage", secure_boot: "Secure Boot", smbios: "SMBIOS", installed: "Installé le", last_boot: "Dernier démarrage",
+    th_cl: "CL", th_volt: "Tension", on_: "Activé", off_: "Désactivé", ch_single: "simple canal", ch_dual: "double canal", ch_quad: "quadruple canal",
+    xmp_on: "XMP / EXPO activé : la RAM tourne à sa vitesse prévue",
+    xmp_off: "XMP / EXPO sans doute désactivé : la RAM est prévue pour {r} MT/s mais tourne à {c} MT/s (à activer dans le BIOS)",
     base_freq: "Fréquence de base", socket: "Socket", cache: "Cache L2 / L3",
     th_slot: "Emplacement", th_size: "Taille", th_type: "Type", th_speed: "Vitesse (MT/s)", th_maker: "Fabricant", th_part: "Référence",
     slot_free: "Emplacement libre", max: "max", DIMM: "DIMM (PC fixe)", "SO-DIMM": "SO-DIMM (portable)",
@@ -617,7 +686,6 @@ const I18N = {
     tray_opt: "Garder en fond à la fermeture",
     tray_hint: "En fond, avec une petite icône près de l'horloge (~30 Mo). Clic : rouvrir. Clic droit : Quitter.",
     dismiss: "Masquer (revient si le problème réapparaît plus tard)", dismiss_sig: "Masquer (revient si le nombre change)",
-    hidden_alerts: "conseil(s) masqué(s)",
     hist_t: "Historique", hist_7d: "7 jours", hist_opt: "Enregistrer l'historique (même fenêtre fermée)",
     hist_empty: "Pas encore de données : l'historique se remplit d'un point par minute (gardé 8 jours).",
     hist_sub_cpu: "moyenne · max", hist_sub_gpu: "moyenne · max", temp_line: "température", temp_line_tip: "Ligne verte / orange / rouge : température de la carte graphique (échelle 20–100 °C). Vert = OK, orange = chaud, rouge = inquiétant.", hist_sub_ram: "utilisée", hist_sub_vram: "max",
@@ -626,7 +694,7 @@ const I18N = {
     hist_compact: "Compacter les périodes éteintes", hist_compact_tip: "Les coupures de plus de 30 min (PC éteint, appli fermée) deviennent une bande étroite : les graphiques montrent le temps d'utilisation.",
     hd_t: "Programmes les plus gourmands", hd_cpu: "Processeur (moyenne sur la minute)", hd_ram: "Mémoire", hd_gpu: "Carte graphique",
     hd_none: "Pas de détail pour ce moment (enregistré depuis la v0.7.0, une fois l'appli lancée depuis 2 min).", hd_empty: "Rien de notable",
-    hd_hint: "Clic : voir les programmes", hd_close: "Fermer", hd_peak: "moment le plus chargé des 10 min",
+    hd_hint: "Clic : voir les programmes", hd_peak: "moment le plus chargé des 10 min",
     hd_note: "Les programmes qui ont le plus utilisé ton PC à ce moment-là (ouverts plusieurs fois = additionnés).",
     hd_none_game: "Pas de détail pour ce moment : il vient de l'historique (Analyse), qui doit être activé et n'est gardé que 8 jours.",
     hd_more: "Voir plus", hd_less: "Voir moins", hd_foot: "Enregistré chaque minute avec l'historique, gardé 8 jours.",
@@ -636,7 +704,7 @@ const I18N = {
     h_bad: "⚠ Problème détecté : sauvegarde tes données et prévois de remplacer ce disque.", h_hot: "⚠ Température élevée : vérifie la ventilation du boîtier.",
     h_need_admin: "Windows ne donne la santé des disques (température, usure, heures, erreurs) qu'avec les droits administrateur. Clique ci-dessous et accepte la fenêtre : le résultat est gardé, pas besoin de le refaire à chaque fois.",
     h_loading: "Lecture de la santé du disque…", h_title_all: "Santé des disques", h_life_s: "de vie", gap_off: "PC éteint ou appli fermée",
-    h_refresh: "Actualiser", h_admin: "Vérifier la santé des disques (admin)", h_reread: "Revérifier la santé des disques (admin)", h_read: "Lu le", h_none: "Aucune info de santé pour ce disque.",
+    h_admin: "Vérifier la santé des disques (admin)", h_reread: "Revérifier la santé des disques (admin)", h_read: "Lu le", 
     h_wait_admin: "Accepte la fenêtre de Windows…", h_refused: "Droits administrateur refusés.",
     tip_h_temp: "Température actuelle du disque (et max enregistrée par le disque).",
     tip_h_life: "Pour les SSD : part de leur endurance d'écriture qui reste. Sous 20 %, prévois de le remplacer.",
@@ -644,11 +712,53 @@ const I18N = {
     tip_h_errors: "Erreurs rencontrées par le disque. Les « non corrigées » sont le signe d'un disque qui lâche.",
     tab_analysis: "Analyse", tab_gaming: "Gaming", an_now: "En ce moment :", an_now_load: "usage intensif, ce moment est compté",
     an_now_idle: "usage léger, rien n'est assez sollicité pour te limiter : pas compté", an_how_t: "Comment ça marche",
-    gl_search: "Rechercher un jeu…", gl_t: "Jeux reconnus", gl_tn: "jeux reconnus", gl_find: "Chercher dans la liste", gl_scan: "Rechercher les jeux installés", gl_busy: "Recherche…", gl_found: "jeux trouvés", gl_last: "Dernière recherche le",
+    gl_search: "Rechercher un jeu…", gl_t: "Jeux reconnus", gl_tn: "jeux reconnus", gl_find: "Chercher dans la liste", gl_scan: "Rechercher les jeux installés", gl_busy: "Recherche…", gl_last: "Dernière recherche le",
     gl_none: "Lance une recherche : Pulse Monitor regarde Steam, Epic, GOG et les jeux installés (Riot, Blizzard, EA, Ubisoft…). Les jeux connus (League of Legends, Valorant, Fortnite, WoW…) sont déjà reconnus d'office.",
     gl_manual: "Ajouter un jeu à la main", gl_pick: "Choisis un programme ouvert…", gl_add: "Ajouter", gl_manual_hint: "Lance le jeu, puis choisis-le dans la liste. Il sera toujours compté comme un jeu.", gl_rm: "Retirer",
     gm_stop: "Pause et voir le résumé", gm_stop_tip: "Termine la session maintenant et affiche ses graphiques. Le programme n'est plus suivi jusqu'à ce que tu relances le suivi (ou qu'il soit fermé).",
     gm_del: "Supprimer cette session", gm_del_sure: "Supprimer ?", gm_paused: "En pause :", gm_resume: "Relancer le suivi", gm_resume_tip: "Démarre une nouvelle session tout de suite pour ce programme.",
+    gmm_t: "Mode gaming", gmm_lib: "Jeux", gmm_on: "Mode gaming actif", gmm_freed: "Libéré :", 
+    gmm_desc: "Ferme les programmes inutiles pendant que tu joues. Le système, les pilotes, l'audio, les anti-triche et les antivirus ne sont jamais touchés.",
+    gmm_restore: "Restaurer", gmm_restoring: "Relance…", gmm_more: "Fermer aussi la sélection",
+    
+    gmm_h_prog: "Programme", gmm_total: "Sélection :", gmm_go: "BOOST", gmm_going: "Fermeture…",
+    gmm_none: "Rien à fermer : aucun programme inutile n'est ouvert.", gmm_done: "Mode gaming actif. Clique sur « Restaurer » après ta partie.",
+    gmm_fail: "Pas pu fermer :", gmm_restored: "Programmes relancés.", gmm_manual: "À relancer toi-même :", gmm_norestore: "Appli du Microsoft Store : à relancer toi-même",
+    gmm_cat_cloud: "Synchro cloud et Adobe", gmm_cat_update: "Mises à jour", gmm_cat_launcher: "Launchers de jeux", gmm_cat_chat: "Messageries", gmm_cat_media: "Musique",
+    gmm_cat_browser: "Navigateurs (fermés normalement, comme avec la croix)", gmm_cat_rgb: "Éclairage RGB (les lumières ou les ventilateurs peuvent revenir aux réglages par défaut)",
+    gmm_cat_other: "Autres outils", gmm_cat_app: "Autres programmes ouverts (fermés normalement, comme avec la croix)",
+    gmm_on_auto: "Mode gaming actif (automatique)", gmm_since: "depuis", gmm_auto: "Automatique : activer quand un jeu est détecté, restaurer à la fin de la partie",
+    gmm_auto_tip: "En automatique, seuls les programmes connus et cochés sont fermés (jamais les « autres programmes ouverts »). Tout est relancé 20 s après la fin de la session de jeu.",
+    gmm_g_free: "Boost :", gmm_g_after: "après le boost :", gmm_auto_s: "Auto en jeu", gmm_g_none: "rien à récupérer", gmm_list: "Programmes gourmands", gmm_scan: "Scan", gmm_scanning: "Scan…", gmm_g_noscan: "lance un scan", gmm_exp: "Voir les processus",
+    gmm_noscan: "Aucun scan pour l'instant. Clique sur « Scan » pour voir les programmes qui peuvent être fermés et ce que le boost peut libérer.", gmm_proc: "Processus", gmm_h_type: "Type", gmm_h_mem: "RAM", gmm_h_disk: "Disque", gmm_h_imp: "Impact", gmm_imp_tip2: "Mesuré sur 2 s pendant le scan. Seuils adaptés à la config de ce PC (RAM totale, carte graphique, nombre de cœurs). Élevé : CPU ≥ {cpuh} %, GPU ≥ {gpuh} %, RAM ≥ {ramh} % de la RAM, VRAM ≥ {vramh} % de la VRAM ou disque ≥ {diskh} Mo/s. Moyen : CPU ≥ {cpum} %, GPU ≥ {gpum} %, RAM ≥ {ramm} %, VRAM ≥ {vramm} % ou disque ≥ {diskm} Mo/s.", gmm_imp_tip: "Mesuré sur 2 s pendant le scan, par rapport à ce PC. Élevé : CPU ou GPU ≥ 10 %, RAM ≥ 10 % de la RAM totale, VRAM ≥ 15 % de la VRAM, ou disque ≥ 20 Mo/s. Moyen : CPU ou GPU ≥ 2 %, RAM ≥ 3 %, VRAM ≥ 5 % ou disque ≥ 2 Mo/s.",
+    gmm_imp0: "Faible", gmm_imp1: "Moyen", gmm_imp2: "Élevé", gmm_all: "Tout cocher", gmm_nothing: "Tout décocher", gmm_measured: "Mesuré lors du dernier scan.",
+    gmm_ty_cloud: "Synchro cloud", gmm_ty_update: "Mise à jour", gmm_ty_launcher: "Launcher", gmm_ty_chat: "Messagerie", gmm_ty_media: "Musique", gmm_ty_browser: "Navigateur",
+    gmm_ty_rgb: "Éclairage RGB", gmm_ty_other: "Outil", gmm_ty_app: "Programme ouvert",
+    gmm_anyway: "Fermer quand même", 
+    gmm_v_ram: "RAM bien chargée ({p} %) : le boost libérerait {r}.", gmm_v_cpu: "CPU bien chargé ({p} %) : le boost libérerait {c} % de CPU.",
+    gmm_v_gpu: "GPU bien chargé ({p} %) : le boost libérerait {c} % de GPU.",
+    
+    gmm_v_ramtop: "RAM bien chargée ({p} %), mais les programmes cochés libéreraient peu. Le plus gros : {n} ({r}).",
+    gmm_s_ram: "RAM à {p} % en jeu : le boost libérerait {r}.",
+    gmm_s_cpu: "CPU à {p} % en jeu : le boost libérerait {c} %.",
+    gmm_s_gpu: "GPU à {p} % en jeu : le boost libérerait {c} %.",
+    gmm_s_fine: "Tes dernières parties n'ont rien saturé : le boost ne changerait presque rien.",
+    gmm_v_nosess: "Pas encore de partie enregistrée : verdict basé sur la charge actuelle.",
+    gmm_v_short: "Ton PC a de la marge : le boost ne changerait presque rien.",
+    gmm_v_tip: "RAM {r} % ({f} libres) · CPU {c} % · GPU {g} % · le boost libérerait {x}.",
+    gmm_s_tip: "{k} partie(s) ({n}) · pics : RAM {r} %, CPU {c} %, GPU {g} % · le boost libérerait {x}.",
+    drv_months: "il y a {n} mois", drv_recent: "récent",
+    pt_t: "Temps de jeu", pt_today: "Aujourd'hui", pt_week: "7 derniers jours", pt_7d: "7 jours", pt_total: "Total", pt_none: "Pas encore de partie enregistrée.",
+    wk_t: "Bilan de la semaine", wk_wait: "Pas encore assez de mesures : reviens dans quelques heures (l'historique doit être activé).",
+    wk_busy: "Ton PC a été le plus chargé {day} {part} (vers {h}).", wk_busy_game: "Ton PC a été le plus chargé {day} {part} (vers {h}), pendant {g}.",
+    wk_night: "dans la nuit", wk_morning: "matin", wk_afternoon: "après-midi", wk_evening: "soir",
+    wk_ram_ok: "La RAM n'a jamais dépassé {p} %.", wk_ram_hi: "La RAM est montée jusqu'à {p} %.",
+    wk_cpu: "CPU max", wk_gpu: "GPU max", wk_vram: "VRAM max", wk_ram: "RAM max", wk_temp: "Temp. GPU max", wk_play: "Temps de jeu",
+    su_t: "Programmes au démarrage", su_hint: "Désactiver = ne se lance plus avec Windows", su_tip: "Comme l'onglet « Démarrage » du Gestionnaire des tâches : le programme n'est pas supprimé, il ne se lance juste plus tout seul. Tu peux le réactiver à tout moment.",
+    su_prog: "Programme", su_for: "Pour", su_ram: "RAM actuelle", su_ram_tip: "RAM utilisée en ce moment par le programme (– s'il ne tourne pas).",
+    su_imp_tip: "D'après la RAM utilisée maintenant : Élevé ≥ 300 Mo, Moyen ≥ 80 Mo.", su_on: "Au démarrage",
+    su_me: "Toi", su_all: "Tous les comptes", su_admin: "Demande l'autorisation administrateur", su_notrun: "Ne tourne pas en ce moment",
+    su_none: "Aucun programme ne se lance avec Windows.", su_fail: "Pas pu changer ce programme (autorisation refusée ?)",
     gm_t: "Sessions de jeu", gm_avg: "moy.", gm_show: "Cliquer pour voir les graphiques", gm_hide: "Cliquer pour masquer les graphiques",
     gm_no_tl: "Pas de graphique pour cette session : elle a été enregistrée avant la v0.4.5.", gm_opt: "Détecter mes sessions de jeu", gm_fps_opt: "Mesurer les FPS", gm_fps_tip: "Images par seconde du jeu, lues dans les événements d'affichage de Windows, seulement pendant une session. Aucun programme ajouté, rien n'est envoyé.",
     gm_fps_need: "Pour mesurer les FPS, Windows demande une autorisation (une seule fois) : ton compte est ajouté au groupe « Utilisateurs du journal de performances ».", gm_fps_btn: "Autoriser",
@@ -664,9 +774,9 @@ const I18N = {
     gm_vt_none: "Aucun composant n'était à sa limite : ton PC avait de la marge (ou les FPS étaient plafonnés).",
     an_how: "L'appli ne compte que les moments d'usage intensif : processeur ou carte graphique à 40 % ou plus, ou RAM / mémoire vidéo remplies à 80 % ou plus. À chacun de ces moments, elle note le composant saturé : carte graphique à 93 % ou plus, processeur à 90 % ou plus (ou un cœur à 95 %) pendant que la carte graphique est sous 85 %, mémoire vidéo ou RAM presque pleines. Après 10 min de charge, elle désigne celui qui te limite le plus souvent. Les données sont gardées entre les sessions.",
     tab_storage: "Stockage", st_scan: "Analyser l'espace utilisé sur {d}", st_rescan: "Réanalyser l'espace utilisé sur {d}", st_stop: "Arrêter", st_never: "Jamais analysé",
-    st_scanned: "Analysé le", st_files: "fichiers", st_dirs: "dossiers", st_elapsed: "écoulé",
+    st_scanned: "Analysé le", st_files: "fichiers", st_elapsed: "écoulé",
     st_pick: "Choisis un disque puis lance l'analyse. Elle peut prendre quelques minutes sur un gros disque dur (HDD).",
-    st_tree: "Dossiers", st_name: "Nom", st_size: "Taille", st_share: "Part", st_nfiles: "Fichiers",
+    st_name: "Nom", st_size: "Taille", st_share: "Part", st_nfiles: "Fichiers",
     st_direct: "[fichiers dans ce dossier]", st_more: "autres dossiers", st_small: "Contenu non détaillé (dossier de moins de 64 Mo)",
     tmp_t: "Fichiers temporaires", tmp_total: "au total", tmp_refresh: "Recalculer", tmp_win: "Ouvrir le nettoyage de Windows", tmp_busy: "Calcul en cours…",
     tmp_note: "Pulse Monitor ne supprime rien. Ces fichiers peuvent être supprimés sans risque (ferme d'abord le programme concerné). Le plus simple : « Ouvrir le nettoyage de Windows » → Fichiers temporaires. Clique sur une ligne pour voir les dossiers.",
@@ -699,7 +809,6 @@ const I18N = {
     bg_opt: "Analyser l'usage en arrière-plan (même fenêtre fermée)",
     bg_hint: "Pour compter aussi tes sessions de jeu quand la fenêtre est fermée. Coût : ~0,1 % de processeur, rien en RAM.",
     cards_lbl: "Cartes :", sz_collapsed: "Repliées", sz_small: "Petites", sz_large: "Grandes",
-    big_on: "Graphiques en grand", big_off: "Graphiques compacts",
     hidden_t: "Cartes masquées", hidden_none: "Aucune carte masquée.", show: "Afficher", show_all: "Tout réafficher",
     hidden_hint: "Ctrl + clic sur une carte pour la masquer.", hidden_toast: "Carte masquée — à réafficher dans Paramètres",
     manual_t: "Infos à compléter (non détectables)",
@@ -714,8 +823,7 @@ const I18N = {
     cool_aio280: "AIO 280 mm", cool_aio360: "AIO 360 mm", cool_aio420: "AIO 420 mm", cool_custom: "Watercooling custom",
     cat_psu: "Alim", cat_case: "Boîtier", cat_cool: "Refroid.",
     s_psu: "Alimentation", s_case: "Boîtier", s_cool: "Refroidissement",
-    undetect_t: "Non détectable par logiciel",
-    undetect: "L'alimentation (puissance), le boîtier (taille max de carte graphique), le ventirad et le nombre exact de ports M.2 / SATA libres. Regarde l'étiquette de l'alimentation et la fiche de ta carte mère sur le site du fabricant.",
+    
     k_python: "Pulse Monitor (Python)", k_window: "Fenêtre", k_powershell: "PowerShell", k_other: "Autre",
     app_title: "Ressources utilisées par l'appli", app_part: "Partie", app_total: "Total",
     app_note: "Mesuré comme le Gestionnaire des tâches : CPU en % du processeur entier, RAM = mémoire privée active, en % de la RAM totale du PC. Quand la fenêtre est réduite, l'appli rend sa RAM inutilisée à Windows.",
@@ -767,16 +875,23 @@ const I18N = {
     usage: "Usage", freq: "Frequency", ct: "Cores / threads", maxcore: "Busiest core", threads: "threads",
     used: "Used", avail: "Available", swap: "Page file",
     temp: "Temperature", vram: "Video memory", shared: "shared", na: "N/A",
-    read: "Read", write: "Write", type: "Type", active: "% active", activity: "Activity", free: "free", space: "Free space",
+    read: "Read", write: "Write", type: "Type", active: "% active", free: "free", space: "Free space",
     down: "Download", up: "Upload", link: "Link speed",
     idle: "Idle", moderate: "Moderate", busy: "Busy", maxed: "Maxed out",
     loading: "Scanning components…", spec_err: "Couldn't read components (see pulse_monitor.log).",
     copy_hint: "Handy for asking advice on a forum or at a store →", copy_btn: "Copy my specs summary",
-    copied: "Summary copied to clipboard", expand_all: "Expand all", collapse_all: "Collapse all",
-    tips_title: "Upgrade tips", tips_lead: "Generated automatically from what was detected on this PC.",
-    no_tips: "Nothing in particular to report.",
+    copied: "Summary copied to clipboard", 
+    
     cat_ram: "RAM", cat_cpu: "CPU", cat_gpu: "GPU", cat_storage: "Storage", cat_board: "Motherboard",
     board: "Motherboard", bios_ver: "BIOS version", bios_date: "BIOS date", ram_slots: "RAM slots", ram_max: "Max supported RAM",
+    comp_none_t: "Components not scanned yet", comp_none: "The scan reads detailed info about your CPU, RAM, motherboard, graphics cards and disks (a few seconds). The result is kept: no new scan at every startup.",
+    comp_scan: "Scan components", comp_scanning: "Scanning components…", comp_refresh: "Refresh", comp_last: "Last scan:",
+    codename: "Codename", pe_cores: "P / E cores", bus: "Bus (BCLK)", caches: "Caches", isa: "Instructions", virt: "Virtualization",
+    fms: "Family / model / stepping", microcode: "Microcode", gpu_chip: "Chip", pcie: "PCIe link", vbios: "VBIOS", chipset: "Chipset",
+    board_rev: "Revision", firmware: "Boot mode", secure_boot: "Secure Boot", smbios: "SMBIOS", installed: "Installed on", last_boot: "Last boot",
+    th_cl: "CL", th_volt: "Voltage", on_: "Enabled", off_: "Disabled", ch_single: "single channel", ch_dual: "dual channel", ch_quad: "quad channel",
+    xmp_on: "XMP / EXPO enabled: the RAM runs at its rated speed",
+    xmp_off: "XMP / EXPO probably disabled: the RAM is rated for {r} MT/s but runs at {c} MT/s (enable it in the BIOS)",
     base_freq: "Base clock", socket: "Socket", cache: "L2 / L3 cache",
     th_slot: "Slot", th_size: "Size", th_type: "Type", th_speed: "Speed (MT/s)", th_maker: "Manufacturer", th_part: "Part number",
     slot_free: "Empty slot", max: "max", DIMM: "DIMM (desktop)", "SO-DIMM": "SO-DIMM (laptop)",
@@ -845,7 +960,6 @@ const I18N = {
     tray_opt: "Keep in tray when closed",
     tray_hint: "In the background, with a small icon near the clock (~30 MB). Click: reopen. Right-click: Quit.",
     dismiss: "Hide (comes back if the problem returns later)", dismiss_sig: "Hide (comes back if the number changes)",
-    hidden_alerts: "tip(s) hidden",
     hist_t: "History", hist_7d: "7 days", hist_opt: "Record history (even with the window closed)",
     hist_empty: "No data yet: history fills up with one point per minute (kept 8 days).",
     hist_sub_cpu: "average · max", hist_sub_gpu: "average · max", temp_line: "temperature", temp_line_tip: "Green / orange / red line: graphics card temperature (20–100 °C scale). Green = OK, orange = hot, red = worrying.", hist_sub_ram: "used", hist_sub_vram: "max",
@@ -854,7 +968,7 @@ const I18N = {
     hist_compact: "Compact switched-off periods", hist_compact_tip: "Gaps longer than 30 min (PC off, app closed) become a narrow band: the charts show usage time.",
     hd_t: "Most demanding programs", hd_cpu: "Processor (minute average)", hd_ram: "Memory", hd_gpu: "Graphics card",
     hd_none: "No details for this moment (recorded since v0.7.0, once the app has been running for 2 min).", hd_empty: "Nothing notable",
-    hd_hint: "Click: see the programs", hd_close: "Close", hd_peak: "busiest moment of the 10 min",
+    hd_hint: "Click: see the programs", hd_peak: "busiest moment of the 10 min",
     hd_note: "The programs that used your PC the most at that moment (several instances = added up).",
     hd_none_game: "No details for this moment: they come from the history (Analysis), which must be turned on and is only kept for 8 days.",
     hd_more: "Show more", hd_less: "Show less", hd_foot: "Recorded every minute with the history, kept for 8 days.",
@@ -864,7 +978,7 @@ const I18N = {
     h_bad: "⚠ Problem detected: back up your data and plan to replace this disk.", h_hot: "⚠ High temperature: check your case airflow.",
     h_need_admin: "Windows only provides disk health (temperature, wear, hours, errors) with administrator rights. Click below and accept the prompt: the result is kept, no need to redo it every time.",
     h_loading: "Reading disk health…", h_title_all: "Disk health", h_life_s: "life left", gap_off: "PC off or app closed",
-    h_refresh: "Refresh", h_admin: "Check disk health (admin)", h_reread: "Re-check disk health (admin)", h_read: "Read on", h_none: "No health info for this disk.",
+    h_admin: "Check disk health (admin)", h_reread: "Re-check disk health (admin)", h_read: "Read on", 
     h_wait_admin: "Accept the Windows prompt…", h_refused: "Administrator rights declined.",
     tip_h_temp: "Current disk temperature (and the max recorded by the disk).",
     tip_h_life: "For SSDs: share of their write endurance left. Below 20%, plan to replace it.",
@@ -872,11 +986,53 @@ const I18N = {
     tip_h_errors: "Errors the disk ran into. \"Uncorrected\" ones are the sign of a failing disk.",
     tab_analysis: "Analysis", tab_gaming: "Gaming", an_now: "Right now:", an_now_load: "heavy usage, this moment counts",
     an_now_idle: "light usage, nothing is loaded enough to limit you: not counted", an_how_t: "How it works",
-    gl_search: "Search a game…", gl_t: "Recognized games", gl_tn: "recognized games", gl_find: "Search the list", gl_scan: "Find installed games", gl_busy: "Searching…", gl_found: "games found", gl_last: "Last search on",
+    gl_search: "Search a game…", gl_t: "Recognized games", gl_tn: "recognized games", gl_find: "Search the list", gl_scan: "Find installed games", gl_busy: "Searching…", gl_last: "Last search on",
     gl_none: "Run a search: Pulse Monitor looks at Steam, Epic, GOG and installed games (Riot, Blizzard, EA, Ubisoft…). Well-known games (League of Legends, Valorant, Fortnite, WoW…) are already recognized.",
     gl_manual: "Add a game manually", gl_pick: "Pick an open program…", gl_add: "Add", gl_manual_hint: "Start the game, then pick it in the list. It will always count as a game.", gl_rm: "Remove",
     gm_stop: "Pause and see the summary", gm_stop_tip: "Ends the session now and shows its charts. The program isn't tracked until you resume tracking (or it's closed).",
     gm_del: "Delete this session", gm_del_sure: "Delete?", gm_paused: "Paused:", gm_resume: "Resume tracking", gm_resume_tip: "Starts a new session right away for this program.",
+    gmm_t: "Gaming mode", gmm_lib: "Games", gmm_on: "Gaming mode on", gmm_freed: "Freed:", 
+    gmm_desc: "Closes unneeded programs while you play. System, drivers, audio, anti-cheat and antivirus are never touched.",
+    gmm_restore: "Restore", gmm_restoring: "Restarting…", gmm_more: "Also close the selection",
+    
+    gmm_h_prog: "Program", gmm_total: "Selected:", gmm_go: "BOOST", gmm_going: "Closing…",
+    gmm_none: "Nothing to close: no unneeded program is running.", gmm_done: "Gaming mode on. Click “Restore” after your game.",
+    gmm_fail: "Could not close:", gmm_restored: "Programs restarted.", gmm_manual: "Restart yourself:", gmm_norestore: "Microsoft Store app: restart it yourself",
+    gmm_cat_cloud: "Cloud sync and Adobe", gmm_cat_update: "Updaters", gmm_cat_launcher: "Game launchers", gmm_cat_chat: "Chat apps", gmm_cat_media: "Music",
+    gmm_cat_browser: "Browsers (closed normally, like the X button)", gmm_cat_rgb: "RGB lighting (lights or fans may go back to default settings)",
+    gmm_cat_other: "Other tools", gmm_cat_app: "Other open programs (closed normally, like the X button)",
+    gmm_on_auto: "Gaming mode on (automatic)", gmm_since: "since", gmm_auto: "Automatic: turn on when a game is detected, restore when the game ends",
+    gmm_auto_tip: "In automatic mode, only known and ticked programs are closed (never the “other open programs”). Everything is restarted 20 s after the gaming session ends.",
+    gmm_g_free: "Boost:", gmm_g_after: "after boost:", gmm_auto_s: "Auto in game", gmm_g_none: "nothing to recover", gmm_list: "Resource-hungry programs", gmm_scan: "Scan", gmm_scanning: "Scanning…", gmm_g_noscan: "run a scan", gmm_exp: "Show processes",
+    gmm_noscan: "No scan yet. Click “Scan” to see which programs can be closed and what the boost can free.", gmm_proc: "Process", gmm_h_type: "Type", gmm_h_mem: "RAM", gmm_h_disk: "Disk", gmm_h_imp: "Impact", gmm_imp_tip2: "Measured over 2 s during the scan. Thresholds fit this PC's setup (total RAM, graphics card, core count). High: CPU ≥ {cpuh} %, GPU ≥ {gpuh} %, RAM ≥ {ramh} % of RAM, VRAM ≥ {vramh} % of VRAM or disk ≥ {diskh} MB/s. Medium: CPU ≥ {cpum} %, GPU ≥ {gpum} %, RAM ≥ {ramm} %, VRAM ≥ {vramm} % or disk ≥ {diskm} MB/s.", gmm_imp_tip: "Measured over 2 s during the scan, relative to this PC. High: CPU or GPU ≥ 10 %, RAM ≥ 10 % of total RAM, VRAM ≥ 15 % of VRAM, or disk ≥ 20 MB/s. Medium: CPU or GPU ≥ 2 %, RAM ≥ 3 %, VRAM ≥ 5 % or disk ≥ 2 MB/s.",
+    gmm_imp0: "Low", gmm_imp1: "Medium", gmm_imp2: "High", gmm_all: "Select all", gmm_nothing: "Deselect all", gmm_measured: "Measured during the last scan.",
+    gmm_ty_cloud: "Cloud sync", gmm_ty_update: "Updater", gmm_ty_launcher: "Launcher", gmm_ty_chat: "Chat", gmm_ty_media: "Music", gmm_ty_browser: "Browser",
+    gmm_ty_rgb: "RGB lighting", gmm_ty_other: "Tool", gmm_ty_app: "Open program",
+    gmm_anyway: "Close anyway", 
+    gmm_v_ram: "RAM heavily used ({p} %): boost would free {r}.", gmm_v_cpu: "CPU heavily used ({p} %): boost would free {c} % of CPU.",
+    gmm_v_gpu: "GPU heavily used ({p} %): boost would free {c} % of GPU.",
+    
+    gmm_v_ramtop: "RAM heavily used ({p} %), but the ticked programs would free little. The biggest: {n} ({r}).",
+    gmm_s_ram: "RAM at {p} % in game: boost would free {r}.",
+    gmm_s_cpu: "CPU at {p} % in game: boost would free {c} %.",
+    gmm_s_gpu: "GPU at {p} % in game: boost would free {c} %.",
+    gmm_s_fine: "Your recent games didn't max anything out: boost would make almost no difference.",
+    gmm_v_nosess: "No game recorded yet: verdict based on the current load.",
+    gmm_v_short: "Your PC has headroom: boost would make almost no difference.",
+    gmm_v_tip: "RAM {r} % ({f} free) · CPU {c} % · GPU {g} % · boost would free {x}.",
+    gmm_s_tip: "{k} game(s) ({n}) · peaks: RAM {r} %, CPU {c} %, GPU {g} % · boost would free {x}.",
+    drv_months: "{n} months ago", drv_recent: "recent",
+    pt_t: "Play time", pt_today: "Today", pt_week: "Last 7 days", pt_7d: "7 days", pt_total: "Total", pt_none: "No game recorded yet.",
+    wk_t: "Weekly summary", wk_wait: "Not enough measurements yet: come back in a few hours (history must be on).",
+    wk_busy: "Your PC was busiest on {day} {part} (around {h}).", wk_busy_game: "Your PC was busiest on {day} {part} (around {h}), during {g}.",
+    wk_night: "night", wk_morning: "morning", wk_afternoon: "afternoon", wk_evening: "evening",
+    wk_ram_ok: "RAM never went above {p} %.", wk_ram_hi: "RAM went up to {p} %.",
+    wk_cpu: "CPU max", wk_gpu: "GPU max", wk_vram: "VRAM max", wk_ram: "RAM max", wk_temp: "GPU temp max", wk_play: "Play time",
+    su_t: "Startup programs", su_hint: "Off = no longer starts with Windows", su_tip: "Like the Task Manager \"Startup\" tab: the program isn't removed, it just won't start on its own anymore. You can turn it back on anytime.",
+    su_prog: "Program", su_for: "For", su_ram: "Current RAM", su_ram_tip: "RAM the program uses right now (– if it isn't running).",
+    su_imp_tip: "Based on the RAM used right now: High ≥ 300 MB, Medium ≥ 80 MB.", su_on: "At startup",
+    su_me: "You", su_all: "All accounts", su_admin: "Asks for administrator permission", su_notrun: "Not running right now",
+    su_none: "No program starts with Windows.", su_fail: "Couldn't change this program (permission denied?)",
     gm_t: "Gaming sessions", gm_avg: "avg", gm_show: "Click to see the charts", gm_hide: "Click to hide the charts",
     gm_no_tl: "No chart for this session: it was recorded before v0.4.5.", gm_opt: "Detect my gaming sessions", gm_fps_opt: "Measure FPS", gm_fps_tip: "The game's frames per second, read from Windows display events, only during a session. No extra program, nothing is sent.",
     gm_fps_need: "To measure FPS, Windows needs a one-time permission: your account is added to the \"Performance Log Users\" group.", gm_fps_btn: "Allow",
@@ -892,9 +1048,9 @@ const I18N = {
     gm_vt_none: "No component was at its limit: your PC had headroom (or FPS were capped).",
     an_how: "The app only counts moments of heavy usage: CPU or graphics card at 40% or more, or RAM / video memory 80% full or more. At each of those moments it notes which component is maxed out: graphics card at 93% or more, CPU at 90% or more (or one core at 95%) while the graphics card is under 85%, video memory or RAM almost full. After 10 min of load, it names the one that limits you most often. Data is kept between sessions.",
     tab_storage: "Storage", st_scan: "Analyze space used on {d}", st_rescan: "Re-analyze space used on {d}", st_stop: "Stop", st_never: "Never analyzed",
-    st_scanned: "Analyzed on", st_files: "files", st_dirs: "folders", st_elapsed: "elapsed",
+    st_scanned: "Analyzed on", st_files: "files", st_elapsed: "elapsed",
     st_pick: "Pick a drive and start the analysis. It can take a few minutes on a large hard drive (HDD).",
-    st_tree: "Folders", st_name: "Name", st_size: "Size", st_share: "Share", st_nfiles: "Files",
+    st_name: "Name", st_size: "Size", st_share: "Share", st_nfiles: "Files",
     st_direct: "[files in this folder]", st_more: "more folders", st_small: "Contents not detailed (folder under 64 MB)",
     tmp_t: "Temporary files", tmp_total: "in total", tmp_refresh: "Recalculate", tmp_win: "Open Windows cleanup", tmp_busy: "Calculating…",
     tmp_note: "Pulse Monitor doesn't delete anything. These files are safe to delete (close the program first). The easiest way: \"Open Windows cleanup\" → Temporary files. Click a row to see the folders.",
@@ -927,7 +1083,6 @@ const I18N = {
     bg_opt: "Analyze usage in the background (even with the window closed)",
     bg_hint: "So your gaming sessions count even with the window closed. Cost: ~0.1% CPU, no RAM.",
     cards_lbl: "Cards:", sz_collapsed: "Collapsed", sz_small: "Small", sz_large: "Large",
-    big_on: "Large charts", big_off: "Compact charts",
     hidden_t: "Hidden cards", hidden_none: "No hidden cards.", show: "Show", show_all: "Show all",
     hidden_hint: "Ctrl + click a card to hide it.", hidden_toast: "Card hidden — restore it in Settings",
     manual_t: "Fill in (not detectable)",
@@ -942,8 +1097,7 @@ const I18N = {
     cool_aio280: "280 mm AIO", cool_aio360: "360 mm AIO", cool_aio420: "420 mm AIO", cool_custom: "Custom loop",
     cat_psu: "PSU", cat_case: "Case", cat_cool: "Cooling",
     s_psu: "Power supply", s_case: "Case", s_cool: "CPU cooling",
-    undetect_t: "Not detectable by software",
-    undetect: "Power supply (wattage), case (max graphics card length), CPU cooler and the exact number of free M.2 / SATA ports. Check the label on your power supply and your motherboard's spec page on the manufacturer's website.",
+    
     k_python: "Pulse Monitor (Python)", k_window: "Window", k_powershell: "PowerShell", k_other: "Other",
     app_title: "Resources used by the app", app_part: "Part", app_total: "Total",
     app_note: "Measured like Task Manager: CPU as % of the whole processor, RAM = private working set, as % of the PC's total RAM. When the window is minimized, the app gives unused RAM back to Windows.",
@@ -1348,7 +1502,10 @@ const appChip = document.getElementById("appuse");
 appChip.addEventListener("mouseenter", () => { appPop.classList.add("on"); renderApp(appData); });
 appChip.addEventListener("mouseleave", () => appPop.classList.remove("on"));
 
-let last = null, specs = null, specsAsked = false;
+let last = null, specs = null, specsAsked = false, specsBusy = false;
+// les composants ne sont scannés que quand l'utilisateur le demande (puis gardés pour les lancements suivants)
+let specsScanT = 0;
+function scanSpecs() { specsBusy = true; specsScanT = Date.now(); renderSpecs(); fetch("/api/specs/scan", {cache: "no-store"}).catch(() => {}); }
 function renderLive(d) {
   renderCPU(d.cpu);
   renderRAM(d.ram);
@@ -1363,6 +1520,7 @@ function renderLive(d) {
   setText(document.getElementById("h-procs"), String(d.cpu.procs ?? "–"));
   setText(document.getElementById("h-uptime"), fmtUptime(d.cpu.uptime));
   renderApp(d.app, d.ram && d.ram.total);
+  if (document.getElementById("gaming").classList.contains("on")) gmmGauges();
   document.getElementById("ver-btn").classList.toggle("has-up", !!d.update);
   if (!noPush) { liveAlerts = d.alerts || []; liveInsight = d.insight || null; }
   if (typeof d.widget_on === "boolean" && d.widget_on !== widgetOn && Date.now() > wgLock) {   // fermé avec sa croix, le raccourci ou l'icône
@@ -1404,7 +1562,9 @@ async function tick() {
     if (!d.cpu) return;
     last = d;
     renderLive(d);
-    if (d.specs_ready && !specs && !specsAsked) { specsAsked = true; loadSpecs(); }
+    // juste après le clic, une mesure partie avant le lancement du scan peut encore dire « pas en cours » : on l'ignore
+    if (d.specs_busy !== specsBusy && !(specsBusy && !d.specs_busy && Date.now() - specsScanT < 3000)) { specsBusy = !!d.specs_busy; if (document.getElementById("comp").classList.contains("on")) renderSpecs(); }
+    if (d.specs_ready && (!specs || (d.specs_date && specs.date !== d.specs_date)) && !specsAsked) { specsAsked = true; loadSpecs(); }
   } catch (e) { /* serveur arrêté */ }
 }
 
@@ -1420,6 +1580,7 @@ function diskHealthCell(d) {
 }
 async function loadSpecs() {
   specs = await (await fetch("/api/specs", {cache: "no-store"})).json();
+  specsAsked = false;
   if (!stHealth) { try { stHealth = await stJ("/api/health"); } catch (e) {} }
   renderSpecs(); redrawAll();
   if (stDrives.length) stRender();
@@ -1432,59 +1593,88 @@ const specCard = (id, color, title, inner, cls = "") =>
    <span class="c-title">${esc(title)}</span><span class="c-sub"></span></div>${inner}</div>`;
 const sizeTxt = gb => gb ? (gb >= 1000 ? dec(gb / 1000, 1) + " " + T("units")[4] : gb + " " + T("units")[3]) : "?";
 
+// détails en plus (lus sans pilote) : caches, jeux d'instructions, PCIe, XMP…
+function cacheTxt(cpu) {
+  const ko = T("units")[1], mo = T("units")[2];
+  const by = {};
+  (cpu.caches || []).forEach(c => { const k = "L" + c.level + c.type; (by[k] = by[k] || []).push(c); });
+  return Object.entries(by).map(([k, a]) => k + " " + a.map(c => (c.n > 1 ? c.n + "×" : "") + (c.kb >= 1024 ? dec(c.kb / 1024, c.kb % 1024 ? 1 : 0) + " " + mo : c.kb + " " + ko)).join(" + ")).join(" · ");
+}
+const yesNo = v => v == null ? null : T(v ? "on_" : "off_");
 function renderSpecs() {
   const el = document.getElementById("comp-body"), s = specs;
-  if (!s) { el.innerHTML = `<div class="loading"><div class="spinner"></div>${esc(T("loading"))}</div>`; return; }
+  if (!s) { el.innerHTML = specsBusy ? `<div class="loading"><div class="spinner"></div>${esc(T("comp_scanning"))}</div>`
+      : `<div class="card" style="align-items:center;text-align:center;padding:40px 20px;gap:12px"><div style="font-size:15px;font-weight:600">${esc(T("comp_none_t"))}</div>
+          <div class="muted" style="max-width:520px">${esc(T("comp_none"))}</div><button class="btn" id="comp-scan">🔍 ${esc(T("comp_scan"))}</button></div>`;
+    const b0 = document.getElementById("comp-scan"); if (b0) b0.onclick = scanSpecs; return; }
   if (s.error) { el.innerHTML = `<div class="loading">${esc(T("spec_err"))}</div>`; return; }
   const ram = s.ram, cpu = s.cpu, b = s.board, os = s.os, GBu = " " + T("units")[3];
 
-  const ramRows = (ram.modules || []).map(m => `<tr><td>${esc(m.slot)}</td><td>${dec(m.size_gb, m.size_gb % 1 ? 1 : 0)}${GBu}</td>
-      <td>${m.configured || "?"}${m.speed && m.speed !== m.configured ? ` <span class="muted">(${T("max")} ${m.speed})</span>` : ""}</td>
-      <td>${esc(m.maker)}</td><td>${esc(m.part)}</td></tr>`);
+  const ramRows = (ram.modules || []).map(m => { const rated = m.rated || m.speed;
+    return `<tr><td>${esc(m.slot)}</td><td>${dec(m.size_gb, m.size_gb % 1 ? 1 : 0)}${GBu}</td>
+      <td>${m.configured || "?"}${rated && rated !== m.configured ? ` <span class="muted">(${T("max")} ${rated})</span>` : ""}</td>
+      <td>${m.cl ? "CL" + m.cl : "–"}</td><td>${m.volt ? dec(m.volt, 2) + " V" : "–"}</td>
+      <td>${esc(m.maker)}</td><td>${esc(m.part)}</td></tr>`; });
   if (ram.slots && ram.slots_used != null)
-    for (let i = ram.slots_used; i < ram.slots; i++) ramRows.push(`<tr><td colspan="5" class="empty">${esc(T("slot_free"))}</td></tr>`);
+    for (let i = ram.slots_used; i < ram.slots; i++) ramRows.push(`<tr><td colspan="7" class="empty">${esc(T("slot_free"))}</td></tr>`);
   const ng = (s.gpus || []).length;
   const r1 = ng <= 1 ? "w4" : "w3";          // ligne 1 : processeur · carte(s) graphique(s) · carte mère
   const gspan = ng <= 2 ? r1 : "w3";
   const gpus = (s.gpus || []).map((g, i) => specCard("spec-gpu-" + i, "var(--gpu)", T(g.integrated ? "gpu_int" : "gpu"),
     `<div class="name">${esc(g.name)}</div>
-     <dl>${row("vram", g.vram_gb ? dec(g.vram_gb, g.vram_gb % 1 ? 1 : 0) + GBu : null)}
-         ${row("driver", g.driver)}${row("driver_date", g.driver_date)}
+     <dl>${row("vram", g.vram_gb ? dec(g.vram_gb, g.vram_gb % 1 ? 1 : 0) + GBu + (g.memtype ? " " + g.memtype : "") : null)}
+         ${row("gpu_chip", g.chip)}${row("pcie", g.pcie ? g.pcie + (g.pcie_max ? " (" + T("max") + " " + g.pcie_max + ")" : "") : null)}${row("vbios", g.vbios)}
+         ${row("driver", g.driver)}${row("driver_date", g.driver_date ? g.driver_date + drvAge(g.driver_date) : null)}
          ${row("display", g.res ? g.res + (g.hz ? " @ " + g.hz + " Hz" : "") : null)}</dl>`, gspan)).join("");
   const disks = (s.disks || []).map(d => `<tr><td>${esc(d.id)}</td><td>${esc((d.letters || []).map(letterTxt).join(" "))}</td>
-      <td>${esc(d.name)}</td><td><span class="pill">${esc(d.media)}</span> ${esc(d.bus !== "?" ? d.bus : "")}</td>
+      <td>${esc(d.name)}${d.fw || d.rpm ? ` <span class="muted" style="font-size:11.5px">${d.rpm ? d.rpm + " rpm · " : ""}${d.fw ? "FW " + esc(d.fw) : ""}</span>` : ""}</td><td><span class="pill">${esc(d.media)}</span> ${esc(d.bus !== "?" ? d.bus : "")}</td>
       <td>${sizeTxt(d.size_gb)}</td><td>${diskHealthCell(d)}</td></tr>`).join("");
 
   const ids = ["spec-cpu", ...(s.gpus || []).map((_, i) => "spec-gpu-" + i), "spec-board",
                "spec-ram", "spec-disks", "spec-os", "spec-manual", "spec-net"];
   el.innerHTML = `
     <div class="toolbar" style="margin:-4px 0 6px">
-      <span class="muted">${esc(T("copy_hint"))}</span><button class="btn sm" id="copy">${esc(T("copy_btn"))}</button></div>
+      <button class="btn sm" id="copy" data-tip="${esc(T("copy_hint").replace(/\s*→\s*$/, ""))}">${esc(T("copy_btn"))}</button>
+      <span style="flex:1"></span>${s.date ? `<span class="muted" style="font-size:12px">${esc(T("comp_last"))} ${esc(new Date(s.date * 1000).toLocaleString(lang === "fr" ? "fr-FR" : "en-GB", {dateStyle: "short", timeStyle: "short"}))}</span>` : ""}
+      <button class="btn sm" id="comp-refresh" ${specsBusy ? "disabled" : ""}>↻ ${esc(T(specsBusy ? "comp_scanning" : "comp_refresh"))}</button></div>
     <div class="specs" data-okey="specs">
       ${specCard("spec-cpu", "var(--cpu)", T("cpu"), `<div class="name">${esc(cpu.name)}</div>
-        <dl>${row("ct", `${cpu.cores ?? "?"} / ${cpu.threads ?? "?"}`)}
+        <dl>${row("codename", cpu.codename)}
+            ${row("ct", `${cpu.cores ?? "?"} / ${cpu.threads ?? "?"}`)}
+            ${row("pe_cores", cpu.p_cores ? `${cpu.p_cores} P + ${cpu.e_cores} E` : null)}
             ${row("base_freq", cpu.base_mhz ? dec(cpu.base_mhz / 1000, 2) + " GHz" : null)}
+            ${row("bus", cpu.bus_mhz ? cpu.bus_mhz + " MHz" : null)}
             ${row("socket", cpu.socket)}
-            ${row("cache", cpu.l2_kb || cpu.l3_kb ? `${cpu.l2_kb ? Math.round(cpu.l2_kb / 1024) + " " + T("units")[2] : "?"} / ${cpu.l3_kb ? Math.round(cpu.l3_kb / 1024) + " " + T("units")[2] : "?"}` : null)}</dl>`, r1)}
+            ${cpu.caches && cpu.caches.length ? row("caches", cacheTxt(cpu)) : row("cache", cpu.l2_kb || cpu.l3_kb ? `${cpu.l2_kb ? Math.round(cpu.l2_kb / 1024) + " " + T("units")[2] : "?"} / ${cpu.l3_kb ? Math.round(cpu.l3_kb / 1024) + " " + T("units")[2] : "?"}` : null)}
+            ${row("isa", cpu.isa && cpu.isa.length ? cpu.isa.join(", ") : null)}
+            ${row("virt", yesNo(cpu.virt))}
+            ${row("fms", cpu.family != null ? `${cpu.family} / ${cpu.model} (0x${cpu.model.toString(16).toUpperCase()}) / ${cpu.stepping}` : null)}
+            ${row("microcode", cpu.microcode)}</dl>`, r1)}
       ${gpus}
       ${specCard("spec-board", "var(--muted)", T("board"), `<div class="name">${esc(((b.maker || "") + " " + (b.model || "")).trim() || T("unknown"))}</div>
-        <dl>${row("bios_ver", b.bios)}${row("bios_date", b.bios_date)}
+        <dl>${row("chipset", b.chipset)}${row("board_rev", b.rev)}
+            ${row("bios_ver", b.bios)}${row("bios_date", b.bios_date)}
+            ${row("firmware", b.firmware)}${row("secure_boot", yesNo(b.secure_boot))}${row("smbios", b.smbios)}
             ${row("ram_slots", ram.slots ? `${ram.slots_used ?? "?"} / ${ram.slots}` : null)}
             ${row("ram_max", ram.max_gb ? ram.max_gb + GBu : null)}</dl>`, r1)}
-      ${specCard("spec-ram", "var(--ram)", T("ram"), `<div class="name">${dec(ram.total_gb, ram.total_gb % 1 ? 1 : 0)}${GBu}${ram.type ? " " + ram.type : ""}${ram.form ? " · " + esc(T(ram.form)) : ""}${ram.configured ? " · " + ram.configured + " MT/s" : ""}</div>
-        ${ramRows.length ? `<table><tr>${th("th_slot")}${th("th_size")}${th("th_speed")}${th("th_maker")}${th("th_part")}</tr>${ramRows.join("")}</table>` : ""}`, "w6")}
+      ${specCard("spec-ram", "var(--ram)", T("ram"), `<div class="name">${dec(ram.total_gb, ram.total_gb % 1 ? 1 : 0)}${GBu}${ram.type ? " " + ram.type : ""}${ram.form ? " · " + esc(T(ram.form)) : ""}${ram.configured ? " · " + ram.configured + " MT/s" : ""}${ram.channels ? " · " + esc(T(ram.channels >= 4 ? "ch_quad" : ram.channels === 2 ? "ch_dual" : "ch_single")) : ""}</div>
+        ${ram.xmp != null ? `<div style="font-size:12.5px;color:${ram.xmp ? "var(--ok)" : "var(--warn)"}">${ram.xmp ? "✓ " + esc(T("xmp_on")) : "⚠ " + esc(T("xmp_off").replace("{r}", ram.rated).replace("{c}", ram.configured))}</div>` : ""}
+        ${ramRows.length ? `<table><tr>${th("th_slot")}${th("th_size")}${th("th_speed")}${th("th_cl")}${th("th_volt")}${th("th_maker")}${th("th_part")}</tr>${ramRows.join("")}</table>` : ""}`, "w6")}
       ${specCard("spec-disks", "var(--disk)", T("sec_disks"), `<table><tr>${th("th_disk")}${th("th_letters")}${th("th_model")}${th("th_type")}${th("th_size")}${th("th_health")}</tr>${disks}</table>`, "w6")}
-      ${specCard("spec-os", "var(--muted)", T("system"), `<dl>${row("windows", os.name)}${row("version", os.build ? `${os.version} (${T("build")} ${os.build})` : os.version)}
+      ${specCard("spec-os", "var(--muted)", T("system"), `<dl>${row("windows", os.name + (os.display ? " " + os.display : ""))}${row("version", os.build ? `${os.version} (${T("build")} ${os.build}${os.ubr ? "." + os.ubr : ""})` : os.version)}
+            ${row("installed", os.install)}${row("last_boot", os.boot)}
             ${row("arch", os.arch)}${row("pcname", os.pc_name)}</dl>`, "w6")}
       ${specCard("spec-manual", "var(--warn)", T("manual_t"), manualForm(), "w6 tall")}
       ${specCard("spec-net", "var(--net)", T("netscreens"), `<dl>${(s.net || []).map(n => rowRaw(n.conn || T("netcard"), n.name + (n.speed_mbps ? ` (${fmtLink(n.speed_mbps)})` : ""))).join("")}
-            ${(s.monitors || []).map((m, i) => rowRaw(T("screen") + " " + (i + 1), m)).join("")}</dl>`, "w6")}
+            ${(s.monitors || []).map((m, i) => { const x = (s.monitor_info || [])[i] || {};
+              return rowRaw(T("screen") + " " + (i + 1), m + (x.inch ? ` · ${dec(x.inch, 1)}"` : "") + (x.year ? ` · ${x.year}` : "")); }).join("")}</dl>`, "w6")}
     </div>`;
   applyCollapsed(el);
   const specsBox = el.querySelector(".specs");
   [...specsBox.children].forEach((n, i) => n.dataset.def = i);   // ordre par défaut = ordre d'affichage
   applyOrder(specsBox);
   document.getElementById("copy").onclick = copySummary;
+  document.getElementById("comp-refresh").onclick = scanSpecs;
   el.querySelectorAll("[data-mk]").forEach(inp => inp.addEventListener("change", () => {
     const v = inp.value.trim();
     if (v) manual[inp.dataset.mk] = v; else delete manual[inp.dataset.mk];
@@ -2317,7 +2507,8 @@ async function loadLib(q) {
   renderLib();
 }
 function renderLib() {
-  const el = document.getElementById("gm-lib"), D = glData; if (!D) return;
+  renderMode();
+  const el = document.getElementById("gm-lib"), D = glData; if (!D || !el) return;
   const loc = lang === "fr" ? "fr-FR" : "en-GB";
   const list = D.games.length ? `${glSearch ? `<input class="gl-search" id="gl-q" type="search" placeholder="${esc(T("gl_search"))}">` : ""}
       <div class="gl-list" id="gl-list">${D.games.map(g => `<div title="${esc(g.dir)}" data-n="${esc(g.name.toLowerCase())}">${esc(g.name)} <small class="muted">${esc(g.src)}</small></div>`).join("")}</div>`
@@ -2347,10 +2538,239 @@ function renderLib() {
   document.getElementById("gl-add").onclick = () => { if (sel.value) loadLib("add?name=" + encodeURIComponent(sel.value)); };
   el.querySelectorAll("[data-glrm]").forEach(b => b.onclick = () => loadLib("remove?name=" + encodeURIComponent(b.dataset.glrm)));
 }
+// =================== Mode gaming ===================
+// Comme les « game boosters » : on analyse, on relit la liste, on optimise. Option automatique quand un jeu est détecté.
+let gmmData = null, gmmPlan = null, gmmBusy = false, gmmScan = false, gmmSel = new Set(), gmmOpenG = new Set(), gmmAuto = false;
+async function loadMode(plan) {
+  if (plan) { gmmScan = true; renderMode(); }
+  try { const d = await stJ("/api/gamemode" + (plan ? "/plan" : "/cfg"));
+    gmmData = d; if (typeof d.auto === "boolean") gmmAuto = d.auto;
+    if (d.items) { gmmPlan = d; gmmAuto = !!d.auto; gmmSel = new Set(d.items.filter(i => i.on).map(i => i.key)); } } catch (e) {}
+  gmmScan = false; renderMode();
+}
+const gmmGain = a => a.reduce((t, c) => ({ram: t.ram + (c.ram || 0), cpu: t.cpu + (c.cpu || 0), gpu: t.gpu + (c.gpu || 0)}), {ram: 0, cpu: 0, gpu: 0});
+const gmmFmt = g => `<b style="color:var(--cpu)">${dec(g.cpu, 1)} %</b> CPU · <b style="color:var(--gpu)">${dec(g.gpu, 1)} %</b> GPU · <b style="color:var(--ram)">${fmtBytes(g.ram)}</b> RAM`;
+function gmmSave() {
+  const over = {}; ((gmmPlan || {}).items || []).forEach(i => over[i.key] = gmmSel.has(i.key));
+  stJ("/api/gamemode/cfg?over=" + encodeURIComponent(JSON.stringify(over))).catch(() => {});
+}
+// cadran : arc de 240°, aiguille = utilisation, partie hachurée = ce que le boost peut récupérer
+function gmmGauge(k, label, used, rec, big) {
+  const cx = 100, cy = 100, r = 80, A0 = 150, SW = 240, rad = d => d * Math.PI / 180;
+  const ang = v => A0 + SW * Math.max(0, Math.min(100, v)) / 100;
+  const pt = (a, rr) => [cx + rr * Math.cos(rad(a)), cy + rr * Math.sin(rad(a))];
+  const arc = (v0, v1, rr) => { if (v1 - v0 < .2) return ""; const [x0, y0] = pt(ang(v0), rr), [x1, y1] = pt(ang(v1), rr);
+    return `M${x0.toFixed(1)} ${y0.toFixed(1)} A${rr} ${rr} 0 ${(v1 - v0) * SW / 100 > 180 ? 1 : 0} 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`; };
+  const u = used == null ? 0 : Math.max(0, Math.min(100, used)), rc = Math.max(0, Math.min(u, rec || 0)), after = u - rc;
+  let ticks = "";
+  for (let v = 0; v <= 100; v += 5) { const maj = v % 20 === 0, [x0, y0] = pt(ang(v), r - 11), [x1, y1] = pt(ang(v), r - (maj ? 21 : 16));
+    ticks += `<line x1="${x0.toFixed(1)}" y1="${y0.toFixed(1)}" x2="${x1.toFixed(1)}" y2="${y1.toFixed(1)}" stroke="var(--muted)" stroke-width="${maj ? 1.6 : .8}" opacity="${maj ? .8 : .45}"/>`;
+    if (maj) { const [tx, ty] = pt(ang(v), r - 31); ticks += `<text x="${tx.toFixed(1)}" y="${(ty + 3).toFixed(1)}" font-size="8.5" fill="var(--muted)" text-anchor="middle">${v}</text>`; } }
+  const [nx, ny] = pt(ang(u), r - 18), [mx, my] = pt(ang(after), r + 9), [mx2, my2] = pt(ang(after), r - 9);
+  const C = `var(--${k})`;
+  return `<div class="gmm-dial${big ? " big" : ""}" style="--c:${C}"><svg viewBox="0 0 200 184">
+    <circle class="face" cx="${cx}" cy="${cy}" r="${r - 6}"/>
+    <path d="${arc(0, 100, r)}" fill="none" stroke="var(--line)" stroke-width="9" stroke-linecap="round"/>
+    <path class="arc" d="${arc(0, after, r)}" fill="none" stroke="${C}" stroke-width="9" stroke-linecap="round"/>
+    <path d="${arc(after, u, r)}" fill="none" stroke="${C}" stroke-width="9" stroke-dasharray="2.2 2" opacity=".55"/>
+    ${ticks}
+    ${rc >= .5 ? `<line x1="${mx.toFixed(1)}" y1="${my.toFixed(1)}" x2="${mx2.toFixed(1)}" y2="${my2.toFixed(1)}" stroke="var(--ok)" stroke-width="2.4" stroke-linecap="round"/>` : ""}
+    <line x1="${cx}" y1="${cy}" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}" stroke="var(--text)" stroke-width="2.4" stroke-linecap="round" style="transition:all .4s"/>
+    <circle cx="${cx}" cy="${cy}" r="6" fill="var(--panel2)" stroke="${C}" stroke-width="2"/>
+    <text x="${cx}" y="${cy + 34}" font-size="${big ? 27 : 25}" font-weight="700" fill="${C}" text-anchor="middle">${used == null ? "–" : Math.round(u)}<tspan font-size="12"> %</tspan></text>
+    <text x="${cx}" y="${cy + 49}" font-size="10" font-weight="600" fill="var(--muted)" text-anchor="middle" letter-spacing="1.5">${esc(label)}</text>
+    ${rc >= .5 ? `<text x="${cx}" y="${cy + 66}" font-size="11" font-weight="600" fill="var(--ok)" text-anchor="middle">${esc(T("gmm_g_free"))} −${dec(rc, 1)} %</text>
+      <text x="${cx}" y="${cy + 80}" font-size="10" fill="var(--muted)" text-anchor="middle">${esc(T("gmm_g_after"))} ${Math.round(after)} %</text>`
+      : `<text x="${cx}" y="${cy + 66}" font-size="10.5" fill="var(--muted)" text-anchor="middle">${esc(T(gmmPlan ? "gmm_g_none" : "gmm_g_noscan"))}</text>`}
+  </svg></div>`;
+}
+function gmmGauges() {
+  const box = document.getElementById("gmm-dash"); if (!box || !last) return;
+  const items = gmmPlan ? gmmPlan.items.filter(i => gmmSel.has(i.key)) : [], g = gmmGain(items);
+  const gp = (last.gpus || []).filter(x => x.usage != null).sort((a, b) => a.integrated - b.integrated)[0];
+  const ramTot = last.ram && last.ram.total;
+  setHTML(box, gmmGauge("cpu", "CPU", last.cpu && last.cpu.usage, g.cpu) +
+    gmmGauge("ram", "RAM", last.ram && last.ram.percent, ramTot ? g.ram / ramTot * 100 : 0) +
+    gmmGauge("gpu", "GPU", gp && gp.usage, g.gpu));
+}
+// verdict du scan : le boost n'est proposé que quand il change vraiment quelque chose
+function gmmVerdict(items, g) {
+  if (!last) return null;
+  // le boost ne sert que si une ressource est vraiment sous pression (pas seulement si des programmes consomment)
+  const tot = last.ram && last.ram.total || 1, ramP = last.ram ? last.ram.percent : 0, cpuP = last.cpu ? last.cpu.usage : 0;
+  const gp = (last.gpus || []).filter(x => x.usage != null).sort((a, b) => a.integrated - b.integrated)[0], gpuP = gp ? gp.usage : 0;
+  const recR = g.ram / tot * 100, big = [...items].sort((a, b) => b.ram - a.ram)[0];
+  const F = (k, o) => T(k).replace(/\{(\w+)\}/g, (_, x) => o[x]);
+  // d'abord tes vraies sessions de jeu (10 dernières) : pics de RAM / CPU / GPU pendant les parties
+  const S = ((gmData && gmData.sessions) || []).slice().sort((a, b) => b.start - a.start).slice(0, 10);
+  if (S.length) {
+    const pk = k => S.reduce((m, x) => (x[k + "_max"] ?? -1) > m.v ? {v: x[k + "_max"], n: x.name} : m, {v: -1, n: ""});
+    const R_ = pk("ram"), C_ = pk("cpu"), G_ = pk("gpu");
+    const games = [...new Set(S.map(x => x.name))].slice(0, 3).join(", ");
+    if (R_.v >= 60 && recR >= 10) return {worth: true, msg: F("gmm_s_ram", {p: R_.v, n: R_.n, r: fmtBytes(g.ram)})};
+    if (C_.v >= 60 && g.cpu >= 10) return {worth: true, msg: F("gmm_s_cpu", {p: C_.v, n: C_.n, c: dec(g.cpu, 1)})};
+    if (G_.v >= 60 && g.gpu >= 10) return {worth: true, msg: F("gmm_s_gpu", {p: G_.v, n: G_.n, c: dec(g.gpu, 1)})};
+    return {worth: false, msg: T("gmm_s_fine"), tip: F("gmm_s_tip", {k: S.length, n: games, r: Math.max(0, R_.v), c: Math.max(0, C_.v), g: Math.max(0, G_.v), x: fmtBytes(g.ram)})};
+  }
+  // pas encore de session : on juge sur la charge actuelle
+  if (ramP >= 60 && recR >= 10) return {worth: true, msg: F("gmm_v_ram", {p: Math.round(ramP), r: fmtBytes(g.ram)})};
+  if (cpuP >= 60 && g.cpu >= 10) return {worth: true, msg: F("gmm_v_cpu", {p: Math.round(cpuP), c: dec(g.cpu, 1)})};
+  if (gpuP >= 60 && g.gpu >= 10) return {worth: true, msg: F("gmm_v_gpu", {p: Math.round(gpuP), c: dec(g.gpu, 1)})};
+  if (ramP >= 60 && big) return {worth: false, msg: F("gmm_v_ramtop", {p: Math.round(ramP), n: big.name, r: fmtBytes(big.ram)})};
+  const use = {r: Math.round(ramP), c: Math.round(cpuP), g: Math.round(gpuP), f: fmtBytes(tot * (100 - ramP) / 100)};
+  return {worth: false, msg: T("gmm_v_short"), tip: F("gmm_v_tip", {...use, x: fmtBytes(g.ram)}) + " " + T("gmm_v_nosess")};
+}
+function renderMode() {
+  const el = document.getElementById("gm-mode"); if (!el) return;
+  const D = gmmData || {}, P = gmmPlan, n = glData ? glData.games.length : null, loc = lang === "fr" ? "fr-FR" : "en-GB";
+  const items = P ? P.items : [];
+  const sel = items.filter(i => gmmSel.has(i.key)), g = gmmGain(sel);
+  const V = P && !D.active ? gmmVerdict(items, g) : null, showBoost = !P || D.active || (V && V.worth);
+  const status = D.active
+    ? `<div style="font-size:12.5px;margin-top:3px"><b style="color:var(--ok)">● ${esc(T(D.by_auto ? "gmm_on_auto" : "gmm_on"))}</b>
+        <span class="muted">${esc(T("gmm_since"))} ${esc(new Date(D.since * 1000).toLocaleTimeString(loc, {hour: "2-digit", minute: "2-digit"}))} · ${esc(T("gmm_freed"))}</span> ${gmmFmt(gmmGain(D.closed))}
+        <span class="muted">· ${esc(D.closed.map(c => c.name).join(", "))}</span></div>`
+    : `<div class="muted" style="font-size:12.5px;margin-top:3px">${esc(T("gmm_desc"))}</div>`;
+  const imp = v => `<span style="color:${["var(--ok)", "var(--warn)", "var(--bad)"][v]}">${esc(T("gmm_imp" + v))}</span>`;
+  const dsk = b => b >= 1e5 ? fmtBytes(b) + "/s" : "0";
+  // tri : impact (élevé d'abord), puis consommation (RAM en % de la RAM totale + CPU + GPU)
+  const ramTot = (last && last.ram && last.ram.total) || 1, load = i => i.score ?? (i.ram / ramTot * 100 + i.cpu + i.gpu);
+  const vr = b => b >= 1e6 ? fmtBytes(b) : "0";
+  const impTip = t => !t ? T("gmm_imp_tip") : T("gmm_imp_tip2").replace(/\{(\w+)\}/g, (_, k) => { const r = k.slice(0, -1), i = k.endsWith("h") ? 0 : 1;
+    return dec(t[r][i], t[r][i] % 1 ? 1 : 0); });
+  const rows = [...items].sort((a, b) => b.impact - a.impact || load(b) - load(a)).map(i => { const op = gmmOpenG.has(i.key), many = i.procs && i.procs.length > 1;
+    return `<tr class="gmm-g" data-gt="${esc(i.key)}"><td class="cb"><input type="checkbox" data-gk="${esc(i.key)}" ${gmmSel.has(i.key) ? "checked" : ""} ${gmmBusy ? "disabled" : ""}></td>
+      <td class="n" title="${esc(i.key)}"><span class="car" ${many ? `data-exp="${esc(i.key)}" data-tip="${esc(T("gmm_exp"))}"` : ""}>${many ? (op ? "▾" : "▸") : ""}</span>${esc(i.name)}${i.n > 1 ? ` <span class="muted">(${i.n})</span>` : ""}${i.norestore ? ` <span class="muted" data-tip="${esc(T("gmm_norestore"))}">✋</span>` : ""}</td>
+      <td class="muted" data-tip="${esc(T("gmm_cat_" + i.cat))}">${esc(T("gmm_ty_" + i.cat))}</td>
+      <td class="r">${dec(i.cpu, 1)} %</td><td class="r">${dec(i.gpu, 1)} %</td><td class="r">${vr(i.vram)}</td><td class="r">${fmtBytes(i.ram)}</td><td class="r">${dsk(i.disk)}</td><td class="r">${imp(i.impact)}</td></tr>` +
+      (op && many ? i.procs.map(x => `<tr class="gmm-p"><td></td><td class="n muted">${esc(i.key)} <small>· PID ${x.pid}</small></td><td class="muted">${esc(T("gmm_proc"))}</td>
+        <td class="r">${dec(x.cpu, 1)} %</td><td class="r">${dec(x.gpu, 1)} %</td><td class="r">${vr(x.vram)}</td><td class="r">${fmtBytes(x.ram)}</td><td class="r">${dsk(x.disk)}</td><td></td></tr>`).join("") : ""); }).join("");
+  const table = !P ? (gmmScan ? `<div class="loading" style="padding:20px"><div class="spinner"></div>${esc(T("gmm_scanning"))}</div>`
+      : `<div class="muted" style="font-size:13px;padding:18px 4px;text-align:center">${esc(T("gmm_noscan"))}</div>`)
+    : !items.length ? `<div class="muted" style="font-size:13px">${esc(T("gmm_none"))}</div>`
+    : `<div class="gmm-scroll"><table class="gmm-t"><tr><th class="cb"><input type="checkbox" id="gmm-all" ${sel.length === items.length ? "checked" : ""} data-tip="${esc(T(sel.length === items.length ? "gmm_nothing" : "gmm_all"))}"></th><th>${esc(T("gmm_h_prog"))}</th><th>${esc(T("gmm_h_type"))}</th>
+        <th class="r">CPU</th><th class="r">GPU</th><th class="r">VRAM</th><th class="r">${esc(T("gmm_h_mem"))}</th><th class="r">${esc(T("gmm_h_disk"))}</th><th class="r" data-tip="${esc(impTip(P.thr))}">${esc(T("gmm_h_imp"))}</th></tr>${rows}</table></div>`;
+  setHTML(el, `<div class="gm-band"><div style="flex:1;min-width:280px"><h2 style="margin:0;font-size:16px">⚡ ${esc(T("gmm_t"))}</h2>${status}</div>
+      </div>
+    <div class="gmm-left"><div class="gmm-dash" id="gmm-dash"></div>
+    ${V ? `<div class="gmm-verdict ${V.worth ? "go" : "ok"}"${V.tip ? ` data-tip="${esc(V.tip)}"` : ""}>${V.worth ? "⚡" : "✓"} ${esc(V.msg)}</div>` : ""}
+    <div class="gmm-go"><div class="l">
+      ${D.active ? `<button class="btn" id="gmm-restore" ${gmmBusy ? "disabled" : ""}>↺ ${esc(T(gmmBusy ? "gmm_restoring" : "gmm_restore"))}</button>` : ""}
+      <button class="btn" id="gmm-scan" ${gmmScan || gmmBusy ? "disabled" : ""}>↻ ${esc(T(gmmScan ? "gmm_scanning" : "gmm_scan"))}</button></div>
+      ${showBoost ? `<button class="btn gmm-boost" id="gmm-start" ${gmmBusy || !sel.length ? "disabled" : ""}>⚡ ${esc(T(gmmBusy && !D.active ? "gmm_going" : D.active ? "gmm_more" : "gmm_go"))}${sel.length ? ` (${sel.length})` : ""}</button>`
+        : `<button class="linkbtn" id="gmm-start" style="font-size:12.5px" ${gmmBusy || !sel.length ? "disabled" : ""}>${esc(T(gmmBusy ? "gmm_going" : "gmm_anyway"))}${sel.length ? ` (${sel.length})` : ""}</button>`}
+      <div class="r"><label class="gmm-auto ${gmmAuto ? "on" : ""}" data-tip="${esc(T("gmm_auto") + " — " + T("gmm_auto_tip"))}"><input type="checkbox" id="gmm-auto" ${gmmAuto ? "checked" : ""}><span class="sw"></span>${esc(T("gmm_auto_s"))}</label></div></div></div>
+`);
+  const el2 = document.getElementById("gmm-listc");
+  setHTML(el2, `<div class="gm-band"><h2 style="margin:0;font-size:16px;flex:1">${esc(T("gmm_list"))}${P && items.length ? ` <span class="muted" style="font-weight:400;font-size:13px">(${sel.length} / ${items.length})</span>` : ""}</h2>
+      ${P && items.length ? `<span style="font-size:12.5px" data-tip="${esc(T("gmm_measured"))}"><span class="muted">${esc(T("gmm_total"))}</span> ${gmmFmt(g)}</span>` : ""}</div>
+    ${table}`);
+  gmmGauges();
+  document.getElementById("gmm-scan").onclick = () => loadMode(true);
+  document.getElementById("gmm-auto").onchange = e => { gmmAuto = e.target.checked; e.target.parentNode.classList.toggle("on", gmmAuto); gmmSave(); stJ("/api/gamemode/cfg?auto=" + (gmmAuto ? 1 : 0)).catch(() => {}); };
+  el2.querySelectorAll("[data-gk]").forEach(cb => { cb.onclick = e => e.stopPropagation();
+    cb.onchange = () => { cb.checked ? gmmSel.add(cb.dataset.gk) : gmmSel.delete(cb.dataset.gk); gmmSave(); renderMode(); }; });
+  el2.querySelectorAll("[data-exp]").forEach(c => c.onclick = e => { e.stopPropagation(); const k = c.dataset.exp; gmmOpenG.has(k) ? gmmOpenG.delete(k) : gmmOpenG.add(k); renderMode(); });
+  el2.querySelectorAll("tr[data-gt]").forEach(tr => tr.onclick = () => { if (gmmBusy) return; const k = tr.dataset.gt;
+    gmmSel.has(k) ? gmmSel.delete(k) : gmmSel.add(k); gmmSave(); renderMode(); });
+  const setAll = on => { gmmSel = new Set(on ? items.map(i => i.key) : []); gmmSave(); renderMode(); };
+  const all = document.getElementById("gmm-all"); if (all) all.onchange = e => setAll(e.target.checked);
+  document.getElementById("gmm-start").onclick = async () => {
+    if (gmmBusy || !sel.length) return; gmmBusy = true; renderMode();
+    let r = null; try { r = await stJ("/api/gamemode/start?keys=" + encodeURIComponent(sel.map(i => i.key).join("|"))); } catch (e) {}
+    gmmBusy = false;
+    if (r) { gmmData = r; toast(r.failed && r.failed.length ? T("gmm_fail") + " " + r.failed.join(", ") : T("gmm_done")); }
+    loadMode(true); };
+  const rs = document.getElementById("gmm-restore");
+  if (rs) rs.onclick = async () => { if (gmmBusy) return; gmmBusy = true; renderMode();
+    let r = null; try { r = await stJ("/api/gamemode/restore"); } catch (e) {}
+    gmmBusy = false;
+    if (r) { gmmData = r; toast(r.failed && r.failed.length ? T("gmm_manual") + " " + r.failed.join(", ") : T("gmm_restored")); }
+    loadMode(true); };
+}
+function drawerOpen(title, sub, note, color, wide) {
+  closeDetails(true);
+  drawer.classList.toggle("wide", !!wide);
+  drawer.style.top = document.querySelector("header").offsetHeight + "px";
+  document.getElementById("d-dot").style.background = color;
+  setText(document.getElementById("d-title"), title); setText(document.getElementById("d-sub"), sub); setText(document.getElementById("d-note"), note);
+  document.getElementById("d-extra").innerHTML = ""; document.getElementById("d-foot").innerHTML = "";
+  const dim = document.getElementById("dimmer");
+  dim.style.top = drawer.style.top; dim.classList.add("on");
+  drawer.classList.add("on"); hideTip();
+}
+function openLib() {
+  drawerOpen(T("gmm_lib"), "", "", "var(--gpu)", false);
+  document.getElementById("d-list").innerHTML = `<div id="gm-lib"></div>`;
+  renderLib();
+  if (!glApps.length) stJ("/api/games/apps").then(a => { glApps = a.apps || []; renderLib(); }).catch(() => {});
+}
+// =================== Pilotes : âge ===================
+function drvAge(d) {
+  const days = Math.floor((Date.now() - new Date(d + "T12:00").getTime()) / 86400000);
+  if (!(days >= 0)) return "";
+  const m = Math.floor(days / 30);
+  return " · " + (m >= 1 ? T("drv_months").replace("{n}", m) : T("drv_recent")) + (m >= 6 ? " ⚠" : "");
+}
+// =================== Temps de jeu ===================
+let ptData = null;
+const fmtHM = s => { s = Math.round(s / 60); const h = Math.floor(s / 60), m = s % 60; return h ? `${h} h ${String(m).padStart(2, "0")}` : `${m} min`; };
+async function loadPlay() { try { ptData = await stJ("/api/playtime"); } catch (e) {} renderPlay(); }
+function renderPlay() {
+  const el = document.getElementById("gm-play"), D = ptData; if (!el || !D) return;
+  const mx = Math.max(1, ...D.days.map(d => d.s)), loc = lang === "fr" ? "fr-FR" : "en-GB";
+  setHTML(el, `<h2 style="margin:0;font-size:16px">${esc(T("pt_t"))}</h2>
+    <div style="display:flex;gap:16px;font-size:13px"><span><span class="muted">${esc(T("pt_today"))}</span> <b>${fmtHM(D.today)}</b></span><span><span class="muted">${esc(T("pt_week"))}</span> <b>${fmtHM(D.week)}</b></span></div>
+    <div class="pt-bars">${D.days.map(d => `<div data-tip="${esc(new Date(d.day + "T12:00").toLocaleDateString(loc, {weekday: "long", day: "numeric", month: "short"}) + " · " + fmtHM(d.s))}"><i style="height:${Math.round(d.s / mx * 52)}px"></i>${esc(new Date(d.day + "T12:00").toLocaleDateString(loc, {weekday: "short"}).slice(0, 3))}</div>`).join("")}</div>
+    ${D.games.length ? `<div><div class="pt-row muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.4px"><span>${esc(T("gm_game"))}</span><span>${esc(T("pt_7d"))}</span><span>${esc(T("pt_total"))}</span></div>
+      ${D.games.map(g => `<div class="pt-row"><span class="n" title="${esc(g.name)}">${esc(g.name)}</span><b>${g.week ? fmtHM(g.week) : "–"}</b><span class="muted">${fmtHM(g.total)}</span></div>`).join("")}</div>`
+      : `<div class="muted" style="font-size:12.5px">${esc(T("pt_none"))}</div>`}`);
+}
+// =================== Bilan de la semaine ===================
+async function loadWeek() {
+  const el = document.getElementById("an-week"); if (!el) return;
+  let W = null; try { W = await stJ("/api/week"); } catch (e) {}
+  if (W) renderWeek(W);
+}
+function renderWeek(W) {
+  const el = document.getElementById("an-week"); if (!el) return;
+  const loc = lang === "fr" ? "fr-FR" : "en-GB", F = (k, o) => T(k).replace(/\{(\w+)\}/g, (_, x) => o[x]);
+  if (!W.ready) { setHTML(el, `<h2 style="margin:0;font-size:16px">${esc(T("wk_t"))}</h2><div class="muted" style="font-size:13px">${esc(T("wk_wait"))}</div>`); return; }
+  let main = "";
+  if (W.busy) {
+    const d = new Date(W.busy * 1000), h = d.getHours();
+    const part = T(h < 6 ? "wk_night" : h < 12 ? "wk_morning" : h < 18 ? "wk_afternoon" : "wk_evening");
+    main = F(W.game ? "wk_busy_game" : "wk_busy", {day: d.toLocaleDateString(loc, {weekday: "long"}), part, h: h + " h", g: W.game || ""});
+  }
+  const ram = W.ram_max < 60 ? F("wk_ram_ok", {p: Math.round(W.ram_max)}) : F("wk_ram_hi", {p: Math.round(W.ram_max)});
+  const chip = (lab, v, col) => `<span style="font-size:12.5px"><span class="muted">${esc(lab)}</span> <b style="color:${col}">${v}</b></span>`;
+  setHTML(el, `<h2 style="margin:0;font-size:16px">${esc(T("wk_t"))}</h2>
+    <div style="font-size:14px">${esc(main)} ${esc(ram)}</div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap">${chip(T("wk_cpu"), Math.round(W.cpu_max) + " %", "var(--cpu)")}${chip(T("wk_gpu"), Math.round(W.gpu_max) + " %", "var(--gpu)")}
+      ${chip(T("wk_vram"), Math.round(W.vram_max) + " %", "var(--vram)")}${chip(T("wk_ram"), Math.round(W.ram_max) + " %", "var(--ram)")}
+      ${W.temp_max ? chip(T("wk_temp"), Math.round(W.temp_max) + " °C", W.temp_max >= 85 ? "var(--bad)" : "var(--text)") : ""}${W.play ? chip(T("wk_play"), fmtHM(W.play), "var(--text)") : ""}</div>`);
+}
+// =================== Programmes au démarrage ===================
+let suData = null, suBusy = null;
+async function loadStartup(q) { try { suData = await stJ("/api/startup" + (q || "")); } catch (e) {} suBusy = null; renderStartup(); }
+function renderStartup() {
+  const el = document.getElementById("an-startup"); if (!el || !suData) return;
+  const it = suData.items || [], on = it.filter(i => i.on).length;
+  const imp = v => v == null ? `<span class="muted" data-tip="${esc(T("su_notrun"))}">–</span>` : `<span style="color:${["var(--ok)", "var(--warn)", "var(--bad)"][v]}">${esc(T("gmm_imp" + v))}</span>`;
+  setHTML(el, `<div class="gm-band"><h2 style="margin:0;font-size:16px;flex:1">${esc(T("su_t"))} <span class="muted" style="font-size:13px;font-weight:400">(${on} / ${it.length})</span></h2>
+      <span class="muted" style="font-size:12px" data-tip="${esc(T("su_tip"))}">${esc(T("su_hint"))}</span></div>
+    ${it.length ? `<div class="tw"><table class="su-t"><tr><th>${esc(T("su_prog"))}</th><th>${esc(T("su_for"))}</th><th style="text-align:right" data-tip="${esc(T("su_ram_tip"))}">${esc(T("su_ram"))}</th><th style="text-align:right" data-tip="${esc(T("su_imp_tip"))}">Impact</th><th style="text-align:right">${esc(T("su_on"))}</th></tr>
+      ${it.map(i => `<tr><td class="n" title="${esc(i.cmd)}">${esc(i.name)}</td><td class="muted">${esc(T(i.all ? "su_all" : "su_me"))}${i.all ? ` <span data-tip="${esc(T("su_admin"))}">🛡</span>` : ""}</td>
+        <td style="text-align:right">${i.ram != null ? fmtBytes(i.ram) : "–"}</td><td style="text-align:right">${imp(i.impact)}</td>
+        <td style="text-align:right"><button class="sw2 ${i.on ? "on" : ""}" data-su="${esc(i.id)}" data-on="${i.on ? 1 : 0}" ${suBusy ? "disabled" : ""}></button></td></tr>`).join("")}</table></div>`
+      : `<div class="muted" style="font-size:13px">${esc(T("su_none"))}</div>`}`);
+  el.querySelectorAll("[data-su]").forEach(b => b.onclick = () => { if (suBusy) return; suBusy = b.dataset.su; renderStartup();
+    loadStartup("?id=" + encodeURIComponent(b.dataset.su) + "&on=" + (b.dataset.on === "1" ? 0 : 1)).then(() => { if (suData && suData.ok === false) toast(T("su_fail")); }); });
+}
 async function loadGames(q) {
   gmT = Date.now();
   try { gmData = await stJ("/api/games" + (q || "")); } catch (e) {}
-  renderGames();
+  renderGames(); if (gmmPlan) renderMode(); loadPlay();
 }
 // confirmation en 2 clics : le bouton revient à son état normal si on clique ailleurs (ou après 4 s)
 let armed = null;
@@ -2405,7 +2825,7 @@ function renderGames() {
     ${fpsNote}
     ${cur}
     ${D.sessions.length ? `<div class="tw"><table><tr><th>${esc(T("gm_game"))}</th><th>${esc(T("gm_date"))}</th><th>${esc(T("gm_dur"))}</th>
-      <th>CPU${am}</th><th>GPU${am}</th><th>${esc(T("gm_temp"))}${am}</th><th>VRAM max</th><th>RAM max</th><th>FPS${fl}</th><th>${esc(T("gm_verdict"))}</th><th></th></tr>${rows}</table></div>`
+      <th>CPU${am}</th><th>GPU${am}</th><th>${esc(T("gm_temp"))}${am}</th><th>${esc(T("wk_vram"))}</th><th>${esc(T("wk_ram"))}</th><th>FPS${fl}</th><th>${esc(T("gm_verdict"))}</th><th></th></tr>${rows}</table></div>`
       : `<div class="muted" style="font-size:13px">${esc(T("gm_empty"))}</div>`}`);
   const cb = document.getElementById("gm-cb"); if (cb) cb.onchange = e => loadGames("?on=" + (e.target.checked ? 1 : 0));
   const fc = document.getElementById("gm-fps"); if (fc) fc.onchange = e => loadGames("?fps=" + (e.target.checked ? 1 : 0));
@@ -2793,8 +3213,8 @@ document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
   if (b.dataset.tab === "perf") redrawAll();
   schedule();             // rythme des mesures : 1 s sur Performances, 2 s ailleurs
   if (b.dataset.tab === "storage") stOpen();
-  if (b.dataset.tab === "analysis") renderAnalysis(true);
-  if (b.dataset.tab === "gaming") { loadGames(); glApps = []; loadLib(); stJ("/api/games/apps").then(a => { glApps = a.apps || []; renderLib(); }).catch(() => {}); }
+  if (b.dataset.tab === "analysis") { renderAnalysis(true); loadWeek(); loadStartup(); }
+  if (b.dataset.tab === "gaming") { loadGames(); loadMode(false); glApps = []; loadLib(); stJ("/api/games/apps").then(a => { glApps = a.apps || []; renderLib(); }).catch(() => {}); }
   if (b.dataset.tab === "custom") fetch("/api/settings", {cache: "no-store"}).then(r => r.json()).then(st => {
     widgetOn = !!st.widget; widgetStyle = st.widget_style === "bars" ? "bars" : "compact"; autostart = !!st.autostart; renderCustom();
   }).catch(() => {});

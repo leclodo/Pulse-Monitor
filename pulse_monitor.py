@@ -24,7 +24,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import psutil
 
 APP_NAME = "Pulse Monitor"
-APP_VERSION = "0.7.39"
+APP_VERSION = "0.8.31"
 IS_WIN = os.name == "nt"
 FROZEN = bool(getattr(sys, "frozen", False))      # version .exe (PyInstaller)
 # données (réglages, historique…) : à côté du .exe ou du script ; fichiers de l'appli (page, icônes) : dans le paquet
@@ -782,6 +782,225 @@ def _days_since(iso):
         return None
 
 
+# Infos détaillées en plus (comme CPU-Z, mais sans pilote : WMI, registre et API Windows seulement)
+SPECS_EXTRA_PS = r"""
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
+$ErrorActionPreference = 'SilentlyContinue'
+$o = [ordered]@{}
+$o.cpu = Get-CimInstance Win32_Processor | Select-Object Caption,ProcessorId,Revision,ExtClock,CurrentVoltage,VirtualizationFirmwareEnabled,SecondLevelAddressTranslationExtensions -First 1
+$o.ram = @(Get-CimInstance Win32_PhysicalMemory | Select-Object DeviceLocator,BankLabel,ConfiguredVoltage,MinVoltage,MaxVoltage,DataWidth,TotalWidth,Attributes)
+$o.bios = Get-CimInstance Win32_BIOS | Select-Object SMBIOSMajorVersion,SMBIOSMinorVersion,Manufacturer
+$o.board = Get-CimInstance Win32_BaseBoard | Select-Object Version
+$o.chipset = @(Get-CimInstance Win32_PnPEntity -Filter "PNPClass='System'" | Where-Object { $_.Name -match 'LPC|eSPI|SMBus|Chipset' } | Select-Object -ExpandProperty Name)
+$o.os = Get-CimInstance Win32_OperatingSystem | Select-Object @{n='Install';e={ if ($_.InstallDate) { $_.InstallDate.ToString('yyyy-MM-dd') } }},@{n='Boot';e={ if ($_.LastBootUpTime) { $_.LastBootUpTime.ToString('yyyy-MM-dd HH:mm') } }}
+$cv = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
+$o.osver = [ordered]@{ Display = $cv.DisplayVersion; Ubr = $cv.UBR }
+$sb = Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\SecureBoot\State'
+$o.secureboot = $sb.UEFISecureBootEnabled
+$o.gpuReg = @(Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}' | ForEach-Object {
+    $p = Get-ItemProperty $_.PSPath
+    if ($p.DriverDesc) {
+        $f = { param($v) if ($v -is [byte[]]) { ([Text.Encoding]::Unicode.GetString($v)).Trim([char]0) } else { "$v" } }
+        [pscustomobject]@{ Name = $p.DriverDesc; Chip = (& $f $p.'HardwareInformation.ChipType'); Bios = (& $f $p.'HardwareInformation.BiosString')
+                           Mem = (& $f $p.'HardwareInformation.MemoryType'); Provider = $p.ProviderName }
+    }
+})
+$o.pcie = @(Get-PnpDevice -PresentOnly -Class Display | ForEach-Object {
+    $k = Get-PnpDeviceProperty -InstanceId $_.InstanceId -KeyName DEVPKEY_PciDevice_CurrentLinkSpeed,DEVPKEY_PciDevice_CurrentLinkWidth,DEVPKEY_PciDevice_MaxLinkSpeed,DEVPKEY_PciDevice_MaxLinkWidth
+    $h = @{}; foreach ($x in $k) { $h[$x.KeyName] = $x.Data }
+    [pscustomobject]@{ Name = $_.FriendlyName; Cs = $h['DEVPKEY_PciDevice_CurrentLinkSpeed']; Cw = $h['DEVPKEY_PciDevice_CurrentLinkWidth']
+                       Ms = $h['DEVPKEY_PciDevice_MaxLinkSpeed']; Mw = $h['DEVPKEY_PciDevice_MaxLinkWidth'] }
+})
+$o.disks = @(Get-CimInstance -Namespace root/Microsoft/Windows/Storage -ClassName MSFT_PhysicalDisk | Select-Object DeviceId,FirmwareVersion,SpindleSpeed)
+$o.mon = @(Get-CimInstance -Namespace root/wmi -ClassName WmiMonitorBasicDisplayParams | Select-Object InstanceName,MaxHorizontalImageSize,MaxVerticalImageSize)
+$o.monid = @(Get-CimInstance -Namespace root/wmi -ClassName WmiMonitorID | Select-Object InstanceName,YearOfManufacture)
+$o | ConvertTo-Json -Depth 4 -Compress
+"""
+
+INTEL_CODENAMES = {0x97: "Alder Lake", 0x9A: "Alder Lake", 0xBE: "Alder Lake-N", 0xB7: "Raptor Lake", 0xBA: "Raptor Lake",
+                   0xBF: "Raptor Lake", 0xAA: "Meteor Lake", 0xAC: "Meteor Lake", 0xC5: "Arrow Lake", 0xC6: "Arrow Lake",
+                   0xB5: "Arrow Lake", 0xBD: "Lunar Lake", 0xA5: "Comet Lake", 0xA6: "Comet Lake", 0xA7: "Rocket Lake",
+                   0x8C: "Tiger Lake", 0x8D: "Tiger Lake", 0x7E: "Ice Lake", 0x7D: "Ice Lake", 0x9E: "Coffee Lake",
+                   0x8E: "Kaby / Coffee Lake", 0x5E: "Skylake", 0x4E: "Skylake", 0x3C: "Haswell", 0x3A: "Ivy Bridge", 0x2A: "Sandy Bridge"}
+AMD_CODENAMES = {(0x17, 0x01): "Summit Ridge (Zen)", (0x17, 0x08): "Pinnacle Ridge (Zen+)", (0x17, 0x11): "Raven Ridge (Zen)",
+                 (0x17, 0x18): "Picasso (Zen+)", (0x17, 0x31): "Castle Peak (Zen 2)", (0x17, 0x60): "Renoir (Zen 2)",
+                 (0x17, 0x68): "Lucienne (Zen 2)", (0x17, 0x71): "Matisse (Zen 2)", (0x17, 0x90): "Van Gogh (Zen 2)",
+                 (0x19, 0x21): "Vermeer (Zen 3)", (0x19, 0x50): "Cezanne (Zen 3)", (0x19, 0x44): "Rembrandt (Zen 3+)",
+                 (0x19, 0x61): "Raphael (Zen 4)", (0x19, 0x74): "Phoenix (Zen 4)", (0x19, 0x75): "Phoenix (Zen 4)",
+                 (0x19, 0x78): "Phoenix 2 (Zen 4)", (0x19, 0x18): "Storm Peak (Zen 4)", (0x1A, 0x44): "Granite Ridge (Zen 5)",
+                 (0x1A, 0x24): "Strix Point (Zen 5)", (0x1A, 0x70): "Strix Halo (Zen 5)"}
+PCIE_GEN = {1: "1.0", 2: "2.0", 3: "3.0", 4: "4.0", 5: "5.0", 6: "6.0"}
+
+
+def cpu_details():
+    """Infos du processeur lues sans pilote : registre, IsProcessorFeaturePresent, GetLogicalProcessorInformationEx."""
+    d = {}
+    if not IS_WIN:
+        return d
+    import winreg
+    try:
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"HARDWARE\DESCRIPTION\System\CentralProcessor\0") as k:
+            ident = winreg.QueryValueEx(k, "Identifier")[0]
+            d["vendor"] = winreg.QueryValueEx(k, "VendorIdentifier")[0]
+            try:
+                ur = winreg.QueryValueEx(k, "Update Revision")[0]
+                if isinstance(ur, bytes) and len(ur) >= 8:
+                    d["microcode"] = "0x%X" % int.from_bytes(ur[4:8], "little")
+            except OSError:
+                pass
+        m = re.search(r"Family (\d+) Model (\d+) Stepping (\d+)", ident)
+        if m:
+            fam, mod, step = map(int, m.groups())
+            d.update(family=fam, model=mod, stepping=step)
+            if "Intel" in d.get("vendor", ""):
+                d["codename"] = INTEL_CODENAMES.get(mod) if fam == 6 else None
+            else:
+                d["codename"] = AMD_CODENAMES.get((fam, mod))
+    except OSError:
+        pass
+    k32 = ctypes.windll.kernel32
+    feats = [("SSE3", 13), ("SSSE3", 36), ("SSE4.1", 37), ("SSE4.2", 38), ("AVX", 39), ("AVX2", 40), ("AVX-512", 41), ("RDRAND", 28)]
+    d["isa"] = [n for n, i in feats if k32.IsProcessorFeaturePresent(i)]
+    d["virt"] = bool(k32.IsProcessorFeaturePresent(21))        # PF_VIRT_FIRMWARE_ENABLED
+    # cœurs (performance / efficacité) et caches
+    try:
+        size = ctypes.c_ulong(0)
+        k32.GetLogicalProcessorInformationEx(0xFFFF, None, ctypes.byref(size))
+        buf = ctypes.create_string_buffer(size.value)
+        if k32.GetLogicalProcessorInformationEx(0xFFFF, buf, ctypes.byref(size)):
+            raw, off, eff, caches = buf.raw, 0, [], {}
+            while off < size.value:
+                rel, sz = int.from_bytes(raw[off:off + 4], "little"), int.from_bytes(raw[off + 4:off + 8], "little")
+                body = raw[off + 8:off + sz]
+                if rel == 0:                                          # RelationProcessorCore
+                    eff.append(body[1])
+                elif rel == 2:                                        # RelationCache
+                    lvl, assoc = body[0], body[1]
+                    line = int.from_bytes(body[2:4], "little")
+                    csize = int.from_bytes(body[4:8], "little")
+                    ctype = int.from_bytes(body[8:12], "little")      # 0 unifié, 1 instructions, 2 données
+                    key = (lvl, ctype, csize, assoc, line)
+                    caches[key] = caches.get(key, 0) + 1
+                off += sz or len(raw)
+            if eff and len(set(eff)) > 1:
+                top = max(eff)
+                d["p_cores"], d["e_cores"] = sum(1 for e in eff if e == top), sum(1 for e in eff if e != top)
+            d["caches"] = [{"level": l, "type": {0: "", 1: "i", 2: "d"}.get(t, ""), "kb": s // 1024, "ways": a, "line": ln, "n": n}
+                           for (l, t, s, a, ln), n in sorted(caches.items())]
+    except Exception:
+        log.exception("CPU caches")
+    return d
+
+
+RAM_PART_RES = (
+    re.compile(r"^CM[A-Z0-9]+?(\d{4})C(\d{2})", re.I),                 # Corsair : CMK32GX5M2B6000C36
+    re.compile(r"^F[3-5]-(\d{4})[A-Z]?(\d{2})", re.I),                 # G.Skill : F5-6000J3636F16GX2
+    re.compile(r"^KF\d(\d{2})C(\d{2})", re.I),                         # Kingston Fury : KF560C36BBE-16 (60 -> 6000)
+    re.compile(r"^BL(?:\d+K)?\d+G(\d{2})C(\d{2})", re.I),                       # Crucial Ballistix : BL2K16G36C16U4B (36 -> 3600)
+    re.compile(r"(\d{4})C(\d{2})", re.I),                              # générique : …6000C30…
+)
+
+
+def ram_part_decode(part):
+    """Vitesse et latence CL écrites dans la référence (Corsair, G.Skill, Kingston Fury, Crucial…)."""
+    p = (part or "").strip()
+    for rx in RAM_PART_RES:
+        m = rx.search(p)
+        if m:
+            sp, cl = int(m.group(1)), int(m.group(2))
+            if sp < 100:
+                sp *= 100
+            if 1600 <= sp <= 12000 and 10 <= cl <= 60:
+                return sp, cl
+    return None, None
+
+
+def specs_extra(s):
+    """Complète les specs : rien de bloquant, chaque partie peut manquer."""
+    try:
+        s["cpu"].update(cpu_details())
+    except Exception:
+        log.exception("CPU details")
+    x = (run_ps_json(SPECS_EXTRA_PS) if IS_WIN else None) or {}
+    c = x.get("cpu") or {}
+    if c.get("ExtClock"):
+        s["cpu"]["bus_mhz"] = c["ExtClock"]
+    if c.get("VirtualizationFirmwareEnabled") is not None:
+        s["cpu"]["virt"] = bool(c["VirtualizationFirmwareEnabled"])
+    # RAM : tension, rangs, ECC, canaux, vitesse / CL de la référence, XMP / EXPO
+    extra = {(r.get("DeviceLocator") or r.get("BankLabel") or "?"): r for r in _as_list(x.get("ram"))}
+    chans = set()
+    for m in s["ram"].get("modules", []):
+        r = extra.get(m["slot"]) or {}
+        v = r.get("ConfiguredVoltage") or r.get("MinVoltage")
+        m["volt"] = round(v / 1000, 2) if v else None
+        m["ranks"] = r.get("Attributes") or None
+        m["ecc"] = bool(r.get("TotalWidth") and r.get("DataWidth") and r["TotalWidth"] > r["DataWidth"])
+        m["rated"], m["cl"] = ram_part_decode(m.get("part"))
+        loc = "%s %s" % (r.get("DeviceLocator") or m["slot"], r.get("BankLabel") or "")
+        ch = re.search(r"channel\s*([a-h])|chan(?:nel)?([a-h])\b|-ch([a-h])", loc, re.I)
+        if ch:
+            chans.add((ch.group(1) or ch.group(2) or ch.group(3)).upper())
+    mods = s["ram"].get("modules", [])
+    if chans:
+        s["ram"]["channels"] = len(chans)
+    rated = max([m.get("rated") or m.get("speed") or 0 for m in mods] or [0])
+    conf = s["ram"].get("configured") or 0
+    if rated and conf:
+        s["ram"]["rated"] = rated
+        s["ram"]["xmp"] = conf >= rated * 0.97              # vitesse réelle = vitesse prévue
+    # carte mère / BIOS / système
+    b = x.get("bios") or {}
+    if b.get("SMBIOSMajorVersion"):
+        s["board"]["smbios"] = "%s.%s" % (b["SMBIOSMajorVersion"], b.get("SMBIOSMinorVersion", 0))
+    if (x.get("board") or {}).get("Version"):
+        s["board"]["rev"] = str(x["board"]["Version"]).strip()
+    chip = [n for n in _as_list(x.get("chipset")) if n]
+    if chip:
+        n = next((n for n in chip if re.search("LPC|eSPI", n, re.I)), chip[0])
+        n = re.sub(r"\s*(LPC|eSPI|SMBus)[^-]*(- [0-9A-F]{4})?$", "", n, flags=re.I).replace("(R)", "").strip()
+        s["board"]["chipset"] = n
+    try:
+        fw = ctypes.c_int(0)
+        if IS_WIN and ctypes.windll.kernel32.GetFirmwareType(ctypes.byref(fw)):
+            s["board"]["firmware"] = {1: "BIOS (Legacy)", 2: "UEFI"}.get(fw.value)
+    except Exception:
+        pass
+    if x.get("secureboot") is not None:
+        s["board"]["secure_boot"] = bool(x["secureboot"])
+    o, ov = x.get("os") or {}, x.get("osver") or {}
+    s["os"].update(install=o.get("Install"), boot=o.get("Boot"), display=ov.get("Display"),
+                   ubr=ov.get("Ubr"))
+    # GPU : puce, VBIOS, type de mémoire, lien PCIe
+    reg = {(r.get("Name") or "").strip(): r for r in _as_list(x.get("gpuReg"))}
+    pcie = {(p.get("Name") or "").strip(): p for p in _as_list(x.get("pcie"))}
+    for g in s["gpus"]:
+        r = reg.get(g["name"]) or {}
+        g["chip"] = (r.get("Chip") or "").strip() or None
+        g["vbios"] = (r.get("Bios") or "").strip() or None
+        g["memtype"] = (r.get("Mem") or "").strip() or None
+        p = pcie.get(g["name"]) or {}
+        if p.get("Cs") and p.get("Cw"):
+            g["pcie"] = "PCIe %s x%s" % (PCIE_GEN.get(p["Cs"], p["Cs"]), p["Cw"])
+            if p.get("Ms") and p.get("Mw") and (p["Ms"], p["Mw"]) != (p["Cs"], p["Cw"]):
+                g["pcie_max"] = "PCIe %s x%s" % (PCIE_GEN.get(p["Ms"], p["Ms"]), p["Mw"])
+    # disques : firmware, vitesse de rotation
+    dx = {str(d.get("DeviceId")): d for d in _as_list(x.get("disks"))}
+    for d in s["disks"]:
+        e = dx.get(d["id"]) or {}
+        d["fw"] = (e.get("FirmwareVersion") or "").strip() or None
+        rpm = e.get("SpindleSpeed")
+        d["rpm"] = rpm if rpm and 0 < rpm < 30000 else None
+    # écrans : diagonale et année
+    sizes = []
+    for mtr in _as_list(x.get("mon")):
+        w, h = mtr.get("MaxHorizontalImageSize") or 0, mtr.get("MaxVerticalImageSize") or 0
+        sizes.append(round((w * w + h * h) ** 0.5 / 2.54, 1) if w and h else None)
+    years = [m.get("YearOfManufacture") for m in _as_list(x.get("monid"))]
+    s["monitor_info"] = [{"inch": sizes[i] if i < len(sizes) else None, "year": years[i] if i < len(years) else None}
+                         for i in range(len(s.get("monitors", [])))]
+
+
 def collect_specs(kmt):
     raw = (run_ps_json(SPECS_PS) if IS_WIN else None) or {}
     s = {"cpu": {}, "ram": {}, "gpus": [], "board": {}, "disks": [], "os": {}, "net": [],
@@ -846,7 +1065,7 @@ def collect_specs(kmt):
             "res": ("%s × %s" % (g.get("CurrentHorizontalResolution"), g.get("CurrentVerticalResolution"))
                     if g.get("CurrentHorizontalResolution") else None),
             "hz": g.get("CurrentRefreshRate"),
-            "integrated": any(k in low for k in ("intel(r) uhd", "intel(r) hd", "iris", "radeon(tm) graphics", "vega")),
+            "integrated": gpu_is_integrated(name),
         })
 
     b, bi = raw.get("board") or {}, raw.get("bios") or {}
@@ -886,6 +1105,7 @@ def collect_specs(kmt):
         if label:
             s["monitors"].append(label)
 
+    specs_extra(s)
     s["tips"] = []
     s["ready"] = True
     return s
@@ -975,6 +1195,8 @@ class Insights:
         self.top_cache, self.top_busy = {}, set()
         self.startup = []
         threading.Thread(target=self._load_startup, daemon=True).start()
+        self.ramsat = collections.deque()          # (instant, secondes) où la RAM était ≥ 90 % (24 h)
+        self._slow_t, self._full, self._health = 0, [], {}
         self.stats = self._load_stats()
         self._stats_saved = time.time()
         self._last_t = None
@@ -1010,6 +1232,26 @@ class Insights:
     def reset_stats(self):
         self.stats = self._empty()
         self.save_stats()
+
+    def _slow_checks(self):
+        full = []
+        try:
+            for part in psutil.disk_partitions(all=False):
+                if "cdrom" in (part.opts or "") or not part.fstype:
+                    continue
+                try:
+                    u = psutil.disk_usage(part.mountpoint)
+                except OSError:
+                    continue
+                if u.total >= 20 * GB and (u.free < min(10 * GB, u.total * 0.1) or u.percent >= 95):
+                    full.append({"mount": part.mountpoint.rstrip("\\"), "free": u.free, "total": u.total})
+        except Exception:
+            log.exception("Disk space check")
+        self._full = full
+        try:
+            self._health = (disk_health() or {}).get("disks") or {}      # seulement le cache : aucun scan lancé
+        except Exception:
+            self._health = {}
 
     def _load_startup(self):
         try:
@@ -1058,6 +1300,13 @@ class Insights:
                 "swap": (d["ram"]["swap_used"] / d["ram"]["swap_total"] * 100) if d["ram"]["swap_total"] else 0,
                 "gpus": {x["id"]: x for x in d["gpus"]}, "disks": {x["id"]: x for x in d["disks"]}}
         self.hist.append(snap)
+        if snap["ram"] >= 90:
+            self.ramsat.append((now, dt))
+        while self.ramsat and now - self.ramsat[0][0] > 86400:
+            self.ramsat.popleft()
+        if now - self._slow_t > 300:                 # toutes les 5 min : disques pleins, santé (cache), pilote
+            self._slow_t = now
+            threading.Thread(target=self._slow_checks, daemon=True).start()
         self._account(dt, snap["cpu"], snap["core"], snap["ram"], g["usage"] if g else 0, vr)
         try:
             self.alerts = self._alerts()
@@ -1212,9 +1461,44 @@ class Insights:
         if len(self.startup) >= 8:
             ex = ", ".join(self.startup[:4])
             add("startup", "info", "startup",
-                "%d programmes se lancent avec Windows (ex. : %s…). Désactive ceux dont tu n'as pas besoin : Gestionnaire des tâches → Applications de démarrage." % (len(self.startup), ex),
-                "%d programs start with Windows (e.g. %s…). Disable the ones you don't need: Task Manager → Startup apps." % (len(self.startup), ex),
+                "%d programmes se lancent avec Windows (ex. : %s…). Désactive ceux dont tu n'as pas besoin : onglet Analyse → Programmes au démarrage." % (len(self.startup), ex),
+                "%d programs start with Windows (e.g. %s…). Disable the ones you don't need: Analysis tab → Startup programs." % (len(self.startup), ex),
                 sig=len(self.startup))
+        # --- disques presque pleins ---
+        for f in self._full:
+            add("full:" + f["mount"], "warn", "disk",
+                "Disque %s presque plein : %s libres sur %s. Fais de la place dans l'onglet Stockage (fichiers temporaires, gros dossiers)." % (f["mount"], _gb(f["free"], "fr"), _gb(f["total"], "fr")),
+                "Disk %s almost full: %s free of %s. Free up space in the Storage tab (temporary files, big folders)." % (f["mount"], _gb(f["free"], "en"), _gb(f["total"], "en")))
+        # --- santé d'un disque qui se dégrade (dernière lecture, rien n'est relancé) ---
+        for did, x in (self._health or {}).items():
+            unc = (x.get("rUnc") or 0) + (x.get("wUnc") or 0)
+            bad = x.get("health") == 2 or unc > 0
+            worn = x.get("wear") is not None and x.get("media") != 3 and x["wear"] >= 80
+            if bad or x.get("health") == 1 or worn:
+                n = x.get("name") or ("disque %s" % did)
+                add("health:%s" % did, "bad" if bad else "warn", "disk",
+                    "Santé du disque %s en baisse%s. Sauvegarde tes fichiers importants et regarde le détail dans l'onglet Stockage." % (n, " (usure %d %%)" % x["wear"] if worn else ""),
+                    "Disk %s health is declining%s. Back up your important files and check the details in the Storage tab." % (n, " (%d%% worn)" % x["wear"] if worn else ""),
+                    sig=x.get("wear"))
+        # --- RAM souvent saturée (24 h) ---
+        sat = sum(d for _t, d in self.ramsat)
+        if sat >= 1800 and not (w30 and mean(w30, "ram") >= 88):
+            add("ram_often", "info", "ram",
+                "Ta RAM a été saturée (90 %% ou plus) pendant %d min ces dernières 24 h. Si ça revient souvent, ferme des programmes en arrière-plan ou ajoute de la RAM (onglet Composants)." % (sat // 60),
+                "Your RAM was maxed out (90%%+) for %d min over the last 24 h. If it keeps happening, close background programs or add RAM (Components tab)." % (sat // 60),
+                sig=int(sat // 3600))
+        # --- pilote de la carte graphique ancien ---
+        sp = self.s.specs if isinstance(self.s.specs, dict) else {}
+        for g in sp.get("gpus", []):
+            if g.get("integrated") or not g.get("driver_date"):
+                continue
+            age = _days_since(g["driver_date"])
+            if age and age >= 180:
+                add("driver_old", "info", "gpu",
+                    "Le pilote de ta carte graphique (%s) date de %d mois. Une version plus récente améliore souvent les performances des jeux : regarde sur le site du fabricant (AMD, NVIDIA ou Intel)." % (g["name"], age // 30),
+                    "Your graphics driver (%s) is %d months old. A newer version often improves game performance: check the maker's website (AMD, NVIDIA or Intel)." % (g["name"], age // 30),
+                    sig=g["driver_date"])
+                break
         return out
 
     def insight(self):
@@ -1415,6 +1699,7 @@ class Sampler(threading.Thread):
             "app": self.selfuse.sample(),
             "update": UPDATE_AVAIL[0],
             "specs_ready": bool(specs.get("ready")),
+            "specs_busy": SPECS_BUSY[0], "specs_date": specs.get("date"),
         }
 
 
@@ -2417,7 +2702,7 @@ def fps_grant():
     """Ajoute le compte Windows au groupe « Utilisateurs du journal de performances » (une seule fois, avec l'accord
     de l'administrateur). Il faut ensuite se déconnecter / reconnecter pour que Windows en tienne compte."""
     user = "%s\\%s" % (os.environ.get("USERDOMAIN", ""), os.environ.get("USERNAME", ""))
-    u = user.replace("'", "''")
+    u = ps_q(user)
     # déjà membre : pas une erreur
     cmd = ("if (-not (Get-LocalGroupMember -SID 'S-1-5-32-559' | Where-Object { $_.Name -eq '%s' })) "
            "{ Add-LocalGroupMember -SID 'S-1-5-32-559' -Member '%s' }" % (u, u))
@@ -2907,6 +3192,10 @@ class GameTracker:
             self.sessions.append(g)
             self.sessions = self.sessions[-self.KEEP:]
         self._save()
+        try:
+            PLAYTIME.add(g["name"], g["start"], g["dur"])
+        except Exception:
+            log.exception("Play time")
 
     def recent_ended(self):
         t = time.time()
@@ -3131,8 +3420,13 @@ $json = ConvertTo-Json -InputObject $out -Depth 3 -Compress
 
 def _health_script(out_file=None):
     if out_file:   # version admin : écrit le résultat dans un fichier
-        return HEALTH_PS + "\n[IO.File]::WriteAllText('%s', $json, [Text.Encoding]::UTF8)\n" % out_file.replace("'", "''")
+        return HEALTH_PS + "\n[IO.File]::WriteAllText('%s', $json, [Text.Encoding]::UTF8)\n" % ps_q(out_file)
     return HEALTH_PS + "\n$json\n"
+
+
+def ps_q(s):
+    """Texte sûr entre apostrophes PowerShell (PowerShell accepte aussi ‘ ’ ‚ ‛ comme apostrophes)."""
+    return re.sub("(['\u2018\u2019\u201a\u201b])", r"\1\1", str(s))
 
 
 def run_elevated_ps(cmd, wait=60):
@@ -3146,7 +3440,7 @@ def run_elevated_ps(cmd, wait=60):
     except OSError:
         pass
     full = ("$ErrorActionPreference='Stop'; $r='fail'; try { %s; $r='ok' } catch { $r='fail' }; "
-            "[IO.File]::WriteAllText('%s', $r)" % (cmd, done.replace("'", "''")))
+            "[IO.File]::WriteAllText('%s', $r)" % (cmd, ps_q(done)))
     enc = base64.b64encode(full.encode("utf-16-le")).decode("ascii")
     if ctypes.windll.shell32.ShellExecuteW(None, "runas", "powershell.exe",
                                            "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -EncodedCommand " + enc, None, 0) <= 32:
@@ -3437,10 +3731,674 @@ def clean_settings(d):
 # Serveur web local
 # --------------------------------------------------------------------------
 DISKSCAN = DiskScan()
+# --------------------------------------------------------------------------
+# Mode gaming : ferme les programmes inutiles pendant un jeu, puis les relance
+# --------------------------------------------------------------------------
+GAMEMODE_FILE = os.path.join(DATA_DIR, "gamemode.json")
+SPECS_FILE = os.path.join(DATA_DIR, "specs.json")
+SPECS_BUSY = [False]
+SPECS_SCAN = [None]
+
+
+def gpu_is_integrated(name):
+    low = (name or "").lower()
+    return any(k in low for k in ("intel(r) uhd", "intel(r) hd", "iris", "radeon(tm) graphics", "vega"))
+
+
+def minimal_specs(kmt):
+    """Avant le premier scan : le strict nécessaire, sans PowerShell (fréquence de base, carte graphique intégrée ou non)."""
+    s = {"ready": False, "cpu": {}, "gpus": []}
+    if IS_WIN:
+        try:
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"HARDWARE\DESCRIPTION\System\CentralProcessor\0") as k:
+                s["cpu"]["name"] = winreg.QueryValueEx(k, "ProcessorNameString")[0].strip()
+                s["cpu"]["base_mhz"] = winreg.QueryValueEx(k, "~MHz")[0]
+        except OSError:
+            pass
+    vram, drv = {}, {}
+    if IS_WIN:
+        try:
+            import winreg
+            base = r"SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}"
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, base) as k:
+                for i in range(64):
+                    try:
+                        sub = winreg.EnumKey(k, i)
+                    except OSError:
+                        break
+                    try:
+                        with winreg.OpenKey(k, sub) as kk:
+                            n = winreg.QueryValueEx(kk, "DriverDesc")[0].strip()
+                            info = drv.setdefault(n, {})
+                            for key, val in (("ver", "DriverVersion"), ("date", "DriverDate"), ("prov", "ProviderName")):
+                                try:
+                                    info[key] = winreg.QueryValueEx(kk, val)[0]
+                                except OSError:
+                                    pass
+                            m = winreg.QueryValueEx(kk, "HardwareInformation.qwMemorySize")[0]
+                            vram[n] = max(vram.get(n, 0), int(m))
+                    except (OSError, ValueError, TypeError):
+                        continue
+        except OSError:
+            pass
+    for a in getattr(kmt, "adapters", []) or []:
+        v = vram.get((a.get("name") or "").strip())
+        d = drv.get((a.get("name") or "").strip()) or {}
+        dd = None
+        m = re.match(r"(\d{1,2})-(\d{1,2})-(\d{4})", str(d.get("date") or ""))
+        if m:
+            dd = "%s-%02d-%02d" % (m.group(3), int(m.group(1)), int(m.group(2)))
+        s["gpus"].append({"name": a.get("name"), "integrated": gpu_is_integrated(a.get("name")),
+                          "vram_gb": round(v / GB, 1) if v else None, "driver": d.get("ver"), "driver_date": dd})
+    return s
+
+# nom de l'exe -> (nom affiché, catégorie, coché par défaut, fermeture forcée permise si la fenêtre ne se ferme pas)
+# Seuls des programmes sans risque : rien du système, des pilotes, de l'audio, des anti-triche ni des antivirus.
+GM_SAFE = {
+    "onedrive.exe": ("OneDrive", "cloud", True, True),
+    "dropbox.exe": ("Dropbox", "cloud", True, True),
+    "googledrivefs.exe": ("Google Drive", "cloud", True, True),
+    "creative cloud.exe": ("Adobe Creative Cloud", "cloud", True, True),
+    "ccxprocess.exe": ("Adobe Creative Cloud (CCX)", "cloud", True, True),
+    "cclibrary.exe": ("Adobe CC Library", "cloud", True, True),
+    "coresync.exe": ("Adobe Core Sync", "cloud", True, True),
+    "adobe desktop service.exe": ("Adobe Desktop Service", "cloud", True, True),
+    "adobeipcbroker.exe": ("Adobe IPC Broker", "cloud", True, True),
+    "adobecollabsync.exe": ("Adobe Collab Sync", "cloud", True, True),
+    "acrotray.exe": ("Adobe Acrobat (tray)", "update", True, True),
+    "adobearm.exe": ("Adobe Updater", "update", True, True),
+    "jusched.exe": ("Java Update", "update", True, True),
+    "epicgameslauncher.exe": ("Epic Games Launcher", "launcher", False, True),
+    "galaxyclient.exe": ("GOG Galaxy", "launcher", False, True),
+    "eadesktop.exe": ("EA App", "launcher", False, True),
+    "upc.exe": ("Ubisoft Connect", "launcher", False, True),
+    "ubisoftconnect.exe": ("Ubisoft Connect", "launcher", False, True),
+    "battle.net.exe": ("Battle.net", "launcher", False, True),
+    "steam.exe": ("Steam", "launcher", False, True),
+    "discord.exe": ("Discord", "chat", False, True),
+    "ms-teams.exe": ("Microsoft Teams", "chat", False, True),
+    "slack.exe": ("Slack", "chat", False, True),
+    "telegram.exe": ("Telegram", "chat", False, True),
+    "spotify.exe": ("Spotify", "media", False, True),
+    "chrome.exe": ("Google Chrome", "browser", False, False),
+    "msedge.exe": ("Microsoft Edge", "browser", False, False),
+    "firefox.exe": ("Firefox", "browser", False, False),
+    "brave.exe": ("Brave", "browser", False, False),
+    "opera.exe": ("Opera", "browser", False, False),
+    "vivaldi.exe": ("Vivaldi", "browser", False, False),
+    "icue.exe": ("Corsair iCUE", "rgb", False, True),
+    "signalrgb.exe": ("SignalRGB", "rgb", False, True),
+    "openrgb.exe": ("OpenRGB", "rgb", False, True),
+    "nzxt cam.exe": ("NZXT CAM", "rgb", False, True),
+    "ollama app.exe": ("Ollama", "other", False, True),
+    "ollama.exe": ("Ollama (server)", "other", False, True),
+}
+# fermeture propre par la ligne de commande (sinon ces programmes se cachent juste près de l'horloge)
+GM_CLOSE_ARGS = {"onedrive.exe": ["/shutdown"], "steam.exe": ["-shutdown"]}
+GM_RESTORE_ARGS = {"onedrive.exe": ["/background"], "steam.exe": ["-silent"]}
+# jamais proposés (morceaux de nom) : système, pilotes, audio, anti-triche, antivirus, jeux, enregistrement, cette appli
+GM_NEVER = ("explorer", "dwm", "csrss", "winlogon", "lsass", "svchost", "services", "smss", "wininit", "fontdrv",
+            "sihost", "ctfmon", "taskhost", "runtimebroker", "applicationframehost", "textinputhost", "systemsettings",
+            "searchhost", "searchapp", "startmenuexperiencehost", "shellexperiencehost", "lockapp", "taskmgr",
+            "msedgewebview2", "conhost", "cmd.exe", "powershell", "pwsh", "windowsterminal", "rundll32", "dllhost",
+            "python", "pulse monitor", "claude", "obs64", "obs32", "riot", "league", "vgtray", "vgc", "vanguard", "easyanticheat",
+            "battleye", "beservice", "faceit", "anticheat", "radeon", "amdrs", "amdow", "nvcontainer", "nvidia", "nvsphelper",
+            "intel", "igfx", "realtek", "rtkaud", "nahimic", "voicemeeter", "audiodg", "sonic", "dolby", "msmpeng",
+            "securityhealth", "defender", "avast", "avg", "kaspersky", "avp.exe", "norton", "bitdefender", "eset",
+            "malwarebytes", "mbam", "lghub", "razer", "synapse", "armoury", "steelseries", "wacom", "medal", "overwolf",
+            "mfpmp", "gamebar", "xbox", "wow", "battle.net helper", "agent.exe")
+
+
+class GamingMode:
+    AUTO_END_S = 20      # mode automatique : on restaure 20 s après la fin du jeu
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.state = {}
+        self.gone = 0.0
+        self.hold = False    # « Restaurer » cliqué pendant le jeu : le mode automatique attend la fin de la partie
+        try:
+            with open(GAMEMODE_FILE, encoding="utf-8") as f:
+                d = json.load(f)
+            if isinstance(d, dict) and d.get("closed"):
+                self.state = d
+        except Exception:
+            pass
+
+    def _save(self):
+        try:
+            if self.state:
+                with open(GAMEMODE_FILE, "w", encoding="utf-8") as f:
+                    json.dump(self.state, f, separators=(",", ":"))
+            elif os.path.exists(GAMEMODE_FILE):
+                os.remove(GAMEMODE_FILE)
+        except Exception:
+            log.exception("Gaming mode: save")
+
+    @staticmethod
+    def _windows():
+        """{pid: [fenêtres visibles de premier niveau]}"""
+        if not IS_WIN:
+            return {}
+        from ctypes import wintypes
+        u = ctypes.windll.user32
+        out = {}
+        PROC = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+
+        def cb(hwnd, _):
+            if u.IsWindowVisible(hwnd) and u.GetWindowTextLengthW(hwnd) > 0 and not u.GetWindow(hwnd, 4):   # GW_OWNER
+                pid = wintypes.DWORD()
+                u.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+                out.setdefault(pid.value, []).append(hwnd)
+            return True
+        u.EnumWindows(PROC(cb), 0)
+        return out
+
+    @staticmethod
+    def _protected_pids():
+        """Le jeu en cours, cette appli et leurs processus enfants."""
+        keep = {os.getpid()}
+        try:
+            me = psutil.Process()
+            keep.update(c.pid for c in me.children(recursive=True))
+            par = me.parent()
+            if par:
+                keep.add(par.pid)
+        except psutil.Error:
+            pass
+        return keep
+
+    def _scan(self):
+        """Programmes proposés, groupés par nom d'exe."""
+        try:
+            user = psutil.Process().username().lower()
+        except psutil.Error:
+            user = None
+        windir = os.path.normcase(os.environ.get("WINDIR", r"C:\Windows")).lower() + os.sep
+        wins = self._windows()
+        keep = self._protected_pids()
+        running = set(GAMES[0].curs) if GAMES[0] else set()
+        groups, procs, over = {}, {}, load_settings().get("gm_over") or {}
+        for p in psutil.process_iter(["name", "username", "exe", "ppid"]):
+            if p.pid in keep:
+                continue
+            name = p.info.get("name") or ""
+            nl = name.lower()
+            if not nl:
+                continue
+            safe = GM_SAFE.get(nl)
+            if not safe:
+                if p.pid not in wins:                                     # inconnu : seulement les programmes avec une fenêtre
+                    continue
+                if any(x in nl for x in GM_NEVER):
+                    continue
+            if nl in running or nl in GAMELIB.manual or nl in KNOWN_GAMES or nl in GAMELIB.exes:
+                continue
+            un = (p.info.get("username") or "").lower()
+            if not un or (user and un != user):                           # seulement les programmes de l'utilisateur
+                continue
+            exe = p.info.get("exe") or ""
+            el = os.path.normcase(exe).lower()
+            if not safe and (not el or el.startswith(windir) or any(el.startswith(d) for d in GAMELIB.dirs)):
+                continue
+            g = groups.setdefault(nl, {"key": nl, "name": safe[0] if safe else (name[:-4] if nl.endswith(".exe") else name),
+                                       "cat": safe[1] if safe else "app", "on": bool(over.get(nl, bool(safe and safe[2]))),
+                                       "known": bool(safe), "pids": [], "ram": 0, "cpu": 0.0, "gpu": 0.0,
+                                       "norestore": False})
+            g["pids"].append(p.pid)
+            procs[p.pid] = p
+            if "\\windowsapps\\" in el:
+                g["norestore"] = True                                     # appli du Store : relance à la main
+        return groups, procs, wins
+
+    SCAN_S, SCAN_N = 2.0, 4     # scan : 4 mesures sur 2 s (moyenne), plus fiable qu'une seule mesure instantanée
+
+    def plan(self, counters=None, hint=None):
+        """hint = {"luid": carte graphique dédiée, "vram_total": octets} pour mesurer GPU / VRAM sur la bonne carte."""
+        hint = hint or {}
+        luid = hint.get("luid")
+        groups, procs, _w = self._scan()
+
+        def snap():
+            c, io = {}, {}
+            for pid, p in procs.items():
+                try:
+                    t = p.cpu_times()
+                    c[pid] = t.user + t.system
+                    i = p.io_counters()
+                    io[pid] = i.read_bytes + i.write_bytes
+                except (psutil.Error, AttributeError, NotImplementedError):
+                    pass
+            return time.time(), c, io
+        t0, c0, io0 = snap()
+        gsum = {}
+        for _ in range(self.SCAN_N):
+            time.sleep(self.SCAN_S / self.SCAN_N)
+            if counters:
+                for pid, v in counters.gpu_by_pid(luid).items():
+                    gsum[pid] = gsum.get(pid, 0.0) + v
+        t1, c1, io1 = snap()
+        dt = max(0.2, t1 - t0)
+        ncpu = psutil.cpu_count() or 1
+        vram = counters.vram_by_pid(luid) if counters else {}
+        ram_total = psutil.virtual_memory().total or 1
+        vram_total = hint.get("vram_total") or 0
+        thr = self.thresholds(ram_total, vram_total)
+        for g in groups.values():
+            g["disk"], g["vram"], g["procs"] = 0.0, 0, []
+            for pid in g["pids"]:
+                p = procs[pid]
+                x = {"pid": pid, "ram": 0, "vram": vram.get(pid, 0),
+                     "cpu": round(max(0.0, (c1.get(pid, 0) - c0[pid]) / dt / ncpu * 100), 1) if pid in c0 and pid in c1 else 0.0,
+                     "disk": max(0.0, (io1.get(pid, 0) - io0[pid]) / dt) if pid in io0 and pid in io1 else 0.0,
+                     "gpu": round(gsum.get(pid, 0.0) / self.SCAN_N, 1)}
+                try:
+                    m = p.memory_info()
+                    x["ram"] = getattr(m, "private", 0) or m.rss
+                except (psutil.Error, AttributeError):
+                    pass
+                for k in ("ram", "vram", "cpu", "disk", "gpu"):
+                    g[k] += x[k]
+                g["procs"].append(x)
+            g["procs"].sort(key=lambda x: -x["ram"])
+            g["procs"] = g["procs"][:20]
+            g["n"] = len(g.pop("pids"))
+            g["cpu"] = round(g["cpu"], 1)
+            g["gpu"] = round(min(100.0, g["gpu"]), 1)
+            # impact relatif à CE PC : RAM et VRAM en % du total, CPU et GPU déjà en % de la machine
+            ram_p = g["ram"] / ram_total * 100
+            vram_p = g["vram"] / vram_total * 100 if vram_total else 0
+            hi = (g["cpu"] >= thr["cpu"][0] or g["gpu"] >= thr["gpu"][0] or ram_p >= thr["ram"][0]
+                  or vram_p >= thr["vram"][0] or g["disk"] >= thr["disk"][0] * 1e6)
+            mid = (g["cpu"] >= thr["cpu"][1] or g["gpu"] >= thr["gpu"][1] or ram_p >= thr["ram"][1]
+                   or vram_p >= thr["vram"][1] or g["disk"] >= thr["disk"][1] * 1e6)
+            g["impact"] = 2 if hi else 1 if mid else 0
+            g["score"] = round(g["cpu"] + g["gpu"] + ram_p + vram_p, 2)
+        items = sorted(groups.values(), key=lambda g: (-g["impact"], -g["score"]))
+        st = load_settings()
+        return {"items": items, "auto": bool(st.get("gm_auto")), "vram_total": vram_total, "thr": thr, **self.status()}
+
+    @staticmethod
+    def thresholds(ram_total, vram_total):
+        """Seuils d'impact selon la config du PC (fixes pour une machine donnée) :
+        petit PC (8 Go, vieux GPU, 4 cœurs) = seuils bas, PC puissant = seuils plus hauts. (élevé, moyen)"""
+        tiers = {0: {"cpu": (5, 1), "gpu": (5, 1), "ram": (5, 1.5), "vram": (10, 3), "disk": (10, 1)},
+                 1: {"cpu": (7.5, 1.5), "gpu": (7.5, 1.5), "ram": (7.5, 2), "vram": (12.5, 4), "disk": (15, 1.5)},
+                 2: {"cpu": (10, 2), "gpu": (10, 2), "ram": (10, 3), "vram": (15, 5), "disk": (20, 2)}}
+        threads = psutil.cpu_count() or 4
+        t_cpu = 0 if threads <= 8 else 1 if threads <= 16 else 2
+        t_ram = 0 if ram_total <= 8.5 * GB else 1 if ram_total <= 16.5 * GB else 2
+        t_gpu = 1 if not vram_total else 0 if vram_total <= 4.5 * GB else 1 if vram_total <= 8.5 * GB else 2
+        return {"cpu": tiers[t_cpu]["cpu"], "gpu": tiers[t_gpu]["gpu"], "ram": tiers[t_ram]["ram"],
+                "vram": tiers[t_gpu]["vram"], "disk": tiers[min(t_cpu, t_ram)]["disk"],
+                "tier": {"cpu": t_cpu, "ram": t_ram, "gpu": t_gpu}}
+
+    def status(self):
+        st = self.state
+        return {"active": bool(st.get("closed")), "since": st.get("since"), "by_auto": bool(st.get("auto")),
+                "closed": [{"name": c["name"], "ram": c.get("ram", 0), "cpu": c.get("cpu", 0), "gpu": c.get("gpu", 0),
+                            "norestore": not c.get("cmds")} for c in st.get("closed", [])]}
+
+    def _close_group(self, key, pids, wins, hard):
+        """Fermeture propre (comme la croix de la fenêtre) ; forcée seulement pour les programmes connus et sûrs."""
+        alive = []
+        for pid in pids:
+            try:
+                alive.append(psutil.Process(pid))
+            except psutil.Error:
+                pass
+        if not alive:
+            return True
+        exe = None
+        try:
+            exe = alive[0].exe()
+        except psutil.Error:
+            pass
+        if key in GM_CLOSE_ARGS and exe:
+            try:
+                subprocess.Popen([exe] + GM_CLOSE_ARGS[key], creationflags=CREATE_NO_WINDOW if IS_WIN else 0)
+            except Exception:
+                log.exception("Gaming mode: close %s", key)
+        elif IS_WIN:
+            u = ctypes.windll.user32
+            for p in alive:
+                for h in wins.get(p.pid, []):
+                    u.PostMessageW(h, 0x0010, 0, 0)                     # WM_CLOSE
+        _gone, alive = psutil.wait_procs(alive, timeout=6)
+        if alive and hard:
+            for p in alive:
+                try:
+                    p.terminate()
+                except psutil.Error:
+                    pass
+            _gone, alive = psutil.wait_procs(alive, timeout=3)
+        return not alive
+
+    def start(self, keys, counters=None, auto=False, hint=None):
+        with self.lock:
+            info = {g["key"]: g for g in self.plan(counters, hint)["items"]}
+            groups, procs, wins = self._scan()
+            closed, failed = list(self.state.get("closed", [])), []
+            for key in keys:
+                g = groups.get(key)
+                if not g:
+                    continue
+                safe = GM_SAFE.get(key)
+                # commandes pour relancer : les processus « racine » (dont le parent n'a pas le même nom)
+                cmds = []
+                if not g["norestore"]:
+                    for pid in g["pids"]:
+                        p = procs[pid]
+                        try:
+                            par = p.parent()
+                            if par and (par.name() or "").lower() == key:
+                                continue
+                            cl = p.cmdline() or [p.exe()]
+                            if key in GM_RESTORE_ARGS:
+                                cl = [p.exe()] + GM_RESTORE_ARGS[key]
+                            c = {"cmd": cl, "cwd": p.cwd()}
+                        except psutil.Error:
+                            continue
+                        if c not in cmds:
+                            cmds.append(c)
+                ok = self._close_group(key, g["pids"], wins, bool(safe and safe[3]))
+                gi = info.get(key, {})
+                if ok or any(not psutil.pid_exists(pid) for pid in g["pids"]):
+                    closed.append({"key": key, "name": g["name"], "cmds": cmds[:4], "ram": gi.get("ram", 0),
+                                   "cpu": gi.get("cpu", 0), "gpu": gi.get("gpu", 0)})
+                    log.info("Gaming mode: closed %s%s", key, "" if ok else " (partly)")
+                else:
+                    failed.append(g["name"])
+                    log.info("Gaming mode: could not close %s", key)
+            if closed:
+                self.state = {"since": self.state.get("since") or time.time(), "closed": closed,
+                              "auto": self.state.get("auto", auto) if self.state.get("closed") else auto}
+                self._save()
+            return {**self.status(), "failed": failed}
+
+    def restore(self, manual=False):
+        if manual and GAMES[0] and GAMES[0].curs:
+            self.hold = True
+        with self.lock:
+            failed = []
+            for c in self.state.get("closed", []):
+                if not c.get("cmds"):
+                    failed.append(c["name"])
+                for x in c.get("cmds", []):
+                    try:
+                        cwd = x.get("cwd") if x.get("cwd") and os.path.isdir(x["cwd"]) else None
+                        subprocess.Popen(x["cmd"], cwd=cwd, close_fds=True,
+                                         creationflags=(0x00000008 | 0x00000200) if IS_WIN else 0)   # DETACHED | NEW_PROCESS_GROUP
+                    except Exception:
+                        failed.append(c["name"])
+                        log.warning("Gaming mode: could not restart %s", c.get("key"))
+                        break
+            self.state = {}
+            self._save()
+            log.info("Gaming mode: restored")
+            return {**self.status(), "failed": failed}
+
+
+    def auto_loop(self, counters):
+        """Mode automatique : actif quand un jeu est détecté, restauré à la fin de la session."""
+        while True:
+            time.sleep(5)
+            try:
+                if not load_settings().get("gm_auto"):
+                    continue
+                playing = bool(GAMES[0] and GAMES[0].curs)
+                if not playing:
+                    self.hold = False
+                if playing:
+                    self.gone = 0.0
+                    if not self.state.get("closed") and not self.hold:
+                        over = load_settings().get("gm_over") or {}
+                        keys = [k for k, v in GM_SAFE.items() if over.get(k, v[2])]   # seulement les programmes connus
+                        if keys:
+                            log.info("Gaming mode: auto start")
+                            self.start(keys, counters, auto=True)
+                elif self.state.get("auto"):
+                    self.gone = self.gone or time.time()
+                    if time.time() - self.gone >= self.AUTO_END_S:
+                        self.gone = 0.0
+                        log.info("Gaming mode: auto restore")
+                        self.restore()
+            except Exception:
+                log.exception("Gaming mode: auto")
+
+
+GAMEMODE = GamingMode()
+
+
 HOTKEY = [None]
 
 
+# --------------------------------------------------------------------------
+# Temps de jeu (par jour et par jeu, gardé 400 jours)
+# --------------------------------------------------------------------------
+PLAYTIME_FILE = os.path.join(DATA_DIR, "playtime.json")
+
+
+class PlayTime:
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.days = {}
+        try:
+            with open(PLAYTIME_FILE, encoding="utf-8") as f:
+                d = json.load(f)
+            if isinstance(d, dict):
+                self.days = {k: v for k, v in d.get("days", {}).items() if isinstance(v, dict)}
+        except Exception:
+            pass
+        self.filled = bool(self.days)
+
+    def _save(self):
+        try:
+            with open(PLAYTIME_FILE, "w", encoding="utf-8") as f:
+                json.dump({"days": self.days}, f, separators=(",", ":"))
+        except OSError:
+            log.exception("Play time: save")
+
+    def _add(self, name, start, dur):
+        day = time.strftime("%Y-%m-%d", time.localtime(start))
+        dd = self.days.setdefault(day, {})
+        dd[name] = int(dd.get(name, 0) + dur)
+
+    def add(self, name, start, dur):
+        with self.lock:
+            self._add(name, start, dur)
+            keep = time.strftime("%Y-%m-%d", time.localtime(time.time() - 400 * 86400))
+            self.days = {k: v for k, v in self.days.items() if k >= keep}
+            self._save()
+
+    def data(self):
+        with self.lock:
+            if not self.filled and GAMES[0]:          # 1re fois : on reprend les sessions déjà enregistrées
+                for g in GAMES[0].sessions:
+                    self._add(g["name"], g["start"], g["dur"])
+                self.filled = True
+                self._save()
+            days = {k: dict(v) for k, v in self.days.items()}
+        now = time.time()
+        for c in (GAMES[0].curs.values() if GAMES[0] else []):        # partie en cours
+            day = time.strftime("%Y-%m-%d", time.localtime(c["start"]))
+            days.setdefault(day, {})[c["name"]] = days.get(day, {}).get(c["name"], 0) + int(now - c["start"])
+        last7 = [time.strftime("%Y-%m-%d", time.localtime(now - i * 86400)) for i in range(6, -1, -1)]
+        week, total = {}, {}
+        for k, v in days.items():
+            for n, s in v.items():
+                total[n] = total.get(n, 0) + s
+                if k in last7:
+                    week[n] = week.get(n, 0) + s
+        return {"days": [{"day": d, "s": sum(days.get(d, {}).values())} for d in last7],
+                "today": sum(days.get(last7[-1], {}).values()), "week": sum(week.values()),
+                "games": sorted(({"name": n, "week": week.get(n, 0), "total": s} for n, s in total.items()),
+                                key=lambda x: (-x["week"], -x["total"]))[:12]}
+
+
+PLAYTIME = PlayTime()
+
+
+# --------------------------------------------------------------------------
+# Bilan de la semaine (à partir de l'historique minute par minute)
+# --------------------------------------------------------------------------
+WEEK_CACHE = [0, None]
+
+
+def week_summary():
+    if WEEK_CACHE[1] and time.time() - WEEK_CACHE[0] < 600:
+        return WEEK_CACHE[1]
+    since = time.time() - 7 * 86400
+    pts = []
+    for f in _hist_files()[-8:]:
+        pts += _hist_read(f, lambda t: t >= since)
+    if len(pts) < 30:
+        res = {"ready": False, "minutes": len(pts)}
+    else:
+        hours = {}
+        for p in pts:
+            hours.setdefault(p["t"] // 3600, []).append(p)
+        def load(a):
+            return sum((x.get("c") or 0) + (x.get("g") or 0) for x in a) / len(a)
+        busy_h = max((h for h in hours if len(hours[h]) >= 10), key=lambda h: load(hours[h]), default=None)
+        game = None
+        if busy_h is not None and GAMES[0]:
+            t0, t1 = busy_h * 3600, busy_h * 3600 + 3600
+            ov = [(min(t1, g["end"]) - max(t0, g["start"]), g["name"]) for g in GAMES[0].sessions if g["end"] > t0 and g["start"] < t1]
+            game = max(ov)[1] if ov else None
+        mx = lambda k: max(((p.get(k) or 0), p["t"]) for p in pts)
+        temps = [p["T"] for p in pts if p.get("T")]
+        res = {"ready": True, "minutes": len(pts), "busy": busy_h * 3600 if busy_h is not None else None,
+               "busy_load": round(load(hours[busy_h])) if busy_h is not None else None, "game": game,
+               "cpu_max": mx("C")[0], "gpu_max": mx("G")[0], "ram_max": mx("r")[0], "vram_max": mx("v")[0],
+               "temp_max": max(temps) if temps else None,
+               "cpu_avg": round(sum(p.get("c") or 0 for p in pts) / len(pts)),
+               "ram_avg": round(sum(p.get("r") or 0 for p in pts) / len(pts)),
+               "play": PLAYTIME.data()["week"]}
+    WEEK_CACHE[0], WEEK_CACHE[1] = time.time(), res
+    return res
+
+
+# --------------------------------------------------------------------------
+# Programmes au démarrage : liste, RAM utilisée maintenant, activer / désactiver (comme le Gestionnaire des tâches)
+# --------------------------------------------------------------------------
+STARTUP_APPROVED = r"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved"
+
+
+def _exe_of(cmd):
+    cmd = (cmd or "").strip()
+    if cmd.startswith('"'):
+        return cmd[1:].split('"', 1)[0]
+    m = re.match(r"(.+?\.exe)\b", cmd, re.I)
+    return m.group(1) if m else cmd.split(" ")[0]
+
+
+def startup_list():
+    if not IS_WIN:
+        return []
+    import winreg
+    H = {"HKCU": winreg.HKEY_CURRENT_USER, "HKLM": winreg.HKEY_LOCAL_MACHINE}
+
+    def enabled(scope, sub, name):
+        try:
+            with winreg.OpenKey(H[scope], STARTUP_APPROVED + "\\" + sub) as k:
+                v, _ = winreg.QueryValueEx(k, name)
+                return not (bool(v) and v[0] % 2 == 1)
+        except OSError:
+            return True
+    items = []
+    for scope, path, sub in (("HKCU", r"Software\Microsoft\Windows\CurrentVersion\Run", "Run"),
+                             ("HKLM", r"Software\Microsoft\Windows\CurrentVersion\Run", "Run"),
+                             ("HKLM", r"Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Run", "Run32")):
+        try:
+            with winreg.OpenKey(H[scope], path) as k:
+                i = 0
+                while True:
+                    try:
+                        name, val, _t = winreg.EnumValue(k, i)
+                    except OSError:
+                        break
+                    i += 1
+                    if name:
+                        items.append({"id": "%s|%s|%s" % (scope, sub, name), "name": name, "cmd": str(val),
+                                      "exe": os.path.expandvars(_exe_of(str(val))), "all": scope == "HKLM",
+                                      "on": enabled(scope, sub, name)})
+        except OSError:
+            pass
+    for scope, folder in (("HKCU", r"%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup"),
+                          ("HKLM", r"%PROGRAMDATA%\Microsoft\Windows\Start Menu\Programs\Startup")):
+        folder = os.path.expandvars(folder)
+        try:
+            for f in os.listdir(folder):
+                if f.lower() != "desktop.ini":
+                    items.append({"id": "%s|StartupFolder|%s" % (scope, f), "name": os.path.splitext(f)[0],
+                                  "cmd": os.path.join(folder, f), "exe": "", "all": scope == "HKLM",
+                                  "on": enabled(scope, "StartupFolder", f)})
+        except OSError:
+            pass
+    # RAM utilisée maintenant par le programme (s'il tourne)
+    ram = {}
+    for p in psutil.process_iter(["name"]):
+        try:
+            n = (p.info.get("name") or "").lower()
+            m = p.memory_info()
+            ram[n] = ram.get(n, 0) + (getattr(m, "private", 0) or m.rss)
+        except psutil.Error:
+            pass
+    for it in items:
+        base = os.path.basename(it["exe"]).lower()
+        it["ram"] = ram.get(base) if base else None
+        r = it["ram"] or 0
+        it["impact"] = None if it["ram"] is None else 2 if r >= 300 * 2 ** 20 else 1 if r >= 80 * 2 ** 20 else 0
+    items.sort(key=lambda x: (not x["on"], -(x["ram"] or 0), x["name"].lower()))
+    return items
+
+
+def startup_set(item_id, on):
+    """Comme le Gestionnaire des tâches : valeur StartupApproved (02 = activé, 03 = désactivé). HKLM : demande l'admin."""
+    try:
+        scope, sub, name = item_id.split("|", 2)
+    except ValueError:
+        return False
+    if scope not in ("HKCU", "HKLM") or sub not in ("Run", "Run32", "StartupFolder") or not IS_WIN:
+        return False
+    if item_id not in {i.get("id") for i in startup_list()}:      # seulement une entrée réellement présente
+        return False
+    data = bytes([2 if on else 3, 0, 0, 0]) + (b"\0" * 8 if on else int((time.time() + 11644473600) * 1e7).to_bytes(8, "little"))
+    if scope == "HKCU":
+        import winreg
+        try:
+            with winreg.CreateKey(winreg.HKEY_CURRENT_USER, STARTUP_APPROVED + "\\" + sub) as k:
+                winreg.SetValueEx(k, name, 0, winreg.REG_BINARY, data)
+            log.info("Startup: %s %s", name, "enabled" if on else "disabled")
+            return True
+        except OSError:
+            log.exception("Startup: set")
+            return False
+    key = "HKLM:\\" + STARTUP_APPROVED + "\\" + sub
+    cmd = ("New-Item -Path '%s' -Force | Out-Null; Set-ItemProperty -Path '%s' -Name '%s' -Type Binary -Value ([byte[]](%s))"
+           % (key, key, ps_q(name), ",".join(str(b) for b in data)))
+    ok = run_elevated_ps(cmd)
+    log.info("Startup (admin): %s %s -> %s", name, "enabled" if on else "disabled", ok)
+    return ok
+
+
+
+
+
 def make_handler(sampler, details):
+    def gpu_hint():
+        """Carte graphique dédiée (sinon la seule) : luid et VRAM totale, pour le scan du mode gaming."""
+        try:
+            with sampler.lock:
+                gs = list((sampler.latest or {}).get("gpus") or [])
+        except Exception:
+            gs = []
+        gs = [g for g in gs if g.get("id")]
+        g = next((g for g in gs if not g.get("integrated")), gs[0] if gs else None)
+        return {"luid": str(g["id"]).lower(), "vram_total": g.get("vram_total") or 0} if g else {}
+
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *a):
             pass
@@ -3455,6 +4413,11 @@ def make_handler(sampler, details):
 
         def _cross_site(self):
             # une page web extérieure ne doit pas pouvoir déclencher d'actions sur l'appli
+            # Host : bloque le « DNS rebinding » (un site qui se fait passer pour 127.0.0.1)
+            host = (self.headers.get("Host") or "").lower()
+            port = self.server.server_address[1]
+            if host not in ("127.0.0.1:%d" % port, "localhost:%d" % port):
+                return True
             return self.headers.get("Sec-Fetch-Site", "same-origin") not in ("same-origin", "none")
 
         def _q(self):
@@ -3547,6 +4510,30 @@ def make_handler(sampler, details):
                 if act == "apps":
                     data = {"apps": windowed_apps()}
                 return self._send(200, json.dumps(data).encode(), "application/json")
+            if path.startswith("/api/gamemode"):
+                q, act = self._q(), path[len("/api/gamemode"):].strip("/")
+                try:
+                    if act == "start":
+                        keys = [k for k in (q.get("keys") or "").lower().split("|") if k][:60]
+                        data = GAMEMODE.start(keys, getattr(details, "counters", None), hint=gpu_hint())
+                    elif act == "restore":
+                        data = GAMEMODE.restore(manual=True)
+                    elif act == "cfg":
+                        if "auto" in q:
+                            update_settings(gm_auto=q["auto"] == "1")
+                        if "over" in q:
+                            o = json.loads(q["over"])
+                            if isinstance(o, dict):
+                                update_settings(gm_over={str(k)[:80]: bool(v) for k, v in list(o.items())[:300]})
+                        data = {"auto": bool(load_settings().get("gm_auto")), **GAMEMODE.status()}
+                    elif act == "plan":
+                        data = GAMEMODE.plan(getattr(details, "counters", None), gpu_hint())
+                    else:
+                        data = GAMEMODE.status()
+                except Exception:
+                    log.exception("Gaming mode")
+                    data = {**GAMEMODE.status(), "error": True}
+                return self._send(200, json.dumps(data).encode(), "application/json")
             if path == "/api/games":
                 q = self._q()
                 if "on" in q:
@@ -3637,6 +4624,22 @@ def make_handler(sampler, details):
             if path == "/api/trim":
                 n = trim_memory()
                 return self._send(200, json.dumps({"trimmed": n}).encode(), "application/json")
+            if path == "/api/playtime":
+                return self._send(200, json.dumps(PLAYTIME.data()).encode(), "application/json")
+            if path == "/api/week":
+                return self._send(200, json.dumps(week_summary()).encode(), "application/json")
+            if path == "/api/startup":
+                q = self._q()
+                if "id" in q:
+                    ok = startup_set(q["id"], q.get("on") == "1")
+                    if getattr(sampler, "insights", None):
+                        threading.Thread(target=sampler.insights._load_startup, daemon=True).start()
+                    return self._send(200, json.dumps({"ok": ok, "items": startup_list()}).encode(), "application/json")
+                return self._send(200, json.dumps({"items": startup_list()}).encode(), "application/json")
+            if path == "/api/specs/scan":
+                if SPECS_SCAN[0]:
+                    SPECS_SCAN[0]()
+                return self._send(200, json.dumps({"busy": SPECS_BUSY[0]}).encode(), "application/json")
             if path == "/api/specs":
                 return self._send(200, json.dumps(sampler.specs).encode(), "application/json")
             if path == "/api/settings":
@@ -4205,6 +5208,7 @@ class DesktopWidget:
         self.game_box = tk.Frame(row, bg=self.BG)
         self.fps_lbl = tk.Label(self.game_box, text="", bg=self.BG, fg=self.FG, font=self.bold)
         self.game_lbl = tk.Label(self.game_box, text="●", bg=self.BG, fg="#5fd38d", font=self.bold)
+        self.hot_lbl = tk.Label(self.game_box, text="", bg=self.BG, fg=self.BAD, font=self.bold)   # alerte température en jeu
         self.game_lbl.pack(side="left", pady=(0, self.S(2)))
         self._game_on = False
         tk.Frame(row, bg=self.BG, width=self.S(10)).pack(side="right")                             # marge droite du cadre
@@ -4455,6 +5459,14 @@ class DesktopWidget:
                         self.fps_lbl.pack(side="left", padx=(self.S(5), 0))
                     else:
                         self.fps_lbl.pack_forget()
+                # en jeu : signal si la carte graphique chauffe trop (température du processeur illisible sans pilote)
+                ht = ("⚠ %d°C" % m["temp"]) if on and m["temp"] and m["temp"] >= 85 else ""
+                if self.hot_lbl.cget("text") != ht:
+                    self.hot_lbl.configure(text=ht)
+                    if ht:
+                        self.hot_lbl.pack(side="left", padx=(self.S(6), 0))
+                    else:
+                        self.hot_lbl.pack_forget()
                 if on != self._game_on:
                     self._game_on = on
                     if on:
@@ -4649,17 +5661,39 @@ def main():
     sampler = Sampler(counters, kmt)
     sampler.start()
 
-    def load_specs():
+    # Composants : scannés seulement à la demande (bouton dans l'onglet), puis gardés dans specs.json
+    def scan_specs():
         try:
-            sampler.specs = collect_specs(kmt)
+            s = collect_specs(kmt)
+            s["date"] = time.time()
+            sampler.specs = s
+            try:
+                with open(SPECS_FILE, "w", encoding="utf-8") as f:
+                    json.dump(s, f, separators=(",", ":"))
+            except OSError:
+                log.exception("Save components")
         except Exception:
             log.exception("Could not read components")
-            sampler.specs = {"ready": True, "error": True, "tips": []}
-    threading.Thread(target=load_specs, daemon=True).start()
+        finally:
+            SPECS_BUSY[0] = False
+
+    def start_scan():
+        if not SPECS_BUSY[0]:
+            SPECS_BUSY[0] = True
+            threading.Thread(target=scan_specs, daemon=True).start()
+    SPECS_SCAN[0] = start_scan
+    cached = None
+    try:
+        with open(SPECS_FILE, encoding="utf-8") as f:
+            cached = json.load(f)
+    except (OSError, ValueError):
+        pass
+    sampler.specs = cached if isinstance(cached, dict) and cached.get("ready") else minimal_specs(kmt)
 
     url = start_server(sampler)
     log.info("Server on %s", url)
     HealthWatch(counters).start()
+    threading.Thread(target=GAMEMODE.auto_loop, args=(counters,), daemon=True).start()
 
     def quit_app(*_):
         QUIT_HOOK[0] = None

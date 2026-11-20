@@ -24,7 +24,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import psutil
 
 APP_NAME = "Pulse Monitor"
-APP_VERSION = "0.9.9"
+APP_VERSION = "0.9.10"
 IS_WIN = os.name == "nt"
 FROZEN = bool(getattr(sys, "frozen", False))      # version .exe (PyInstaller)
 # données (réglages, historique…) : à côté du .exe ou du script ; fichiers de l'appli (page, icônes) : dans le paquet
@@ -259,8 +259,38 @@ KMTQAITYPE_ADAPTERPERFDATA = 62
 class D3DKMT:
     def __init__(self):
         self.adapters = []  # [{luid, name, handle}]
+        self.t_refresh = 0.0
         if not IS_WIN:
             return
+        self.adapters = self._enum()
+        log.info("GPU (D3DKMT) : %s", [(a["name"], a["luid"]) for a in self.adapters])
+
+    def refresh(self, seen_luids):
+        """Après une mise à jour du pilote graphique (ou un plantage du pilote), Windows donne un nouvel
+        identifiant à la carte : les anciennes poignées ne répondent plus (0 %, mémoire « – », température N/D).
+        On recherche alors les cartes, au plus une fois toutes les 30 s."""
+        if not IS_WIN or not seen_luids or time.time() - self.t_refresh < 30:
+            return False
+        if all(a["luid"] in seen_luids for a in self.adapters) and self.adapters:
+            return False
+        self.t_refresh = time.time()
+        old, new = self.adapters, self._enum()
+        same = [a["luid"] for a in old] == [a["luid"] for a in new]
+        if not same:
+            self.adapters = new                         # remplacée d'un coup (lue par d'autres threads)
+        for a in (new if same else old):                # libère les poignées en trop
+            try:
+                h = ctypes.c_uint(a["handle"])
+                ctypes.WinDLL("gdi32").D3DKMTCloseAdapter(ctypes.byref(h))
+            except Exception:
+                pass
+        if same:
+            return False
+        log.info("GPU: graphics cards changed (driver update?), new list: %s", [(a["name"], a["luid"]) for a in self.adapters])
+        return True
+
+    def _enum(self):
+        found = []
         try:
             gdi = ctypes.WinDLL("gdi32")
             self._query = gdi.D3DKMTQueryAdapterInfo
@@ -270,7 +300,7 @@ class D3DKMT:
             arr = (_ADAPTERINFO * req.NumAdapters)()
             req.pAdapters = ctypes.cast(arr, ctypes.POINTER(_ADAPTERINFO))
             if enum(ctypes.byref(req)) != 0:
-                return
+                return found
             seen = set()
             for i in range(req.NumAdapters):
                 a = arr[i]
@@ -282,11 +312,10 @@ class D3DKMT:
                 if not name or "basic render" in name.lower() or luid in seen:
                     continue
                 seen.add(luid)
-                self.adapters.append({"luid": luid, "name": name, "handle": a.hAdapter})
-            log.info("GPU (D3DKMT) : %s", [(a["name"], a["luid"]) for a in self.adapters])
+                found.append({"luid": luid, "name": name, "handle": a.hAdapter})
         except Exception:
             log.exception("D3DKMT unavailable")
-            self.adapters = []
+        return found
 
     def _q(self, handle, qtype, struct):
         q = _QUERYADAPTERINFO(handle, qtype, ctypes.cast(ctypes.byref(struct), ctypes.c_void_p),
@@ -1336,6 +1365,7 @@ class Insights:
         cpu, core = sum(loads) / len(loads), max(loads)
         ram = psutil.virtual_memory().percent
         gpu_use, gpu_mem, _ = self.s.counters.snapshot()
+        self.s.kmt.refresh(gpu_mem)
         best, vr = 0.0, 0.0
         specs = self.s.specs.get("gpus", [])
         for a in self.s.kmt.adapters:
@@ -1619,6 +1649,7 @@ class Sampler(threading.Thread):
         usage = psutil.cpu_percent(None)
         per = psutil.cpu_percent(None, percpu=True)
         gpu_use, gpu_mem, cpu_perf = self.counters.snapshot()
+        self.kmt.refresh(gpu_mem)
         base = (specs.get("cpu") or {}).get("base_mhz")
         if cpu_perf and base:
             freq = base * cpu_perf / 100.0
@@ -2251,6 +2282,7 @@ class History(threading.Thread):
         self.prev = cur
         ram = psutil.virtual_memory().percent
         gpu_use, gpu_mem, _ = self.s.counters.snapshot()
+        self.s.kmt.refresh(gpu_mem)
         specs = self.s.specs.get("gpus", []) if isinstance(self.s.specs, dict) else []
         gpu, temp, vram, luid = 0.0, None, 0.0, None
         for a in self.kmt.adapters:
@@ -5510,6 +5542,7 @@ class DesktopWidget:
         self.prev_cpu = cur
         vm = psutil.virtual_memory()
         gpu_use, gpu_mem, _ = self.s.counters.snapshot()
+        self.s.kmt.refresh(gpu_mem)
         specs = self.s.specs.get("gpus", []) if isinstance(self.s.specs, dict) else []
         best = None
         for a in self.kmt.adapters:
